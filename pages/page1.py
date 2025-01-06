@@ -3,6 +3,8 @@ from utils.components import Navbar
 import pydeck as pdk
 from geopy.geocoders import Nominatim
 import geopy.exc
+import urllib.parse
+import webbrowser
 
 def get_coordinates(address):
     try:
@@ -28,6 +30,7 @@ def main():
         # ...code pour afficher la liste des restaurants...
     
     with col2:
+        st.header("Recherche par adresse")
         search_address = st.text_input("Entrez une adresse")
         radius = st.slider("Rayon (km)", min_value=1, max_value=10, step=1, value=5)
         
@@ -66,6 +69,29 @@ def main():
             st.pydeck_chart(map)
         else:
             st.error("Adresse introuvable. Veuillez entrer une adresse valide.")
+        
+        st.markdown("---")
+        st.header("Générer un itinéraire de transport en commun")
+        
+        departure_address = st.text_input("Adresse de départ")
+        arrival_address = st.text_input("Adresse d'arrivée")
+        
+        if st.button("Calculer l'itinéraire"):
+            dep_lat, dep_lon = get_coordinates(departure_address)
+            arr_lat, arr_lon = get_coordinates(arrival_address)
+            
+            if dep_lat and dep_lon and arr_lat and arr_lon:
+                # Encoder les coordonnées
+                from_coord = f"{dep_lon};{dep_lat}"
+                to_coord = f"{arr_lon};{arr_lat}"
+                encoded_from = urllib.parse.quote(from_coord)
+                encoded_to = urllib.parse.quote(to_coord)
+                
+                tcl_url = f"https://www.tcl.fr/itineraires?date=now&pmr=0&from={encoded_from}&to={encoded_to}"
+                
+                webbrowser.open_new_tab(tcl_url)
+            else:
+                st.error("Une ou plusieurs adresses sont invalides. Veuillez vérifier vos entrées.")
 
 if __name__ == '__main__':
     main()
