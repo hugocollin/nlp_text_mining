@@ -1,9 +1,9 @@
 import streamlit as st
 def Navbar():
     with st.sidebar:
-        st.page_link('app.py', label='Home', icon='🏠')
-        st.page_link('pages/page1.py', label='View Tab', icon='📊')
-        st.page_link('pages/page2.py', label='Recommendation Tab', icon='📈')
+        st.page_link('app.py', label='Accueil', icon='🏠')
+        st.page_link('pages/page1.py', label='Restaurants', icon='🍽️')
+        st.page_link('pages/page2.py', label='Comparatif', icon='📊')
         
 def Project_Structure():
     st.code('''
