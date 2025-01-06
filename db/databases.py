@@ -1,16 +1,26 @@
 import sqlite3
 from contextlib import closing
+import os
 
 DATABASE_NAME = "restaurant_reviews.db" 
 
 
 def create_schema():
-    """Applique le schéma de la base de données depuis le fichier db_schema.py"""
-    with open("db_schema.sql", "r") as f:
+    """Applique le schéma de la base de données depuis le fichier db_schema.sql"""
+    # Construire le chemin vers le fichier db_schema.sql
+    base_dir = os.path.dirname(__file__)  # Répertoire actuel du fichier databases.py
+    schema_path = os.path.join(base_dir, "db_schema.sql")
+
+    # Lire le contenu du fichier de schéma
+    with open(schema_path, "r") as f:
         schema = f.read()
 
     # Exécuter le schéma dans la base de données
-    execute_query(schema)
+    with closing(get_connection()) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.executescript(schema)  # Utiliser executescript pour exécuter plusieurs requêtes SQL
+            conn.commit()
+
     print("Schéma de la base de données appliqué avec succès.")
 
 
