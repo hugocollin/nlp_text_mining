@@ -1,29 +1,15 @@
 import streamlit as st
-from utils.components import Navbar
+from utils.components import Navbar, get_coordinates
 import pydeck as pdk
-from geopy.geocoders import Nominatim
-import geopy.exc
-import urllib.parse
-import webbrowser
 
-st.set_page_config(page_title="Restaurants", layout="wide")
-
-def get_coordinates(address):
-    try:
-        geolocator = Nominatim(user_agent="streamlit_app", timeout=10)
-        location = geolocator.geocode(f"{address}, Rhône, France")
-        if location:
-            return location.latitude, location.longitude
-    except geopy.exc.GeocoderServiceError:
-        st.toast("❌ Service de cartographie indisponible. Veuillez réessayer plus tard.")
-    return None, None
+st.set_page_config(page_title="[Titre de l\'application] - Explorer", layout="wide")
 
 def main():
     Navbar()
 
-    st.title('🍽️ Restaurants')
+    st.title('🔍 Explorer')
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         st.header("Recherche par restaurant")
@@ -92,35 +78,6 @@ def main():
             st.pydeck_chart(map)
         else:
             st.error("Adresse introuvable. Veuillez entrer une adresse valide.") # [TEMP]
-    
-    with col3:
-        st.header("Rechercher un itinéraire de transport en commun")
-
-        departure_address = st.text_input(label="Adresse de départ", label_visibility="collapsed", placeholder="Adresse de départ")
-        arrival_address = st.text_input(label="Adresse d'arrivée", label_visibility="collapsed", placeholder="Adresse d'arrivée")
-        
-        if st.button("GO ! 🏎️"):
-            if not departure_address or not arrival_address:
-                st.toast("⚠️ Veuillez renseigner les adresses de départ et d'arrivée.")
-            else:
-                st.toast("⏳ Calcul de l'itinéraire en cours...")
-
-                dep_lat, dep_lon = get_coordinates(departure_address)
-                arr_lat, arr_lon = get_coordinates(arrival_address)
-                
-                if dep_lat and dep_lon and arr_lat and arr_lon:
-                    from_coord = f"{dep_lon};{dep_lat}"
-                    to_coord = f"{arr_lon};{arr_lat}"
-                    encoded_from = urllib.parse.quote(from_coord)
-                    encoded_to = urllib.parse.quote(to_coord)
-                    
-                    tcl_url = f"https://www.tcl.fr/itineraires?date=now&pmr=0&from={encoded_from}&to={encoded_to}"
-
-                    st.toast("✅ Itinéraire calculé avec succès !")
-                    
-                    webbrowser.open_new_tab(tcl_url)
-                else:
-                    st.error("Une ou plusieurs adresses sont invalides. Veuillez vérifier vos entrées.") # [TEMP]
 
 if __name__ == '__main__':
     main()
