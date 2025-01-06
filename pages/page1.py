@@ -6,15 +6,16 @@ import geopy.exc
 import urllib.parse
 import webbrowser
 
+st.set_page_config(page_title="Restaurants", layout="wide")
+
 def get_coordinates(address):
     try:
         geolocator = Nominatim(user_agent="streamlit_app", timeout=10)
-        # Limiter la recherche au département 69 en ajoutant "Rhône, France"
         location = geolocator.geocode(f"{address}, Rhône, France")
         if location:
             return location.latitude, location.longitude
     except geopy.exc.GeocoderServiceError:
-        st.error("Service de géocodification indisponible. Veuillez réessayer plus tard.")
+        st.toast("❌ Service de cartographie indisponible. Veuillez réessayer plus tard.")
     return None, None
 
 def main():
@@ -22,16 +23,38 @@ def main():
 
     st.title('🍽️ Restaurants')
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        search_restaurant = st.text_input("Rechercher un restaurant")
+        st.header("Recherche par restaurant")
+        restaurant_col1, restaurant_col2 = st.columns([4, 1])
+
+        with restaurant_col1:
+            search_restaurant = st.text_input(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant")
+        
+        with restaurant_col2:
+            if st.button("🔍", key="search_restaurant_btn"):
+                if search_restaurant:
+                    st.toast("Les résultats seront disponibles dans une version ultérieure") # [TEMP]
+                else:
+                    st.toast("⚠️ Veuillez renseigner le nom d'un restaurant à rechercher")
+
         st.write("Liste des restaurants")
-        # ...code pour afficher la liste des restaurants...
+
+        # [TEMP] Affichage des restaurants dès que la base de données sera disponible
     
     with col2:
         st.header("Recherche par adresse")
-        search_address = st.text_input("Entrez une adresse")
+        address_col1, address_col2 = st.columns([4, 1])
+
+        with address_col1:
+            search_address = st.text_input(label="Recherchez une adresse", label_visibility="collapsed", placeholder="Recherchez une adresse")
+        
+        with address_col2:
+            if st.button("🔍", key="search_address_btn"):
+                if not search_address:
+                    st.toast("⚠️ Veuillez renseigner une adresse à rechercher")
+
         radius = st.slider("Rayon (km)", min_value=1, max_value=10, step=1, value=5)
         
         # Coordonnées de Lyon
@@ -68,30 +91,36 @@ def main():
             
             st.pydeck_chart(map)
         else:
-            st.error("Adresse introuvable. Veuillez entrer une adresse valide.")
+            st.error("Adresse introuvable. Veuillez entrer une adresse valide.") # [TEMP]
+    
+    with col3:
+        st.header("Rechercher un itinéraire de transport en commun")
+
+        departure_address = st.text_input(label="Adresse de départ", label_visibility="collapsed", placeholder="Adresse de départ")
+        arrival_address = st.text_input(label="Adresse d'arrivée", label_visibility="collapsed", placeholder="Adresse d'arrivée")
         
-        st.markdown("---")
-        st.header("Générer un itinéraire de transport en commun")
-        
-        departure_address = st.text_input("Adresse de départ")
-        arrival_address = st.text_input("Adresse d'arrivée")
-        
-        if st.button("Calculer l'itinéraire"):
-            dep_lat, dep_lon = get_coordinates(departure_address)
-            arr_lat, arr_lon = get_coordinates(arrival_address)
-            
-            if dep_lat and dep_lon and arr_lat and arr_lon:
-                # Encoder les coordonnées
-                from_coord = f"{dep_lon};{dep_lat}"
-                to_coord = f"{arr_lon};{arr_lat}"
-                encoded_from = urllib.parse.quote(from_coord)
-                encoded_to = urllib.parse.quote(to_coord)
-                
-                tcl_url = f"https://www.tcl.fr/itineraires?date=now&pmr=0&from={encoded_from}&to={encoded_to}"
-                
-                webbrowser.open_new_tab(tcl_url)
+        if st.button("GO ! 🏎️"):
+            if not departure_address or not arrival_address:
+                st.toast("⚠️ Veuillez renseigner les adresses de départ et d'arrivée.")
             else:
-                st.error("Une ou plusieurs adresses sont invalides. Veuillez vérifier vos entrées.")
+                st.toast("⏳ Calcul de l'itinéraire en cours...")
+
+                dep_lat, dep_lon = get_coordinates(departure_address)
+                arr_lat, arr_lon = get_coordinates(arrival_address)
+                
+                if dep_lat and dep_lon and arr_lat and arr_lon:
+                    from_coord = f"{dep_lon};{dep_lat}"
+                    to_coord = f"{arr_lon};{arr_lat}"
+                    encoded_from = urllib.parse.quote(from_coord)
+                    encoded_to = urllib.parse.quote(to_coord)
+                    
+                    tcl_url = f"https://www.tcl.fr/itineraires?date=now&pmr=0&from={encoded_from}&to={encoded_to}"
+
+                    st.toast("✅ Itinéraire calculé avec succès !")
+                    
+                    webbrowser.open_new_tab(tcl_url)
+                else:
+                    st.error("Une ou plusieurs adresses sont invalides. Veuillez vérifier vos entrées.") # [TEMP]
 
 if __name__ == '__main__':
     main()
