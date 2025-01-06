@@ -1,11 +1,18 @@
 import streamlit as st
-from utils.components import Navbar, get_coordinates
+from utils.components import Navbar, get_coordinates, available_restaurants_options, multi_available_restaurants_options, add_restaurant_options
 import pydeck as pdk
 
 st.set_page_config(page_title="[Titre de l\'application] - Explorer", layout="wide")
 
-if 'show_add_restaurant_dialog' not in st.session_state:
-    st.session_state['show_add_restaurant_dialog'] = False
+@st.dialog("Ajouter un restaurant")
+def add_restaurant_dialog():
+    restaurant_select = st.selectbox(label="Sélectionner un restaurant à ajouter", label_visibility="collapsed", placeholder="Sélectionner un restaurant à ajouter", options=add_restaurant_options, key="restaurant_select")
+    
+    if st.button(icon="➕", label="Ajouter le restaurant"):
+        if restaurant_select != "Sélectionner un restaurant":
+            # Code pour rajouter le restaurant à la base de données
+            st.session_state['restaurant_added'] = True
+        st.rerun()
 
 def main():
     Navbar()
@@ -15,22 +22,12 @@ def main():
     add_restaurant_btn_col1, add_restaurant_btn_col2 = st.columns([3, 1])
 
     with add_restaurant_btn_col2:
-        if st.button("➕ Ajouter un restaurant", key="add_restaurant_btn"):
-            st.session_state['show_add_restaurant_dialog'] = True
-
-    # Boîte de dialogue pour ajouter un restaurant
-    if st.session_state['show_add_restaurant_dialog']:
-        with st.container():
-            st.markdown("### Ajouter un nouveau restaurant")
-            with st.form("add_restaurant_form"):
-                restaurant_name = st.text_input("Nom du restaurant", placeholder="Ex. : Le Bistro")
-                restaurant_address = st.text_input("Adresse du restaurant", placeholder="Ex. : 12 Rue de la République")
-                submit_button = st.form_submit_button("Ajouter")
-
-                if submit_button:
-                    # Ici, vous pouvez ajouter la logique pour sauvegarder le restaurant (base de données, fichier, etc.)
-                    st.toast(f"Restaurant '{restaurant_name}' ajouté avec succès!")
-                    st.session_state['show_add_restaurant_dialog'] = False  # Fermer la boîte de dialogue
+        if st.button(icon="➕", label="Ajouter un restaurant", key="add_restaurant_btn"):
+            add_restaurant_dialog()
+    
+    if st.session_state.get('restaurant_added'):
+        st.toast("🍽️ Restaurant ajouté avec succès")
+        st.session_state['restaurant_added'] = False
 
     header_container = st.container(border=True)
 
@@ -41,21 +38,20 @@ def main():
         search_col1, search_col2 = header_col1.columns([4, 1])
 
         with search_col1:
-            search_restaurant = search_col1.text_input(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant")
+            search_restaurant = search_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=multi_available_restaurants_options, key="search_restaurant")
             search_address = search_col1.text_input(label="Recherchez une adresse", label_visibility="collapsed", placeholder="Recherchez une adresse")
+            radius = search_col1.slider("Rayon (km)", min_value=1, max_value=10, step=1, value=5)
 
         with search_col2:
-            if search_col2.button("🔍", key="search_restaurant_btn"):
+            if search_col2.button(label="🔍", key="search_restaurant_btn"):
                 if search_restaurant:
                     search_col2.toast("Les résultats seront disponibles dans une version ultérieure") # [TEMP]
                 else:
                     search_col2.toast("⚠️ Veuillez renseigner le nom d'un restaurant à rechercher")
 
-            if search_col2.button("🔍", key="search_address_btn"):
+            if search_col2.button(label="🔍", key="search_address_btn"):
                 if not search_address:
                     search_col2.toast("⚠️ Veuillez renseigner une adresse à rechercher")
-
-        radius = search_col1.slider("Rayon (km)", min_value=1, max_value=10, step=1, value=5)
     
     with header_col2:
         header_col2.write("Filtres")
