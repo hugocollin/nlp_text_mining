@@ -2,6 +2,7 @@ import sqlite3
 from contextlib import closing
 import os
 
+
 DATABASE_NAME = "restaurant_reviews.db" 
 
 
@@ -23,6 +24,9 @@ def create_schema():
 
     print("Schéma de la base de données appliqué avec succès.")
 
+def database_exists():
+    """Vérifie si le fichier de la base de données SQLite existe."""
+    return os.path.exists(DATABASE_NAME)
 
 def get_connection():
     """Retourne une connexion à la base de données SQLite"""
@@ -52,7 +56,3 @@ def fetch_one(query, params=None):
         with closing(conn.cursor()) as cursor:
             cursor.execute(query, params)
             return cursor.fetchone()
-
-
-if __name__ == "__main__":
-    create_schema()

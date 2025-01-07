@@ -5,3 +5,4 @@ fake-useragent
 geopy
 streamlit
 SQLAlchemy
+sqlalchemy

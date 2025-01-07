@@ -13,31 +13,20 @@ CREATE TABLE dim_restaurants (
     adresse TEXT,
     url_link TEXT,
     email TEXT,
-    details TEXT,
+    -- details TEXT,
     telephone TEXT,
-    cuisines TEXT,    
+    cuisines TEXT, 
+    note_globale FLOAT,   
     cuisine_note FLOAT,
     service_note FLOAT,
     qualite_prix_note FLOAT,
     ambiance_note FLOAT,
-    regime_special TEXT,
     prix_min FLOAT,
     prix_max FLOAT,
     etoiles_michelin INTEGER,
-    latitude FLOAT,
-    longitude FLOAT
+    repas TEXT
 );
 
-CREATE TABLE dim_geographie (
-    id_geographie INTEGER PRIMARY KEY AUTOINCREMENT,
-    quartier TEXT,
-    ville TEXT NOT NULL,
-    region TEXT,
-    nombre_restaurants INTEGER,
-    transports_proches TEXT,
-    distance_parking FLOAT,
-    densite_socio_eco FLOAT
-);
 
 
 -- Table des avis

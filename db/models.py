@@ -1,26 +1,35 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, Date
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import relationship, sessionmaker, joinedload
 
 Base = declarative_base()
 
 class Restaurant(Base):
     __tablename__ = 'dim_restaurants'
 
+     # Colonnes de la table
     id_restaurant = Column(Integer, primary_key=True, autoincrement=True)
     nom = Column(String, nullable=False)
-    url_link = Column(String, nullable=False)
     adresse = Column(String)
+    url_link = Column(String)
+    email = Column(String)
+    # details = Column(String)  # Pour stocker des informations comme 'FOURCHETTE DE PRIX', etc.
+    telephone = Column(String)
+    cuisines = Column(String)
+    note_globale = Column(Float)  # NOTE GLOBALE
     cuisine_note = Column(Float)
     service_note = Column(Float)
-    quality_price_note = Column(Float)
+    qualite_prix_note = Column(Float)
     ambiance_note = Column(Float)
-    id_geographie = Column(Integer, ForeignKey('dim_geographie.id_geographie'))
+    prix_min = Column(Float)
+    prix_max = Column(Float)
+    etoiles_michelin = Column(Integer)
+    repas = Column(String)  # POUR 'REPAS' (Déjeuner, Dîner, etc.)
 
-    geographie = relationship("Geographie", back_populates="restaurants")
+    
     avis = relationship("Review", back_populates="restaurant")
 
-class Geographie(Base):
+"""class Geographie(Base):
     __tablename__ = 'dim_geographie'
 
     id_geographie = Column(Integer, primary_key=True, autoincrement=True)
@@ -34,7 +43,7 @@ class Geographie(Base):
     population = Column(Integer)
 
     restaurants = relationship("Restaurant", back_populates="geographie")
-
+"""
 class Review(Base):
     __tablename__ = 'fact_reviews'
 
@@ -46,10 +55,6 @@ class Review(Base):
     review_text = Column(Text)
     rating = Column(Float)
     type_visit = Column(String)
-    cuisine_note = Column(Float)
-    service_note = Column(Float)
-    quality_price_note = Column(Float)
-    ambiance_note = Column(Float)
 
     restaurant = relationship("Restaurant", back_populates="avis")
     user = relationship("User", back_populates="avis")
@@ -58,8 +63,8 @@ class User(Base):
     __tablename__ = 'dim_users'
 
     id_user = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String, nullable=False, unique=True)
-    profile = Column(String)
+    user_name = Column(String, nullable=False)
+    user_profile = Column(String, nullable=False, unique=True)
     num_contributions = Column(Integer)
 
     avis = relationship("Review", back_populates="user")
@@ -72,3 +77,18 @@ def init_db(db_path="sqlite:///restaurant_reviews.db"):
 def get_session(engine):
     Session = sessionmaker(bind=engine)
     return Session()
+
+def get_all_restaurants(session):
+    """Récupère tous les restaurants depuis la base de données."""
+    restaurants = session.query(Restaurant).all()
+    return restaurants
+
+
+def get_restaurants_with_reviews_and_users(session):
+    """Récupère tous les restaurants avec les avis associés et les utilisateurs des avis."""
+    # Utilisation de `joinedload` pour charger les avis et les utilisateurs associés
+    restaurants_with_reviews = session.query(Restaurant).\
+        options(joinedload(Restaurant.avis).joinedload(Review.user)).\
+        all()
+    
+    return restaurants_with_reviews
