@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Restaurant, Review, User
+from models import Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
 
 # Créer l'engine et la session
 engine = create_engine('sqlite:///restaurant_reviews.db')  # Remplacez par votre URI de base de données
