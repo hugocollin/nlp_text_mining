@@ -1,6 +1,7 @@
 import streamlit as st
-from utils.components import Navbar, get_coordinates, available_restaurants_options, multi_available_restaurants_options, add_restaurant_options
+from utils.components import Navbar, get_coordinates, tcl_api, multi_available_restaurants_options, add_restaurant_options
 import pydeck as pdk
+import webbrowser
 
 st.set_page_config(page_title="[Titre de l\'application] - Explorer", layout="wide")
 
@@ -59,7 +60,18 @@ def main():
     results_display_col1, results_display_col2 = st.columns(2)
     
     with results_display_col1:
-        st.write("[Liste des restaurants]")
+        # [TEMP]
+        test_container = st.container(border=True)
+        test_col1, test_col2 = test_container.columns([2, 1])
+        tcl_url, duration = tcl_api("30 Cours de Verdun Perrache")
+        with test_col1:
+            test_col1.write("Brasserie Georges")
+        with test_col2:
+            if tcl_url is not None:
+                if test_col2.button(label=f"GO ! {duration}"):
+                    webbrowser.open_new_tab(tcl_url)
+            else:
+                test_col2.button("Trajet indisponible", disabled=True)
     
     with results_display_col2:
         # Coordonnées de Lyon
@@ -75,7 +87,7 @@ def main():
                 latitude=addr_lat,
                 longitude=addr_lon,
                 zoom=10,
-                pitch=0,
+                pitch=0
             )
             
             # Définir la couche pour l'adresse recherchée
