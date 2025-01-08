@@ -4,6 +4,7 @@ import urllib.parse
 import requests
 from pathlib import Path
 import concurrent.futures
+import re
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -18,10 +19,24 @@ def get_personnal_address():
 
 # Fonction pour obtenir les coordonnées d'une adresse
 def get_coordinates(address):
-    geolocator = Nominatim(user_agent="streamlit_app", timeout=10)
-    location = geolocator.geocode(f"{address}, Rhône, France")
-    if location:
-        return location.latitude, location.longitude
+    geolocator = Nominatim(user_agent="sise_o_resto", timeout=10)
+    current_address = address
+    while True:
+        location = geolocator.geocode(f"{current_address}, Rhône, France")
+        if location:
+            return location.latitude, location.longitude
+        # Nettoyage de l'adresse si la géolocalisation a échoué
+        if ',' in current_address:
+            before_comma, after_comma = current_address.split(',', 1)
+            before_words = before_comma.strip().split(' ')
+            if len(before_words) > 1:
+                before_words = before_words[:-1]
+                new_before = ' '.join(before_words)
+                current_address = f"{new_before}, {after_comma.strip()}"
+            else:
+                current_address = after_comma.strip()
+        else:
+            break
     return None, None
 
 # Fonction pour afficher les étoiles des notes
