@@ -2,6 +2,7 @@ import streamlit as st
 from geopy.geocoders import Nominatim
 import urllib.parse
 import requests
+from pathlib import Path
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -21,6 +22,22 @@ def get_coordinates(address):
     if location:
         return location.latitude, location.longitude
     return None, None
+
+def display_stars(rating):
+    base_path = Path(__file__).parent.parent / 'images'
+    full_star = base_path / 'full_star_icon.png'
+    half_star = base_path / 'half_star_icon.png'
+    empty_star = base_path / 'empty_star_icon.png'
+
+    stars = []
+    for i in range(1, 6):
+        if rating >= i:
+            stars.append(str(full_star))
+        elif rating >= i - 0.5:
+            stars.append(str(half_star))
+        else:
+            stars.append(str(empty_star))
+    return stars
 
 # Fonction pour obtenir les informations de trajet depuis le site TCL
 @st.cache_data(ttl=300)

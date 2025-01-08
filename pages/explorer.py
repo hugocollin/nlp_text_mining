@@ -1,5 +1,5 @@
 import streamlit as st
-from utils.components import Navbar, get_personnal_address, get_coordinates, tcl_api, multi_available_restaurants_options, add_restaurant_options
+from utils.components import Navbar, get_personnal_address, get_coordinates, display_stars, tcl_api, multi_available_restaurants_options, add_restaurant_options
 from db.models import get_all_restaurants
 import pydeck as pdk
 import webbrowser
@@ -97,6 +97,8 @@ def main():
             
             with col1:
                 col1.write(restaurant.nom)
+                stars = display_stars(restaurants[idx].note_globale)
+                col1.image(stars, width=20, clamp=True)
             
             with col2:
                 if tcl_url:
