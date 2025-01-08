@@ -10,6 +10,16 @@ import concurrent.futures
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
 
+st.markdown("""
+    <style>
+    .stButton > button {
+        margin-left: auto;
+        margin-right: 0;
+        display: block;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')
 Session = sessionmaker(bind=engine)
