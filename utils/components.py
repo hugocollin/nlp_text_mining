@@ -3,6 +3,7 @@ from geopy.geocoders import Nominatim
 import urllib.parse
 import requests
 from pathlib import Path
+import concurrent.futures
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -165,5 +166,30 @@ def tcl_api(personal_address, restaurant_address):
             return tcl_url, duration_public, duration_car, duration_soft, fastest_mode
 
     return None, "N/A", "N/A", "N/A", ("❌", "N/A")
+
+# Fonction de traitement des restaurants
+def process_restaurant(personal_address, restaurant):
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
+    return (restaurant, tcl_url, fastest_mode)
+
+# Fonction pour récupérer les coordonnées des restaurants
+@st.cache_data(ttl=3600)
+def get_restaurant_coordinates(restaurants):
+    coordinates = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_info = {executor.submit(get_coordinates, addr): name for name, addr in restaurants}
+        for future in concurrent.futures.as_completed(future_to_info):
+            name = future_to_info[future]
+            try:
+                lat, lon = future.result()
+                if lat and lon:
+                    coordinates.append({
+                        'name': name,
+                        'lat': lat,
+                        'lon': lon
+                    })
+            except Exception as e:
+                st.toast(f"❌ Erreur lors de la récupération des coordonnées pour {name}: {e}")
+    return coordinates
 
 available_restaurants_options = ["Sélectionner un restaurant", "Restaurant 1", "Restaurant 2", "Restaurant 3", "Restaurant 4", "Restaurant 5"] # [TEMP] À remplacer par les restaurants de la base de données

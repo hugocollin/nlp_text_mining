@@ -1,12 +1,11 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from utils.components import Navbar, get_personnal_address, get_coordinates, display_stars, tcl_api
+from utils.components import Navbar, get_personnal_address, get_coordinates, display_stars, process_restaurant, get_restaurant_coordinates
 from db.models import get_all_restaurants
 import pydeck as pdk
 import webbrowser
 import concurrent.futures
-import pydeck as pdk
 
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
@@ -25,10 +24,8 @@ personal_address = get_personnal_address()
 # Fonction pour afficher le popup d'ajout de restaurant
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
-    # Récupération des noms des restaurants [TEMP] Filtrer sur les restaurant non scrappé
+    # [TEMP] Filtrer sur les restaurant non scrappé
     restaurant_names = [restaurant.nom for restaurant in restaurants]
-
-    # Ajout d'une option par défaut pour sélectionner un restaurant
     options = ["Sélectionner un restaurant"] + restaurant_names
 
     # Sélection du restaurant à ajouter
@@ -104,29 +101,24 @@ def main():
         if not personal_address:
             st.toast("⚠️ Veuillez définir votre adresse personnelle pour voir les temps de transport")
 
-        # Fonction pour traiter les restaurants [À déplacer dans utils/components.py]
-        def process_restaurant(idx, restaurant):
-            tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
-            return (idx, restaurant, tcl_url, fastest_mode)
-        
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(process_restaurant, idx, restaurant) for idx, restaurant in enumerate(restaurants)]
+                futures = [executor.submit(process_restaurant, personal_address, restaurant) for restaurant in restaurants]
                 results = [future.result() for future in concurrent.futures.as_completed(futures)]
         
         # Filtrage des résultats en fonction des restaurants sélectionnés
         if search_restaurant:
-            filtered_results = [result for result in results if result[1].nom in search_restaurant]
+            filtered_results = [result for result in results if result[0].nom in search_restaurant]
         else:
             filtered_results = results
 
         # Extraction des restaurants filtrés pour la carte
-        filtered_restaurants = [result[1] for result in filtered_results]
+        filtered_restaurants = [(result[0].nom, result[0].adresse) for result in filtered_results if result[0] is not None]
 
         # Affichage uniquement des restaurants filtrés
         for result in filtered_results:
-            idx, restaurant, tcl_url, fastest_mode = result
+            restaurant, tcl_url, fastest_mode = result
             container = st.container(border=True)
             col1, col2 = container.columns([2, 1])
             
@@ -139,31 +131,15 @@ def main():
                 if tcl_url:
                     emoji, fastest_duration = fastest_mode
                     bouton_label = f"{emoji} {fastest_duration}"
-                    button_key = f"trajet_btn_{idx}"
+                    button_key = f"trajet_btn_{restaurant.id_restaurant}"
                     if col2.button(bouton_label, key=button_key):
                         webbrowser.open_new_tab(tcl_url)
                 else:
-                    unique_key = f"trajet_indisponible_{idx}"
+                    unique_key = f"trajet_indisponible_{restaurant.id_restaurant}"
                     col2.button("Trajet indisponible", disabled=True, key=unique_key)
     
     # Affichage de la carte
     with results_display_col2:
-        # Fonction pour récupérer les coordonnées des restaurants [À déplacer dans utils/components.py]
-        def get_restaurant_coordinates(restaurants):
-            coordinates = []
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future_to_restaurant = {executor.submit(get_coordinates, restaurant.adresse): restaurant for restaurant in restaurants}
-                for future in concurrent.futures.as_completed(future_to_restaurant):
-                    restaurant = future_to_restaurant[future]
-                    lat, lon = future.result()
-                    if lat and lon:
-                        coordinates.append({
-                            'name': restaurant.nom,
-                            'lat': lat,
-                            'lon': lon
-                        })
-            return coordinates
-
         # Récupération des coordonnées géographiques des restaurants
         map_data = get_restaurant_coordinates(filtered_restaurants)
 
