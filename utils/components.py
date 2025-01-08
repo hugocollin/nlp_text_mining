@@ -25,9 +25,9 @@ def get_coordinates(address):
 
 def display_stars(rating):
     base_path = Path(__file__).parent.parent / 'images'
-    full_star = base_path / 'full_star_icon.png'
-    half_star = base_path / 'half_star_icon.png'
-    empty_star = base_path / 'empty_star_icon.png'
+    full_star = base_path / 'full_star_icon.svg'
+    half_star = base_path / 'half_star_icon.svg'
+    empty_star = base_path / 'empty_star_icon.svg'
 
     stars = []
     for i in range(1, 6):
