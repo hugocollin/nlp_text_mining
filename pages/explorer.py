@@ -63,12 +63,13 @@ def main():
         # [TEMP]
         test_container = st.container(border=True)
         test_col1, test_col2 = test_container.columns([2, 1])
-        tcl_url, duration = tcl_api("30 Cours de Verdun Perrache")
+        tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api("30 Cours de Verdun Perrache")
         with test_col1:
             test_col1.write("Brasserie Georges")
         with test_col2:
             if tcl_url is not None:
-                if test_col2.button(label=f"GO ! {duration}"):
+                emoji, fastest_duration = fastest_mode
+                if test_col2.button(label=f"{emoji} {fastest_duration}"):
                     webbrowser.open_new_tab(tcl_url)
             else:
                 test_col2.button("Trajet indisponible", disabled=True)
