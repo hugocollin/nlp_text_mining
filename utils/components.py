@@ -59,11 +59,12 @@ def tcl_api(restaurant_address):
             }
 
             # Effectuer la requête GET à l'API
-            response = requests.get(tcl_api_url, headers=headers)
+            response = requests.get(tcl_api_url, headers=headers, timeout=10)
 
             duration_public = "N/A"
             duration_car = "N/A"
             duration_soft = "N/A"
+            fastest_mode = ("❌", "N/A")
 
             # Variables pour les durées en minutes
             duration_public_min = float('inf')
