@@ -27,9 +27,9 @@ def get_coordinates(address):
     return None, None
 
 # Fonction pour obtenir les informations de trajet depuis le site TCL
-def tcl_api(restaurant_address):
-    personal_address = get_personnal_address()
-
+@st.cache_data(ttl=300)
+def tcl_api(personal_address, restaurant_address):
+    
     if personal_address:
         dep_lat, dep_lon = get_coordinates(personal_address)
         arr_lat, arr_lon = get_coordinates(restaurant_address)
@@ -58,8 +58,11 @@ def tcl_api(restaurant_address):
                 "DNT": "1",
             }
 
-            # Effectuer la requête GET à l'API
-            response = requests.get(tcl_api_url, headers=headers, timeout=10)
+            try:
+                response = requests.get(tcl_api_url, headers=headers, timeout=10)
+            except requests.RequestException:
+                st.toast("❌ Erreur lors de la récupération des données de transport.")
+                return None, "N/A", "N/A", "N/A", ("❌", "N/A")
 
             duration_public = "N/A"
             duration_car = "N/A"
@@ -140,7 +143,6 @@ def tcl_api(restaurant_address):
                 elif min_duration == durations["soft"]:
                     fastest_mode = ("🚲", duration_soft)
 
-            # Vérifier si tcl_url a été défini
             if not tcl_url:
                 return None, "N/A", "N/A", "N/A", ("❌", "N/A")
 

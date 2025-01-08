@@ -1,9 +1,18 @@
 import streamlit as st
-from utils.components import Navbar, get_coordinates, tcl_api, multi_available_restaurants_options, add_restaurant_options
+from utils.components import Navbar, get_personnal_address, get_coordinates, tcl_api, multi_available_restaurants_options, add_restaurant_options
+from db.models import get_all_restaurants
 import pydeck as pdk
 import webbrowser
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import concurrent.futures
 
 st.set_page_config(page_title="[Titre de l\'application] - Explorer", layout="wide")
+
+# Connexion à la base de données
+engine = create_engine('sqlite:///restaurant_reviews.db')
+Session = sessionmaker(bind=engine)
+session = Session()
 
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
@@ -60,19 +69,45 @@ def main():
     results_display_col1, results_display_col2 = st.columns(2)
     
     with results_display_col1:
-        # [TEMP]
-        test_container = st.container(border=True)
-        test_col1, test_col2 = test_container.columns([2, 1])
-        tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api("30 Cours de Verdun Perrache")
-        with test_col1:
-            test_col1.write("Brasserie Georges")
-        with test_col2:
-            if tcl_url is not None:
-                emoji, fastest_duration = fastest_mode
-                if test_col2.button(label=f"{emoji} {fastest_duration}"):
-                    webbrowser.open_new_tab(tcl_url)
-            else:
-                test_col2.button("Trajet indisponible", disabled=True)
+        # Récupérer tous les restaurants depuis la base de données
+        restaurants = get_all_restaurants(session)
+
+        # Récupérer l'adresse personnelle depuis la session
+        personal_address = get_personnal_address()
+
+        if not personal_address:
+            st.toast("⚠️ Veuillez définir votre adresse personnelle pour voir les temps de transport")
+
+        # Fonction pour traiter chaque restaurant
+        def process_restaurant(idx, restaurant):
+            tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
+            return (idx, restaurant, tcl_url, fastest_mode)
+        
+        # Utiliser ThreadPoolExecutor pour paralléliser les appels
+        with st.spinner("Chargement des restaurants..."):
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = [executor.submit(process_restaurant, idx, restaurant) for idx, restaurant in enumerate(restaurants)]
+                results = [future.result() for future in concurrent.futures.as_completed(futures)]
+        
+        # Afficher les résultats
+        for result in results:
+            idx, restaurant, tcl_url, fastest_mode = result
+            container = st.container(border=True)
+            col1, col2 = container.columns([2, 1])
+            
+            with col1:
+                col1.write(restaurant.nom)
+            
+            with col2:
+                if tcl_url:
+                    emoji, fastest_duration = fastest_mode
+                    bouton_label = f"{emoji} {fastest_duration}"
+                    button_key = f"trajet_btn_{idx}"
+                    if col2.button(bouton_label, key=button_key):
+                        webbrowser.open_new_tab(tcl_url)
+                else:
+                    unique_key = f"trajet_indisponible_{idx}"
+                    col2.button("Trajet indisponible", disabled=True, key=unique_key)
     
     with results_display_col2:
         # Coordonnées de Lyon
