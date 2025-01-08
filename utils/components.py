@@ -23,6 +23,7 @@ def get_coordinates(address):
         return location.latitude, location.longitude
     return None, None
 
+# Fonction pour afficher les étoiles des notes
 def display_stars(rating):
     base_path = Path(__file__).parent.parent / 'images'
     full_star = base_path / 'full_star_icon.svg'
@@ -82,17 +83,14 @@ def tcl_api(personal_address, restaurant_address):
             duration_soft = "N/A"
             fastest_mode = ("❌", "N/A")
 
-            # Variables pour les durées en minutes
             duration_public_min = float('inf')
             duration_car_min = float('inf')
             duration_soft_min = float('inf')
 
-            # Vérifier si la requête a réussi
             if response.status_code == 200:
-                # Convertir la réponse en JSON
                 data = response.json()
                 
-                # Extraire la durée depuis la première entrée des trajets publics
+                # Récupération de la durée du trajet en transport en commun
                 if "journeys" in data and len(data["journeys"]) > 0:
                     duration_sec = data["journeys"][0].get("duration")
                     if duration_sec:
@@ -107,7 +105,7 @@ def tcl_api(personal_address, restaurant_address):
                         else:
                             duration_public = f"{duration} min"
                 
-                # Extraire la durée depuis la première entrée des trajets en voiture
+                # Récupération de la durée du trajet en voiture
                 if "journeysCar" in data and len(data["journeysCar"]) > 0:
                     duration_sec_car = data["journeysCar"][0].get("duration")
                     if duration_sec_car:
@@ -122,7 +120,7 @@ def tcl_api(personal_address, restaurant_address):
                         else:
                             duration_car = f"{duration_car_minutes} min"
                 
-                # Extraire la durée depuis la première entrée des trajets en modes doux
+                # Réupération de la durée du trajet en vélo
                 if "journeysSofts" in data and len(data["journeysSofts"]) > 0:
                     duration_sec_soft = data["journeysSofts"][0].get("duration")
                     if duration_sec_soft:
@@ -137,7 +135,7 @@ def tcl_api(personal_address, restaurant_address):
                         else:
                             duration_soft = f"{duration_soft_minutes} min"
 
-            # Déterminer le mode de transport le plus rapide
+            # Calcul du mode de transport le plus rapide
             durations = {
                 "public": duration_public_min,
                 "car": duration_car_min,
@@ -161,9 +159,6 @@ def tcl_api(personal_address, restaurant_address):
 
             return tcl_url, duration_public, duration_car, duration_soft, fastest_mode
 
-    # Retourner None et "N/A" si les coordonnées sont manquantes
     return None, "N/A", "N/A", "N/A", ("❌", "N/A")
 
 available_restaurants_options = ["Sélectionner un restaurant", "Restaurant 1", "Restaurant 2", "Restaurant 3", "Restaurant 4", "Restaurant 5"] # [TEMP] À remplacer par les restaurants de la base de données
-multi_available_restaurants_options = ["Restaurant 1", "Restaurant 2", "Restaurant 3", "Restaurant 4", "Restaurant 5"] # [TEMP] À remplacer par les restaurants de la base de données
-add_restaurant_options = ["Sélectionner un restaurant", "Restaurant 6", "Restaurant 7", "Restaurant 8", "Restaurant 9", "Restaurant 10"] # [TEMP] À remplacer par les restaurants de la base de données
