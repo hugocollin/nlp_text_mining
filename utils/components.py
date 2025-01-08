@@ -45,18 +45,22 @@ def display_stars(rating):
 def tcl_api(personal_address, restaurant_address):
     
     if personal_address:
+        # Récupération des coordonnées de l'adresse personnelle et du restaurant
         dep_lat, dep_lon = get_coordinates(personal_address)
         arr_lat, arr_lon = get_coordinates(restaurant_address)
-                    
+        
+        # Si les coordonnées sont valides
         if dep_lat and dep_lon and arr_lat and arr_lon:
             from_coord = f"{dep_lon};{dep_lat}"
             to_coord = f"{arr_lon};{arr_lat}"
             encoded_from = urllib.parse.quote(from_coord)
             encoded_to = urllib.parse.quote(to_coord)
             
+            # Création des URLs pour les requêtes
             tcl_url = f"https://www.tcl.fr/itineraires?date=now&pmr=0&from={encoded_from}&to={encoded_to}"
             tcl_api_url = f"https://carte.tcl.fr/api/itinerary?datetime=now&from={encoded_from}&to={encoded_to}&params=departure,metro,funiculaire,tramway,bus,shuttle,bss,bike,car&walking=1.12&cycling=4.44"
-        
+
+            # En-têtes de la requête
             headers = {
                 "Accept": "application/json, text/plain, */*",
                 "Accept-Encoding": "gzip, deflate, br, zstd",
@@ -72,6 +76,7 @@ def tcl_api(personal_address, restaurant_address):
                 "DNT": "1",
             }
 
+            # Récupération des données de transport
             try:
                 response = requests.get(tcl_api_url, headers=headers, timeout=10)
             except requests.RequestException:

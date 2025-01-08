@@ -22,6 +22,7 @@ restaurants = get_all_restaurants(session)
 # Récupération de l'adresse personnelle
 personal_address = get_personnal_address()
 
+# Fonction pour afficher le popup d'ajout de restaurant
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
     # Récupération des noms des restaurants [TEMP] Filtrer sur les restaurant non scrappé
