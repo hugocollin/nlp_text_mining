@@ -17,13 +17,10 @@ def get_personnal_address():
 
 # Fonction pour obtenir les coordonnées d'une adresse
 def get_coordinates(address):
-    try:
-        geolocator = Nominatim(user_agent="streamlit_app", timeout=10)
-        location = geolocator.geocode(f"{address}, Rhône, France")
-        if location:
-            return location.latitude, location.longitude
-    except geopy.exc.GeocoderServiceError:
-        st.toast("❌ Service de cartographie indisponible. Veuillez réessayer plus tard.")
+    geolocator = Nominatim(user_agent="streamlit_app", timeout=10)
+    location = geolocator.geocode(f"{address}, Rhône, France")
+    if location:
+        return location.latitude, location.longitude
     return None, None
 
 # Fonction pour obtenir les informations de trajet depuis le site TCL
