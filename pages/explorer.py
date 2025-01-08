@@ -140,91 +140,92 @@ def main():
     
     # Affichage de la carte
     with results_display_col2:
-        # Récupération des coordonnées géographiques des restaurants
-        map_data = get_restaurant_coordinates(filtered_restaurants)
+        with st.spinner("Chargement de la carte..."):
+            # Récupération des coordonnées géographiques des restaurants
+            map_data = get_restaurant_coordinates(filtered_restaurants)
 
-        # Ajout des coordonnées du domicile s'il est défini
-        if personal_address:
-            home_lat, home_lon = get_coordinates(personal_address)
-            if home_lat and home_lon:
-                map_data.append({
-                    'name': 'Domicile',
-                    'lat': home_lat,
-                    'lon': home_lon
-                })
+            # Ajout des coordonnées du domicile s'il est défini
+            if personal_address:
+                home_lat, home_lon = get_coordinates(personal_address)
+                if home_lat and home_lon:
+                    map_data.append({
+                        'name': 'Domicile',
+                        'lat': home_lat,
+                        'lon': home_lon
+                    })
 
-        # Définition de la vue de la carte
-        if search_address:
-            addr_lat, addr_lon = get_coordinates(search_address)
-        else:
-            addr_lat, addr_lon = 45.7640, 4.8357 # Coordonnées de Lyon
+            # Définition de la vue de la carte
+            if search_address:
+                addr_lat, addr_lon = get_coordinates(search_address)
+            else:
+                addr_lat, addr_lon = 45.7640, 4.8357 # Coordonnées de Lyon
 
-        view_state = pdk.ViewState(
-            latitude=addr_lat,
-            longitude=addr_lon,
-            zoom=12,
-            pitch=0
-        )
+            view_state = pdk.ViewState(
+                latitude=addr_lat,
+                longitude=addr_lon,
+                zoom=12,
+                pitch=0
+            )
 
-        # Paramètres du point de l'adresse recherchée s'il y a une adresse recherchée (vert)
-        if search_address:
-            addr_lat, addr_lon = get_coordinates(search_address)
+            # Paramètres du point de l'adresse recherchée s'il y a une adresse recherchée (vert)
+            if search_address:
+                addr_lat, addr_lon = get_coordinates(search_address)
 
-        searched_address_layer = pdk.Layer(
-            'ScatterplotLayer',
-            data=[{'name': 'Adresse recherchée', 'lat': addr_lat, 'lon': addr_lon}],
-            get_position='[lon, lat]',
-            get_color='[0, 255, 0, 50]',
-            get_radius=radius,
-            pickable=True,
-            auto_highlight=True
-        )
+            searched_address_layer = pdk.Layer(
+                'ScatterplotLayer',
+                data=[{'name': 'Adresse recherchée', 'lat': addr_lat, 'lon': addr_lon}],
+                get_position='[lon, lat]',
+                get_color='[0, 255, 0, 50]',
+                get_radius=radius,
+                pickable=True,
+                auto_highlight=True
+            )
 
-        # Paramètres du point du domicile (bleu)
-        home_layer = pdk.Layer(
-            'ScatterplotLayer',
-            data=[point for point in map_data if point['name'] == 'Domicile'],
-            get_position='[lon, lat]',
-            get_color='[0, 0, 255]',
-            get_radius=25,
-            pickable=True,
-            auto_highlight=True
-        )
+            # Paramètres du point du domicile (bleu)
+            home_layer = pdk.Layer(
+                'ScatterplotLayer',
+                data=[point for point in map_data if point['name'] == 'Domicile'],
+                get_position='[lon, lat]',
+                get_color='[0, 0, 255]',
+                get_radius=25,
+                pickable=True,
+                auto_highlight=True
+            )
 
-        # Paramètres des points des restaurants (rouge)
-        restaurants_layer = pdk.Layer(
-            'ScatterplotLayer',
-            data=[point for point in map_data if point['name'] != 'Domicile'],
-            get_position='[lon, lat]',
-            get_color='[255, 0, 0]',
-            get_radius=25,
-            pickable=True,
-            auto_highlight=True
-        )
+            # Paramètres des points des restaurants (rouge)
+            restaurants_layer = pdk.Layer(
+                'ScatterplotLayer',
+                data=[point for point in map_data if point['name'] != 'Domicile'],
+                get_position='[lon, lat]',
+                get_color='[255, 0, 0]',
+                get_radius=25,
+                pickable=True,
+                auto_highlight=True
+            )
 
-        # Ajout des points à afficher sur la carte
-        layers = [restaurants_layer, home_layer]
-        if search_address and addr_lat and addr_lon:
-            layers.append(searched_address_layer)
+            # Ajout des points à afficher sur la carte
+            layers = [restaurants_layer, home_layer]
+            if search_address and addr_lat and addr_lon:
+                layers.append(searched_address_layer)
 
-        # Paramètres des infos-bulles
-        tooltip = {
-            "html": "<b>{name}</b>",
-            "style": {
-                "backgroundColor": "white",
-                "color": "black"
+            # Paramètres des infos-bulles
+            tooltip = {
+                "html": "<b>{name}</b>",
+                "style": {
+                    "backgroundColor": "white",
+                    "color": "black"
+                }
             }
-        }
 
-        # Affichage de la carte
-        deck = pdk.Deck(
-            layers=layers,
-            initial_view_state=view_state,
-            tooltip=tooltip,
-            map_style='mapbox://styles/mapbox/light-v11'
-        )
+            # Affichage de la carte
+            deck = pdk.Deck(
+                layers=layers,
+                initial_view_state=view_state,
+                tooltip=tooltip,
+                map_style='mapbox://styles/mapbox/light-v11'
+            )
 
-        st.pydeck_chart(deck)
+            st.pydeck_chart(deck)
 
 if __name__ == '__main__':
     main()
