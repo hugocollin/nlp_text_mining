@@ -1,6 +1,5 @@
 import streamlit as st
 from geopy.geocoders import Nominatim
-import geopy.exc
 import urllib.parse
 import requests
 
