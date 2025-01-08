@@ -42,7 +42,7 @@ def display_stars(rating):
     return stars
 
 # Fonction pour obtenir les informations de trajet depuis le site TCL
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=300, show_spinner=False)
 def tcl_api(personal_address, restaurant_address):
     
     if personal_address:
@@ -173,7 +173,7 @@ def process_restaurant(personal_address, restaurant):
     return (restaurant, tcl_url, fastest_mode)
 
 # Fonction pour récupérer les coordonnées des restaurants
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_restaurant_coordinates(restaurants):
     coordinates = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
