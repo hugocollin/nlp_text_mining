@@ -99,7 +99,7 @@ def main():
     # Affichage des résultats
     with results_display_col1:
         if not personal_address:
-            st.toast("⚠️ Veuillez définir votre adresse personnelle pour voir les temps de transport")
+            st.toast("ℹ️ Veuillez définir votre adresse personnelle pour voir les temps de transport")
 
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
