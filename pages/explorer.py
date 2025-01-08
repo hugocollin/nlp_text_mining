@@ -48,6 +48,32 @@ def add_restaurant_dialog():
             st.session_state['restaurant_added'] = True
         st.rerun()
 
+# Fonction pour afficher le popup d'informations sur un restaurant
+@st.dialog("Informations sur le restaurant", width="large")
+def restaurant_info_dialog():
+    selected_restaurant = st.session_state.get('selected_restaurant')
+    if selected_restaurant:
+        st.header(selected_restaurant.nom)
+        stars = display_stars(selected_restaurant.note_globale)
+        st.write(f"**Note globale :**")
+        st.image(stars, width=20)
+        st.write(f"**Adresse :** {selected_restaurant.adresse}")
+        st.write(f"**Lien :** {selected_restaurant.url_link}")
+        st.write(f"**Email :** {selected_restaurant.email}")
+        st.write(f"**Téléphone :** {selected_restaurant.telephone}")
+        st.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+        st.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
+        st.write(f"**Note service :** {selected_restaurant.service_note}")
+        st.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
+        st.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
+        st.write(f"**Prix min :** {selected_restaurant.prix_min}")
+        st.write(f"**Prix max :** {selected_restaurant.prix_max}")
+        st.write(f"**Repas :** {selected_restaurant.repas}")
+         
+    if st.button("Fermer"):
+        st.session_state['selected_restaurant'] = None
+        st.rerun()
+
 def main():
     # Barre de navigation
     Navbar()
@@ -130,23 +156,28 @@ def main():
         for result in filtered_results:
             restaurant, tcl_url, fastest_mode = result
             container = st.container(border=True)
-            col1, col2 = container.columns([2, 1])
+            col1, col2, col3 = container.columns([2, 0.5, 1])
             
             with col1:
                 col1.write(restaurant.nom)
                 stars = display_stars(restaurant.note_globale)
                 col1.image(stars, width=20)
-            
+
             with col2:
+                if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
+                    st.session_state['selected_restaurant'] = restaurant
+                    restaurant_info_dialog()
+            
+            with col3:
                 if tcl_url:
                     emoji, fastest_duration = fastest_mode
                     bouton_label = f"{emoji} {fastest_duration}"
                     button_key = f"trajet_btn_{restaurant.id_restaurant}"
-                    if col2.button(bouton_label, key=button_key):
+                    if col3.button(bouton_label, key=button_key):
                         webbrowser.open_new_tab(tcl_url)
                 else:
                     unique_key = f"trajet_indisponible_{restaurant.id_restaurant}"
-                    col2.button("Trajet indisponible", disabled=True, key=unique_key)
+                    col3.button("Trajet indisponible", disabled=True, key=unique_key)
     
     # Affichage de la carte
     with results_display_col2:
