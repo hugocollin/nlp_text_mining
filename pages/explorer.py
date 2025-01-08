@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import concurrent.futures
 
-st.set_page_config(page_title="[Titre de l\'application] - Explorer", layout="wide")
+st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
 
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')

@@ -1,7 +1,7 @@
 import streamlit as st
 from utils.components import Navbar, get_personnal_address
 
-st.set_page_config(page_title="[Titre de l\'application]", layout="wide")
+st.set_page_config(page_title="SISE Ô Resto", page_icon="🍽️", layout="wide")
 
 @st.dialog("Paramétrer son adresse personnelle", width="large")
 def add_personal_address_dialog():
@@ -34,7 +34,7 @@ def add_personal_address_dialog():
 def main():
     Navbar()
 
-    st.title(f'[Titre de l\'application]')
+    st.title(f'SISE Ô Resto')
 
     add_restaurant_btn_col1, add_restaurant_btn_col2 = st.columns([2, 1])
 

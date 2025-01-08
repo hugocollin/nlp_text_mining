@@ -1,7 +1,7 @@
 import streamlit as st
 from utils.components import Navbar, available_restaurants_options
 
-st.set_page_config(page_title="[Titre de l\'application] - Comparer", layout="wide")
+st.set_page_config(page_title="SISE Ô Resto - Comparer", page_icon="🍽️", layout="wide")
 
 def main():
     Navbar()
