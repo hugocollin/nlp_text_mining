@@ -11,7 +11,7 @@ def Navbar():
     with st.sidebar:
         st.page_link('app.py', label='Accueil', icon='🏠')
         st.page_link('pages/explorer.py', label='Explorer', icon='🔍')
-        st.page_link('pages/comparer.py', label='Comparer', icon='📊')
+        st.page_link('pages/comparer.py', label='Comparer', icon='🆚')
 
 # Fonction pour enregistrer l'adresse personnelle
 def get_personnal_address():

@@ -2,6 +2,7 @@ import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from utils.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api
+from pages.statistiques import display_restaurant_stats
 from db.models import get_all_restaurants
 import pydeck as pdk
 import webbrowser
@@ -107,6 +108,16 @@ def main():
     # Barre de navigation
     Navbar()
 
+    # Initialisation du comparateur dans session_state
+    if 'comparator' not in st.session_state:
+        st.session_state['comparator'] = []
+
+    # Vérification si un restaurant a été sélectionné pour afficher ses statistiques
+    selected_stats = st.session_state.get('selected_stats_restaurant')
+    if selected_stats:
+        display_restaurant_stats(selected_stats)
+        return
+
     # Titre de la page
     st.title('🔍 Explorer')
 
@@ -147,12 +158,12 @@ def main():
         # [TEMP] Ajouter des filtres
 
     # Mise en page des résultats
-    results_display_col1, results_display_col2 = st.columns(2)
+    results_display_col1, results_display_col2 = st.columns([3, 2])
     
     # Affichage des résultats
     with results_display_col1:
         if not personal_address:
-            st.toast("ℹ️ Veuillez définir votre adresse personnelle pour voir les temps de transport")
+            st.toast("ℹ️ Veuillez définir votre adresse personnelle pour voir les temps de trajet")
 
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
@@ -173,7 +184,7 @@ def main():
         for result in filtered_results:
             restaurant, tcl_url, fastest_mode = result
             container = st.container(border=True)
-            col1, col2, col3 = container.columns([2, 0.5, 1])
+            col1, col2, col3, col4, col5 = container.columns([3.5, 1, 1, 1, 2.5])
             
             with col1:
                 col1.write(restaurant.nom)
@@ -186,14 +197,36 @@ def main():
                     restaurant_info_dialog()
             
             with col3:
+                if col3.button("📊", key=f"stats_btn_{restaurant.id_restaurant}"):
+                    st.session_state['selected_stats_restaurant'] = restaurant
+                    st.rerun()
+
+            with col4:
+                # Fonction pour ajouter au comparateur
+                def add_to_comparator(restaurant):
+                    comparator = st.session_state['comparator']
+                    if restaurant.id_restaurant not in comparator:
+                        if len(comparator) < 3:
+                            comparator.append(restaurant.id_restaurant)
+                            st.session_state['comparator'] = comparator
+                            st.toast(f"🆚 {restaurant.nom} ajouté au comparateur!")
+                        else:
+                            st.toast("⚠️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
+                    else:
+                        st.toast(f"ℹ️ {restaurant.nom} est déjà dans le comparateur.")
+
+                if col4.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
+                    add_to_comparator(restaurant)
+            
+            with col5:
                 emoji, fastest_duration = fastest_mode
                 bouton_label = f"{emoji} {fastest_duration}"
                 button_key = f"trajet_btn_{restaurant.id_restaurant}"
                 if tcl_url:
-                    if col3.button(bouton_label, key=button_key):
+                    if col5.button(bouton_label, key=button_key):
                         webbrowser.open_new_tab(tcl_url)
                 else:
-                    col3.button(bouton_label, key=button_key, disabled=True)
+                    col5.button(bouton_label, key=button_key, disabled=True)
     
     # Affichage de la carte
     with results_display_col2:
