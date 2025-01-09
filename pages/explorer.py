@@ -25,8 +25,8 @@ personal_address = get_personnal_address()
 # Fonction pour afficher le popup d'ajout de restaurant
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
-    # [TEMP] Filtrer sur les restaurant non scrappé
-    restaurant_names = [restaurant.nom for restaurant in restaurants]
+    # Filtrage sur les restaurants non scrappés
+    restaurant_names = [restaurant.nom for restaurant in restaurants if not restaurant.scrapped]
     options = ["Sélectionner un restaurant"] + restaurant_names
 
     # Sélection du restaurant à ajouter
@@ -148,9 +148,8 @@ def main():
 
     # Colonne pour la recherche
     with header_col1:
-
-        # [TEMP] Filtrer sur les restaurant scrappé
-        restaurant_names = [restaurant.nom for restaurant in restaurants]
+        # Filtrage sur les restaurants scrappés
+        restaurant_names = [restaurant.nom for restaurant in restaurants if restaurant.scrapped]
         options = ["Sélectionner un restaurant"] + restaurant_names
 
         search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
@@ -181,7 +180,7 @@ def main():
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(process_restaurant, personal_address, restaurant) for restaurant in restaurants]
+                futures = [executor.submit(process_restaurant, personal_address, restaurant) for restaurant in restaurants if restaurant.scrapped]
                 results = [future.result() for future in concurrent.futures.as_completed(futures)]
         
         # Filtrage des résultats en fonction des restaurants sélectionnés
@@ -258,17 +257,13 @@ def main():
 
             # Ajout des coordonnées du domicile s'il est défini
             if personal_address:
-                home_lat, home_lon = get_coordinates(personal_address)
-                if home_lat and home_lon:
+                addr_lat, addr_lon = get_coordinates(personal_address)
+                if addr_lat and addr_lon:
                     map_data.append({
                         'name': 'Domicile',
-                        'lat': home_lat,
-                        'lon': home_lon
+                        'lat': addr_lat,
+                        'lon': addr_lon
                     })
-
-            # Définition de la vue de la carte
-            if personal_address:
-                addr_lat, addr_lon = get_coordinates(personal_address)
             else:
                 addr_lat, addr_lon = 45.7640, 4.8357 # Coordonnées de Lyon
 

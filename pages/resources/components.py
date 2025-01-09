@@ -13,32 +13,6 @@ def Navbar():
         st.page_link('pages/explorer.py', label='Explorer', icon='🔍')
         st.page_link('pages/comparer.py', label='Comparer', icon='🆚')
 
-# Fonction pour enregistrer l'adresse personnelle
-def get_personnal_address():
-    return st.session_state.get('personal_address')
-
-# Fonction pour obtenir les coordonnées d'une adresse
-def get_coordinates(address):
-    geolocator = Nominatim(user_agent="sise_o_resto", timeout=10)
-    current_address = address
-    while True:
-        location = geolocator.geocode(f"{current_address}, Rhône, France")
-        if location:
-            return location.latitude, location.longitude
-        # Nettoyage de l'adresse si la géolocalisation a échoué
-        if ',' in current_address:
-            before_comma, after_comma = current_address.split(',', 1)
-            before_words = before_comma.strip().split(' ')
-            if len(before_words) > 1:
-                before_words = before_words[:-1]
-                new_before = ' '.join(before_words)
-                current_address = f"{new_before}, {after_comma.strip()}"
-            else:
-                current_address = after_comma.strip()
-        else:
-            break
-    return None, None
-
 # Fonction pour calculer la distance entre deux points
 def haversine(lat1, lon1, lat2, lon2):
     # Rayon moyen de la Terre en mètres
@@ -61,6 +35,52 @@ def haversine(lat1, lon1, lat2, lon2):
     # Distance en mètres
     distance = R * c
     return distance
+
+# Fonction pour enregistrer l'adresse personnelle
+def get_personnal_address():
+    return st.session_state.get('personal_address')
+
+# Fonction pour obtenir les coordonnées d'une adresse
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_coordinates(address):
+    geolocator = Nominatim(user_agent="sise_o_resto", timeout=10)
+    current_address = address
+    while True:
+        location = geolocator.geocode(f"{current_address}, Rhône, France")
+        if location:
+            return location.latitude, location.longitude
+        # Nettoyage de l'adresse si la géolocalisation a échoué
+        if ',' in current_address:
+            before_comma, after_comma = current_address.split(',', 1)
+            before_words = before_comma.strip().split(' ')
+            if len(before_words) > 1:
+                before_words = before_words[:-1]
+                new_before = ' '.join(before_words)
+                current_address = f"{new_before}, {after_comma.strip()}"
+            else:
+                current_address = after_comma.strip()
+        else:
+            break
+    return None, None
+
+# Fonction pour récupérer les coordonnées des restaurants
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_restaurant_coordinates(restaurants):
+    coordinates = []
+
+    # Récupération des coordonnées géographiques de chaque restaurant
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_info = {executor.submit(get_coordinates, addr): name for name, addr in restaurants}
+        for future in concurrent.futures.as_completed(future_to_info):
+            name = future_to_info[future]
+            lat, lon = future.result()
+            if lat and lon:
+                coordinates.append({
+                    'name': name,
+                    'lat': lat,
+                    'lon': lon
+                })
+    return coordinates
 
 # Fonction pour filtrer les restaurants par rayon
 def filter_restaurants_by_radius(restaurants, center_lat, center_lon, radius):
@@ -261,22 +281,3 @@ def add_to_comparator(restaurant):
 def process_restaurant(personal_address, restaurant):
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
     return (restaurant, tcl_url, fastest_mode)
-
-# Fonction pour récupérer les coordonnées des restaurants
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_restaurant_coordinates(restaurants):
-    coordinates = []
-
-    # Récupération des coordonnées géographiques de chaque restaurant
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_info = {executor.submit(get_coordinates, addr): name for name, addr in restaurants}
-        for future in concurrent.futures.as_completed(future_to_info):
-            name = future_to_info[future]
-            lat, lon = future.result()
-            if lat and lon:
-                coordinates.append({
-                    'name': name,
-                    'lat': lat,
-                    'lon': lon
-                })
-    return coordinates
