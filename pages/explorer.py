@@ -127,36 +127,24 @@ def main():
     header_container = st.container(border=True)
 
     # Mise en page de la recherche et des filtres
-    header_col1, header_col2 = header_container.columns([3, 2])
+    header_col1, header_col2 = header_container.columns(2)
 
     # Colonne pour la recherche
     with header_col1:
         header_col1.write("Recherche")
-        search_col1, search_col2 = header_col1.columns([4, 1])
 
-        with search_col1:
-            # [TEMP] Filtrer sur les restaurant scrappé
-            restaurant_names = [restaurant.nom for restaurant in restaurants]
-            options = ["Sélectionner un restaurant"] + restaurant_names
+        # [TEMP] Filtrer sur les restaurant scrappé
+        restaurant_names = [restaurant.nom for restaurant in restaurants]
+        options = ["Sélectionner un restaurant"] + restaurant_names
 
-            search_restaurant = search_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
-            search_address = search_col1.text_input(label="Recherchez une adresse", label_visibility="collapsed", placeholder="Recherchez une adresse")
-            radius = search_col1.slider("Rayon (m)", min_value=1, max_value=1000, step=1, value=100)
-
-        with search_col2:
-            if search_col2.button(label="🔍", key="search_restaurant_btn"):
-                if search_restaurant:
-                    search_col2.toast("Les résultats seront disponibles dans une version ultérieure") # [TEMP]
-                else:
-                    search_col2.toast("⚠️ Veuillez renseigner le nom d'un restaurant à rechercher")
-
-            if search_col2.button(label="🔍", key="search_address_btn"):
-                if not search_address:
-                    search_col2.toast("⚠️ Veuillez renseigner une adresse à rechercher")
+        search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
+        radius = header_col1.slider("Rayon (m)", min_value=1, max_value=1000, step=1, value=100)
     
     # Colonne pour les filtres
     with header_col2:
         header_col2.write("Filtres")
+
+        # [TEMP] Ajouter des filtres
 
     # Mise en page des résultats
     results_display_col1, results_display_col2 = st.columns(2)
@@ -224,8 +212,8 @@ def main():
                     })
 
             # Définition de la vue de la carte
-            if search_address:
-                addr_lat, addr_lon = get_coordinates(search_address)
+            if personal_address:
+                addr_lat, addr_lon = get_coordinates(personal_address)
             else:
                 addr_lat, addr_lon = 45.7640, 4.8357 # Coordonnées de Lyon
 
@@ -236,27 +224,13 @@ def main():
                 pitch=0
             )
 
-            # Paramètres du point de l'adresse recherchée s'il y a une adresse recherchée (vert)
-            if search_address:
-                addr_lat, addr_lon = get_coordinates(search_address)
-
-            searched_address_layer = pdk.Layer(
-                'ScatterplotLayer',
-                data=[{'name': 'Adresse recherchée', 'lat': addr_lat, 'lon': addr_lon}],
-                get_position='[lon, lat]',
-                get_color='[0, 255, 0, 50]',
-                get_radius=radius,
-                pickable=True,
-                auto_highlight=True
-            )
-
             # Paramètres du point du domicile (bleu)
             home_layer = pdk.Layer(
                 'ScatterplotLayer',
                 data=[point for point in map_data if point['name'] == 'Domicile'],
                 get_position='[lon, lat]',
-                get_color='[0, 0, 255]',
-                get_radius=25,
+                get_color='[0, 0, 255, 50]',
+                get_radius=radius,
                 pickable=True,
                 auto_highlight=True
             )
@@ -274,8 +248,6 @@ def main():
 
             # Ajout des points à afficher sur la carte
             layers = [restaurants_layer, home_layer]
-            if search_address and addr_lat and addr_lon:
-                layers.append(searched_address_layer)
 
             # Paramètres des infos-bulles
             tooltip = {
