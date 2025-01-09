@@ -6,3 +6,10 @@ geopy
 streamlit
 SQLAlchemy
 sqlalchemy
+nltk
+scikit-learn
+matplotlib
+seaborn
+plotly
+wordcloud
+textblob
