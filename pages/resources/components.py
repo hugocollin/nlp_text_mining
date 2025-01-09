@@ -41,7 +41,7 @@ def get_coordinates(address):
 
 # Fonction pour afficher les étoiles Michelin
 def display_michelin_stars(rating):
-    base_path = Path(__file__).parent.parent / 'images'
+    base_path = Path(__file__).parent / 'images'
     one_star = base_path / 'one_star.svg'
     two_stars = base_path / 'two_stars.svg'
     three_stars = base_path / 'three_stars.svg'
@@ -57,7 +57,7 @@ def display_michelin_stars(rating):
 
 # Fonction pour afficher les étoiles des notes
 def display_stars(rating):
-    base_path = Path(__file__).parent.parent / 'images'
+    base_path = Path(__file__).parent / 'images'
     full_star = base_path / 'full_star_icon.svg'
     half_star = base_path / 'half_star_icon.svg'
     empty_star = base_path / 'empty_star_icon.svg'

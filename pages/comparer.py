@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from utils.components import Navbar, display_michelin_stars, display_stars
+from pages.resources.components import Navbar, display_michelin_stars, display_stars
 from db.models import get_all_restaurants
 
 # Configuration de la page
