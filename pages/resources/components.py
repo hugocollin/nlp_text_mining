@@ -4,14 +4,13 @@ import urllib.parse
 import requests
 from pathlib import Path
 import concurrent.futures
-import re
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
     with st.sidebar:
         st.page_link('app.py', label='Accueil', icon='🏠')
         st.page_link('pages/explorer.py', label='Explorer', icon='🔍')
-        st.page_link('pages/comparer.py', label='Comparer', icon='📊')
+        st.page_link('pages/comparer.py', label='Comparer', icon='🆚')
 
 # Fonction pour enregistrer l'adresse personnelle
 def get_personnal_address():
@@ -39,9 +38,22 @@ def get_coordinates(address):
             break
     return None, None
 
+# Fonction pour obtenir le lien Google Maps d'une adresse
+def get_google_maps_link(address):
+    # Mise en forme de l'adresse
+    parts = address.split(',')
+    if len(parts) > 1 and parts[-1].strip().lower() == 'france':
+        address = ','.join(parts[:-1])
+
+    # Encodage de l'adresse
+    encoded_address = urllib.parse.quote_plus(address)
+    google_maps_url = f"https://www.google.com/maps/place/{encoded_address}"
+
+    return google_maps_url
+
 # Fonction pour afficher les étoiles Michelin
 def display_michelin_stars(rating):
-    base_path = Path(__file__).parent.parent / 'images'
+    base_path = Path(__file__).parent / 'images'
     one_star = base_path / 'one_star.svg'
     two_stars = base_path / 'two_stars.svg'
     three_stars = base_path / 'three_stars.svg'
@@ -57,7 +69,7 @@ def display_michelin_stars(rating):
 
 # Fonction pour afficher les étoiles des notes
 def display_stars(rating):
-    base_path = Path(__file__).parent.parent / 'images'
+    base_path = Path(__file__).parent / 'images'
     full_star = base_path / 'full_star_icon.svg'
     half_star = base_path / 'half_star_icon.svg'
     empty_star = base_path / 'empty_star_icon.svg'
@@ -198,6 +210,20 @@ def tcl_api(personal_address, restaurant_address):
 
     return None, "Trajet indisponible", "Trajet indisponible", "Trajet indisponible", ("❌", "Trajet indisponible")
 
+# Fonction pour ajouter un restaurant au comparateur
+def add_to_comparator(restaurant):
+    comparator = st.session_state['comparator']
+    if restaurant.id_restaurant not in comparator:
+        if len(comparator) < 3:
+            comparator.append(restaurant.id_restaurant)
+            st.session_state['comparator'] = comparator
+            st.toast(f"🆚 {restaurant.nom} ajouté au comparateur!")
+        else:
+            st.toast("⚠️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
+    else:
+        st.toast(f"ℹ️ {restaurant.nom} est déjà dans le comparateur.")
+
+
 # Fonction de traitement des restaurants
 def process_restaurant(personal_address, restaurant):
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
@@ -207,6 +233,8 @@ def process_restaurant(personal_address, restaurant):
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_restaurant_coordinates(restaurants):
     coordinates = []
+
+    # Récupération des coordonnées géographiques de chaque restaurant
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_info = {executor.submit(get_coordinates, addr): name for name, addr in restaurants}
         for future in concurrent.futures.as_completed(future_to_info):
@@ -219,21 +247,6 @@ def get_restaurant_coordinates(restaurants):
                     'lon': lon
                 })
     return coordinates
-
-# Fonction pour obtenir le lien Google Maps d'une adresse
-def get_google_maps_link(address):
-    # Mise en forme de l'adresse
-    parts = address.split(',')
-    if len(parts) > 1 and parts[-1].strip().lower() == 'france':
-        address = ','.join(parts[:-1])
-
-    # Encodage de l'adresse
-    encoded_address = urllib.parse.quote_plus(address)
-    google_maps_url = f"https://www.google.com/maps/place/{encoded_address}"
-
-    return google_maps_url
-
-available_restaurants_options = ["Sélectionner un restaurant", "Restaurant 1", "Restaurant 2", "Restaurant 3", "Restaurant 4", "Restaurant 5"] # [TEMP] À remplacer par les restaurants de la base de données
 
 # import math
 
