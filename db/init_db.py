@@ -1,6 +1,10 @@
-from models import init_db, get_session, Restaurant, Review, User
+from models import init_db, get_session, Restaurant, Review, User, get_all_restaurants
 import sys
 import os
+import pandas as pd
+import ast
+from sqlalchemy import update, select, exists, create_engine, text
+from sqlalchemy.orm import Session
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from databases import execute_query, fetch_one, create_schema, database_exists
@@ -126,6 +130,68 @@ def insert_review(review, id_restaurant):
         review['type_visit']
     ])
 
+def parse_to_dict(data_str):
+    try:
+        # Convertit la chaîne de type dictionnaire en dictionnaire Python
+        data_dict = ast.literal_eval(data_str)
+        return data_dict
+    except (ValueError, SyntaxError) as e:
+        print(f"Erreur lors de la conversion : {e}")
+        return None
+    
+def safe_float(value):
+    """Convertit une valeur en float si possible, sinon retourne None."""
+    try:
+        return float(value.replace(',', '.')) if value not in [None, 'N/A', ''] else None
+    except ValueError:
+        return None
+
+def process_restaurant_csv(file_name):
+    """Insère les restaurants depuis un fichier CSV situé dans le dossier parent 'data'."""
+
+    # Construire le chemin absolu vers le fichier CSV
+    # base_dir = os.path.dirname("Data")  # Répertoire actuel du script
+    data_dir = os.path.join("Data", "..", "data")  # Chemin vers le dossier 'data'
+    file_path = os.path.join(data_dir, file_name)  # Chemin complet vers le fichier CSV
+
+    # Vérifier si le fichier existe
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Le fichier spécifié n'existe pas : {file_path}")
+
+    # Lire le fichier CSV en DataFrame
+    df = pd.read_csv(file_path, sep=';')
+
+    # Parcourir chaque ligne du DataFrame pour insérer les restaurants
+    for _, row in df.iterrows():
+        # Assurez-vous que chaque colonne du DataFrame correspond aux champs nécessaires
+        restaurant_data = parse_to_dict(row['info'])
+        print(restaurant_data['Emplacement et coordonnées'])
+
+        # Insérer le restaurant dans la base de données
+        restaurant_id = insert_restaurant(
+        name=row['restaurant'],
+        url=row['url'],
+        adresse=restaurant_data['Emplacement et coordonnées'].get('ADRESSE', None),
+        email=restaurant_data['Emplacement et coordonnées'].get('EMAIL', None),
+        telephone=restaurant_data['Emplacement et coordonnées'].get('TELEPHONE', None),
+        cuisines=restaurant_data['Détails'].get('CUISINES', None),
+        note_globale=safe_float(restaurant_data['Notes et avis'].get('NOTE GLOBALE', '0')),
+        cuisine_note=safe_float(restaurant_data['Notes et avis'].get('CUISINE', '0')),
+        service_note=safe_float(restaurant_data['Notes et avis'].get('SERVICE', '0')),
+        qualite_prix_note=safe_float(restaurant_data['Notes et avis'].get('RAPPORT QUALITÉ-PRIX', '0')),
+        ambiance_note=safe_float(restaurant_data['Notes et avis'].get('AMBIANCE', '0')),
+        prix_min=safe_float(restaurant_data['Détails'].get('FOURCHETTE DE PRIX', '').replace('\xa0€', '').split('-')[0]) if '-' in restaurant_data['Détails'].get('FOURCHETTE DE PRIX', '') else None,
+        prix_max=safe_float(restaurant_data['Détails'].get('FOURCHETTE DE PRIX', '').replace('\xa0€', '').split('-')[1]) if '-' in restaurant_data['Détails'].get('FOURCHETTE DE PRIX', '') else None,
+        etoiles_michelin = (
+            int(restaurant_data['Détails'].get('ÉTOILES MICHELIN', 0))
+            if isinstance(restaurant_data['Détails'].get('ÉTOILES MICHELIN'), str) and restaurant_data['Détails'].get('ÉTOILES MICHELIN', '').isdigit()
+            else restaurant_data['Détails'].get('ÉTOILES MICHELIN', None) if isinstance(restaurant_data['Détails'].get('ÉTOILES MICHELIN'), int)
+            else None
+        ),
+        repas=restaurant_data['Détails'].get('REPAS', None)
+    )
+
+
 
 
 if __name__ == "__main__":
@@ -144,37 +210,49 @@ if __name__ == "__main__":
 
 
     ## Prochaine étape : remplir la base de données avec les données scrapper
-    scrapper = tf.RestaurantFinder()
-    restaurants = scrapper.scrape_all_restaurants(max_pages=1)
+    # Insérer les restaurants
+    restaurant_csv_file = "info_restaurants_plus.csv"
 
+    # process_restaurant_csv(restaurant_csv_file)
+
+    restaurants_scrapped = session.query(Restaurant).all()
+    
+    # Parcourir et imprimer les restaurants
+    
+    for restaurant in restaurants_scrapped:
+        if restaurant.scrapped:
+            print(f"Scrappé ID: {restaurant.id_restaurant}, Nom: {restaurant.nom}, Adresse: {restaurant.adresse}")
+        else:
+            print(f"Non scrappé ID: {restaurant.id_restaurant}, Nom: {restaurant.nom}, Adresse: {restaurant.adresse}")
+    
+
+    """restaurants = get_all_restaurants(session)
     for restaurant in restaurants:
-        print(restaurant)
-        
-        rest_info = tf.restaurant_info_extractor()
-        restaurant_data, reviews = rest_info.scrape_restaurant(restaurant['url'])
-        print(restaurant_data)
+        print(f"Restaurant ID: {restaurant.id_restaurant}, Name: {restaurant.nom}")
 
-        restaurant_id = insert_restaurant(
-            name=restaurant['name'],
-            url=restaurant['url'],
-            adresse=restaurant_data['Emplacement et coordonnées'].get('ADRESSE', None),
-            email=restaurant_data['Emplacement et coordonnées'].get('EMAIL', None),
-            telephone=restaurant_data['Emplacement et coordonnées'].get('TELEPHONE', None),
-            cuisines=restaurant_data['Détails'].get('CUISINES', None),
-            note_globale=float(restaurant_data['Notes et avis'].get('NOTE GLOBALE', '0').replace(',', '.')) if restaurant_data['Notes et avis'].get('NOTE GLOBALE', None) else None,
-            cuisine_note=float(restaurant_data['Notes et avis'].get('CUISINE', '0').replace(',', '.')) if restaurant_data['Notes et avis'].get('CUISINE', None) else None,
-            service_note=float(restaurant_data['Notes et avis'].get('SERVICE', '0').replace(',', '.')) if restaurant_data['Notes et avis'].get('SERVICE', None) else None,
-            qualite_prix_note=float(restaurant_data['Notes et avis'].get('RAPPORT QUALITÉ-PRIX', '0').replace(',', '.')) if restaurant_data['Notes et avis'].get('RAPPORT QUALITÉ-PRIX', None) else None,
-            ambiance_note=float(restaurant_data['Notes et avis'].get('AMBIANCE', '0').replace(',', '.')) if restaurant_data['Notes et avis'].get('AMBIANCE', None) else None,
-            prix_min=float(restaurant_data['Détails'].get('FOURCHETTE DE PRIX', '').replace('\xa0€', '').split('-')[0].replace(',', '.')) if '-' in restaurant_data['Détails'].get('FOURCHETTE DE PRIX', '') else None,
-            prix_max=float(restaurant_data['Détails'].get('FOURCHETTE DE PRIX', '').replace('\xa0€', '').split('-')[1].replace(',', '.')) if '-' in restaurant_data['Détails'].get('FOURCHETTE DE PRIX', '') else None,
-            etoiles_michelin=int(restaurant_data['Détails'].get('ÉTOILES MICHELIN', 0)),
-            repas=restaurant_data['Détails'].get('REPAS', None)
+
+    with engine.connect() as connection:
+        connection.execute(
+            text("ALTER TABLE dim_restaurants ADD COLUMN scrapped BOOLEAN DEFAULT 0")
+        )"""
+    
+    
+    """with Session(engine) as session:
+        # Sous-requête pour vérifier si l'id_restaurant existe dans la table review
+        subquery = select(Review.id_restaurant).distinct()
+
+        # Requête de mise à jour
+        session.execute(
+            update(Restaurant)
+            .where(Restaurant.id_restaurant.in_(subquery))
+            .values(scrapped=True)
         )
+        session.commit()
 
-        print("##################################################")
-        print(reviews)
-
-        for review in reviews:
-            insert_review(review, restaurant_id)
+        print("Mise à jour effectuée avec succès.")
+        
+        
+        
+"""
+       
 
