@@ -4,6 +4,7 @@ import urllib.parse
 import requests
 from pathlib import Path
 import concurrent.futures
+import math
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -37,6 +38,38 @@ def get_coordinates(address):
         else:
             break
     return None, None
+
+# Fonction pour calculer la distance entre deux points
+def haversine(lat1, lon1, lat2, lon2):
+    # Rayon moyen de la Terre en mètres
+    R = 6371000
+
+    # Conversion des degrés en radians
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+
+    # Différences des coordonnées
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+
+    # Formule de Haversine
+    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    # Distance en mètres
+    distance = R * c
+    return distance
+
+# Fonction pour filtrer les restaurants par rayon
+def filter_restaurants_by_radius(restaurants, center_lat, center_lon, radius):
+    filtered = []
+    for restaurant in restaurants:
+        distance = haversine(center_lat, center_lon, restaurant['lat'], restaurant['lon'])
+        if distance <= radius:
+            filtered.append(restaurant)
+    return filtered
 
 # Fonction pour obtenir le lien Google Maps d'une adresse
 def get_google_maps_link(address):
@@ -247,28 +280,3 @@ def get_restaurant_coordinates(restaurants):
                     'lon': lon
                 })
     return coordinates
-
-# import math
-
-# def haversine(lat1, lon1, lat2, lon2):
-#     # Rayon moyen de la Terre en mètres
-#     R = 6371000  # 6371 km * 1000 pour des résultats en mètres
-
-#     # Conversion des degrés en radians
-#     lat1_rad = math.radians(lat1)
-#     lon1_rad = math.radians(lon1)
-#     lat2_rad = math.radians(lat2)
-#     lon2_rad = math.radians(lon2)
-
-#     # Différences des coordonnées
-#     dlat = lat2_rad - lat1_rad
-#     dlon = lon2_rad - lon1_rad
-
-#     # Formule de Haversine
-#     a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
-#     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-#     # Distance en mètres
-#     distance = R * c
-#     print(f"La distance entre les deux points est d'environ {distance:.2f} mètres.")
-#     return distance

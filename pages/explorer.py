@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api, add_to_comparator
+from pages.resources.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api, add_to_comparator, filter_restaurants_by_radius
 from pages.statistiques import display_restaurant_stats
 from db.models import get_all_restaurants
 import pydeck as pdk
@@ -154,7 +154,15 @@ def main():
         options = ["Sélectionner un restaurant"] + restaurant_names
 
         search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
-        radius = header_col1.slider("Rayon (m)", min_value=1, max_value=1000, step=1, value=100)
+        if personal_address:
+            use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter")
+            if use_radius_filter:
+                radius = header_col1.slider("Rayon (m)", min_value=1, max_value=3000, step=1, value=500)
+            else:
+                radius = 1000000
+        else:
+            use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter", disabled=True)
+            radius = 1000000
     
     # Colonne pour les filtres
     with header_col2:
@@ -184,6 +192,19 @@ def main():
 
         # Extraction des restaurants filtrés pour la carte
         filtered_restaurants = [(result[0].nom, result[0].adresse) for result in filtered_results if result[0] is not None]
+
+        # Récupérer les coordonnées des restaurants filtrés
+        restaurant_coords = get_restaurant_coordinates(filtered_restaurants)
+
+        # Filtrer les restaurants par rayon
+        if personal_address:
+            center_lat, center_lon = get_coordinates(personal_address)
+            if center_lat and center_lon:
+                restaurant_coords_filtered = filter_restaurants_by_radius(restaurant_coords, center_lat, center_lon, radius)
+                # Obtenir les noms des restaurants filtrés
+                filtered_names = [restaurant['name'] for restaurant in restaurant_coords_filtered]
+                # Filtrer les résultats en fonction des noms filtrés
+                filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
 
         # Affichage uniquement des restaurants filtrés
         for result in filtered_results:
@@ -231,6 +252,10 @@ def main():
             # Récupération des coordonnées géographiques des restaurants
             map_data = get_restaurant_coordinates(filtered_restaurants)
 
+            # Mise en forme du radius
+            if radius == 1000000:
+                radius = 25
+
             # Ajout des coordonnées du domicile s'il est défini
             if personal_address:
                 home_lat, home_lon = get_coordinates(personal_address)
@@ -259,7 +284,7 @@ def main():
                 'ScatterplotLayer',
                 data=[point for point in map_data if point['name'] == 'Domicile'],
                 get_position='[lon, lat]',
-                get_color='[0, 0, 255, 50]',
+                get_color='[0, 0, 255, 100]',
                 get_radius=radius,
                 pickable=True,
                 auto_highlight=True
