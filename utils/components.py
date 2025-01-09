@@ -39,6 +39,22 @@ def get_coordinates(address):
             break
     return None, None
 
+# Fonction pour afficher les étoiles Michelin
+def display_michelin_stars(rating):
+    base_path = Path(__file__).parent.parent / 'images'
+    one_star = base_path / 'one_star.svg'
+    two_stars = base_path / 'two_stars.svg'
+    three_stars = base_path / 'three_stars.svg'
+
+    if rating == 1:
+        return one_star
+    elif rating == 2:
+        return two_stars
+    elif rating == 3:
+        return three_stars
+    else:
+        return None
+
 # Fonction pour afficher les étoiles des notes
 def display_stars(rating):
     base_path = Path(__file__).parent.parent / 'images'

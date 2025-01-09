@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from utils.components import Navbar, get_personnal_address, get_coordinates, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link
+from utils.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link
 from db.models import get_all_restaurants
 import pydeck as pdk
 import webbrowser
@@ -53,7 +53,17 @@ def add_restaurant_dialog():
 def restaurant_info_dialog():
     selected_restaurant = st.session_state.get('selected_restaurant')
     if selected_restaurant:
-        st.header(selected_restaurant.nom)
+
+        title_col1, title_col2 = st.columns([3, 1])
+
+        with title_col1:
+            michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+            title_col1.header(selected_restaurant.nom)
+
+        with title_col2:
+            michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+            if michelin_stars:
+                title_col2.image(michelin_stars, width=25)
         
         header_container = st.container()
         header_col1, header_col2 = header_container.columns(2)
