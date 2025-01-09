@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, Date
+from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, Date, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker, joinedload
 
@@ -28,6 +28,7 @@ class Restaurant(Base):
 
     
     avis = relationship("Review", back_populates="restaurant")
+    scrapped = Column(Boolean, default=False)  # Nouvelle colonne
 
 """class Geographie(Base):
     __tablename__ = 'dim_geographie'
@@ -68,6 +69,7 @@ class User(Base):
     num_contributions = Column(Integer)
 
     avis = relationship("Review", back_populates="user")
+
 
 def init_db(db_path="sqlite:///restaurant_reviews.db"):
     engine = create_engine(db_path)
