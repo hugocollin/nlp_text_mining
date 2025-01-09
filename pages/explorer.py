@@ -90,8 +90,13 @@ def restaurant_info_dialog():
             journeys_container.write(f"🚲 {duration_soft}")
             journeys_container.write(f"🚌 {duration_public}")
             journeys_container.write(f"🚗 {duration_car}")
-            if journeys_container.button(label="Consulter les itinéraires TCL"):
-                webbrowser.open_new_tab(tcl_url)
+            if tcl_url:
+                if journeys_container.button(label="Consulter les itinéraires TCL"):
+                    webbrowser.open_new_tab(tcl_url)
+            else:
+                emoji, fastest_duration = fastest_mode
+                bouton_label = f"{emoji} {fastest_duration}"
+                journeys_container.button(label=bouton_label, disabled=True)
         
         st.write(f"**Cuisine :** {selected_restaurant.cuisines}")
         st.write(f"**Prix min :** {selected_restaurant.prix_min}")
@@ -193,15 +198,14 @@ def main():
                     restaurant_info_dialog()
             
             with col3:
+                emoji, fastest_duration = fastest_mode
+                bouton_label = f"{emoji} {fastest_duration}"
+                button_key = f"trajet_btn_{restaurant.id_restaurant}"
                 if tcl_url:
-                    emoji, fastest_duration = fastest_mode
-                    bouton_label = f"{emoji} {fastest_duration}"
-                    button_key = f"trajet_btn_{restaurant.id_restaurant}"
                     if col3.button(bouton_label, key=button_key):
                         webbrowser.open_new_tab(tcl_url)
                 else:
-                    unique_key = f"trajet_indisponible_{restaurant.id_restaurant}"
-                    col3.button("Trajet indisponible", disabled=True, key=unique_key)
+                    col3.button(bouton_label, key=button_key, disabled=True)
     
     # Affichage de la carte
     with results_display_col2:
