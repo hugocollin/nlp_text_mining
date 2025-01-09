@@ -204,6 +204,19 @@ def get_restaurant_coordinates(restaurants):
                 })
     return coordinates
 
+# Fonction pour obtenir le lien Google Maps d'une adresse
+def get_google_maps_link(address):
+    # Mise en forme de l'adresse
+    parts = address.split(',')
+    if len(parts) > 1 and parts[-1].strip().lower() == 'france':
+        address = ','.join(parts[:-1])
+
+    # Encodage de l'adresse
+    encoded_address = urllib.parse.quote_plus(address)
+    google_maps_url = f"https://www.google.com/maps/place/{encoded_address}"
+
+    return google_maps_url
+
 available_restaurants_options = ["Sélectionner un restaurant", "Restaurant 1", "Restaurant 2", "Restaurant 3", "Restaurant 4", "Restaurant 5"] # [TEMP] À remplacer par les restaurants de la base de données
 
 # import math

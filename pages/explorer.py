@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from utils.components import Navbar, get_personnal_address, get_coordinates, display_stars, process_restaurant, get_restaurant_coordinates
+from utils.components import Navbar, get_personnal_address, get_coordinates, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link
 from db.models import get_all_restaurants
 import pydeck as pdk
 import webbrowser
@@ -10,15 +10,15 @@ import concurrent.futures
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
 
-st.markdown("""
-    <style>
-    .stButton > button {
-        margin-left: auto;
-        margin-right: 0;
-        display: block;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# st.markdown("""
+#     <style>
+#     .stButton > button {
+#         margin-left: auto;
+#         margin-right: 0;
+#         display: block;
+#     }
+#     </style>
+# """, unsafe_allow_html=True)
 
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')
@@ -54,25 +54,41 @@ def restaurant_info_dialog():
     selected_restaurant = st.session_state.get('selected_restaurant')
     if selected_restaurant:
         st.header(selected_restaurant.nom)
-        stars = display_stars(selected_restaurant.note_globale)
-        st.write(f"**Note globale :**")
-        st.image(stars, width=20)
-        st.write(f"**Adresse :** {selected_restaurant.adresse}")
-        st.write(f"**Lien :** {selected_restaurant.url_link}")
-        st.write(f"**Email :** {selected_restaurant.email}")
-        st.write(f"**Téléphone :** {selected_restaurant.telephone}")
+        
+        header_container = st.container()
+        header_col1, header_col2 = header_container.columns(2)
+
+        with header_col1:
+            info_container = st.container()
+            if info_container.button(icon="📍", label=selected_restaurant.adresse):
+                lien_gm = get_google_maps_link(selected_restaurant.adresse)
+                webbrowser.open_new_tab(lien_gm)
+            if info_container.button(icon="🌐", label="Lien vers Tripadvisor"):
+                webbrowser.open_new_tab(selected_restaurant.url_link)
+            if info_container.button(icon="📧", label=selected_restaurant.email):
+                webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
+            if info_container.button(icon="📞", label=selected_restaurant.telephone):
+                webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
+
+        with header_col2:
+            score_container = st.container(border=True)
+            score_col1, score_col2 = score_container.columns([1.5, 1])
+
+            with score_col1:
+                score_col1.write(f"**Note globale :**")
+                score_col1.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
+                score_col1.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
+                score_col1.write(f"**Note service :** {selected_restaurant.service_note}")
+                score_col1.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
+            with score_col2:
+                stars = display_stars(selected_restaurant.note_globale)
+                score_col2.image(stars, width=20)
+            
+        
         st.write(f"**Cuisine :** {selected_restaurant.cuisines}")
-        st.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
-        st.write(f"**Note service :** {selected_restaurant.service_note}")
-        st.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
-        st.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
         st.write(f"**Prix min :** {selected_restaurant.prix_min}")
         st.write(f"**Prix max :** {selected_restaurant.prix_max}")
         st.write(f"**Repas :** {selected_restaurant.repas}")
-         
-    if st.button("Fermer"):
-        st.session_state['selected_restaurant'] = None
-        st.rerun()
 
 def main():
     # Barre de navigation
