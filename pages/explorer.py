@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from utils.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link
+from utils.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api
 from db.models import get_all_restaurants
 import pydeck as pdk
 import webbrowser
@@ -9,16 +9,6 @@ import concurrent.futures
 
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
-
-# st.markdown("""
-#     <style>
-#     .stButton > button {
-#         margin-left: auto;
-#         margin-right: 0;
-#         display: block;
-#     }
-#     </style>
-# """, unsafe_allow_html=True)
 
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')
@@ -52,12 +42,13 @@ def add_restaurant_dialog():
 @st.dialog("Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
     selected_restaurant = st.session_state.get('selected_restaurant')
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, selected_restaurant.adresse)
+
     if selected_restaurant:
 
-        title_col1, title_col2 = st.columns([3, 1])
+        title_col1, title_col2 = st.columns([0.9, 0.1], vertical_alignment = "bottom")
 
         with title_col1:
-            michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
             title_col1.header(selected_restaurant.nom)
 
         with title_col2:
@@ -65,10 +56,10 @@ def restaurant_info_dialog():
             if michelin_stars:
                 title_col2.image(michelin_stars, width=25)
         
-        header_container = st.container()
-        header_col1, header_col2 = header_container.columns(2)
+        container = st.container()
+        col1, col2 = container.columns(2)
 
-        with header_col1:
+        with col1:
             info_container = st.container()
             if info_container.button(icon="📍", label=selected_restaurant.adresse):
                 lien_gm = get_google_maps_link(selected_restaurant.adresse)
@@ -80,9 +71,9 @@ def restaurant_info_dialog():
             if info_container.button(icon="📞", label=selected_restaurant.telephone):
                 webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
 
-        with header_col2:
+        with col2:
             score_container = st.container(border=True)
-            score_col1, score_col2 = score_container.columns([1.5, 1])
+            score_col1, score_col2 = score_container.columns([0.5, 0.5])
 
             with score_col1:
                 score_col1.write(f"**Note globale :**")
@@ -94,6 +85,13 @@ def restaurant_info_dialog():
                 stars = display_stars(selected_restaurant.note_globale)
                 score_col2.image(stars, width=20)
             
+            journeys_container = st.container(border=True)
+            journeys_container.write("**Temps de trajet**")
+            journeys_container.write(f"🚲 {duration_soft}")
+            journeys_container.write(f"🚌 {duration_public}")
+            journeys_container.write(f"🚗 {duration_car}")
+            if journeys_container.button(label="Consulter les itinéraires TCL"):
+                webbrowser.open_new_tab(tcl_url)
         
         st.write(f"**Cuisine :** {selected_restaurant.cuisines}")
         st.write(f"**Prix min :** {selected_restaurant.prix_min}")

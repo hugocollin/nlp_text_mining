@@ -113,12 +113,12 @@ def tcl_api(personal_address, restaurant_address):
                 response = requests.get(tcl_api_url, headers=headers, timeout=10)
             except requests.RequestException:
                 st.toast("❌ Erreur lors de la récupération des données de transport.")
-                return None, "N/A", "N/A", "N/A", ("❌", "N/A")
+                return None, "Trajet indisponible", "Trajet indisponible", "Trajet indisponible", ("❌", "Trajet indisponible")
 
-            duration_public = "N/A"
-            duration_car = "N/A"
-            duration_soft = "N/A"
-            fastest_mode = ("❌", "N/A")
+            duration_public = "Trajet indisponible"
+            duration_car = "Trajet indisponible"
+            duration_soft = "Trajet indisponible"
+            fastest_mode = ("❌", "Trajet indisponible")
 
             duration_public_min = float('inf')
             duration_car_min = float('inf')
@@ -182,7 +182,7 @@ def tcl_api(personal_address, restaurant_address):
             min_duration = min(durations.values())
 
             if min_duration == float('inf'):
-                fastest_mode = ("❌", "N/A")
+                fastest_mode = ("❌", "Trajet indisponible")
             else:
                 if min_duration == durations["public"]:
                     fastest_mode = ("🚌", duration_public)
@@ -192,11 +192,11 @@ def tcl_api(personal_address, restaurant_address):
                     fastest_mode = ("🚲", duration_soft)
 
             if not tcl_url:
-                return None, "N/A", "N/A", "N/A", ("❌", "N/A")
+                return None, "Trajet indisponible", "Trajet indisponible", "Trajet indisponible", ("❌", "Trajet indisponible")
 
             return tcl_url, duration_public, duration_car, duration_soft, fastest_mode
 
-    return None, "N/A", "N/A", "N/A", ("❌", "N/A")
+    return None, "Trajet indisponible", "Trajet indisponible", "Trajet indisponible", ("❌", "Trajet indisponible")
 
 # Fonction de traitement des restaurants
 def process_restaurant(personal_address, restaurant):
