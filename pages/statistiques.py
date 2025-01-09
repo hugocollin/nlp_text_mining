@@ -1,7 +1,11 @@
 import streamlit as st
 
+
+
+
 def display_restaurant_stats(restaurant):
     st.title(f"📊 {restaurant.nom}")
+    st.write(f"📍 {restaurant.nom}")
 
     # Bouton pour revenir en arrière
     if st.button("🔙 Retour"):

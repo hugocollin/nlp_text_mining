@@ -5,7 +5,7 @@ import requests
 from pathlib import Path
 import concurrent.futures
 import math
-
+import numpy
 # Fonction pour afficher la barre de navigation
 def Navbar():
     with st.sidebar:
@@ -42,8 +42,8 @@ def get_personnal_address():
 
 # Fonction pour obtenir les coordonnées d'une adresse
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_coordinates(address):
-    geolocator = Nominatim(user_agent="sise_o_resto", timeout=10)
+def get_coordinates(address,user_agent):
+    geolocator = Nominatim(user_agent=user_agent, timeout=15)
     current_address = address
     while True:
         location = geolocator.geocode(f"{current_address}, Rhône, France")
@@ -69,8 +69,10 @@ def get_restaurant_coordinates(restaurants):
     coordinates = []
 
     # Récupération des coordonnées géographiques de chaque restaurant
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_info = {executor.submit(get_coordinates, addr): name for name, addr in restaurants}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        # chose a random numer with 10 digits
+        agent = numpy.random.randint(10000000, 99999999)
+        future_to_info = {executor.submit(get_coordinates, addr, str(agent)): name for name, addr in restaurants}
         for future in concurrent.futures.as_completed(future_to_info):
             name = future_to_info[future]
             lat, lon = future.result()
