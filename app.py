@@ -1,5 +1,5 @@
 import streamlit as st
-from utils.components import Navbar, get_personnal_address
+from pages.resources.components import Navbar, get_personnal_address
 
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto", page_icon="🍽️", layout="wide")
