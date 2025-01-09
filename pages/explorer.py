@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api
+from pages.resources.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api, add_to_comparator
 from pages.statistiques import display_restaurant_stats
 from db.models import get_all_restaurants
 import pydeck as pdk
@@ -42,24 +42,29 @@ def add_restaurant_dialog():
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
+    # Récupération des informations du restaurant sélectionné
     selected_restaurant = st.session_state.get('selected_restaurant')
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, selected_restaurant.adresse)
 
     if selected_restaurant:
-
+        # Mise en page du header
         title_col1, title_col2 = st.columns([0.9, 0.1], vertical_alignment = "bottom")
-
+        
+        # Affichage du nom
         with title_col1:
             title_col1.header(selected_restaurant.nom)
 
+        # Affichage des étoiles Michelin
         with title_col2:
             michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
             if michelin_stars:
                 title_col2.image(michelin_stars, width=25)
         
+        # Mise en page des informations
         container = st.container()
         col1, col2 = container.columns(2)
 
+        # Affichage des informations de la colonne 1
         with col1:
             info_container = st.container()
             if info_container.button(icon="📍", label=selected_restaurant.adresse):
@@ -71,13 +76,19 @@ def restaurant_info_dialog():
                 webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
             if info_container.button(icon="📞", label=selected_restaurant.telephone):
                 webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
+            
+            info_supp_container = st.container(border=True)
+            info_supp_container.write("**Informations complémentaires**")
+            info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+            info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
 
+        # Affichage des informations de la colonne 2
         with col2:
             score_container = st.container(border=True)
             score_col1, score_col2 = score_container.columns([0.5, 0.5])
 
             with score_col1:
-                score_col1.write(f"**Note globale :**")
+                score_col1.write("**Note globale :**")
                 score_col1.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
                 score_col1.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
                 score_col1.write(f"**Note service :** {selected_restaurant.service_note}")
@@ -98,11 +109,6 @@ def restaurant_info_dialog():
                 emoji, fastest_duration = fastest_mode
                 bouton_label = f"{emoji} {fastest_duration}"
                 journeys_container.button(label=bouton_label, disabled=True)
-        
-        st.write(f"**Cuisine :** {selected_restaurant.cuisines}")
-        st.write(f"**Prix min :** {selected_restaurant.prix_min}")
-        st.write(f"**Prix max :** {selected_restaurant.prix_max}")
-        st.write(f"**Repas :** {selected_restaurant.repas}")
 
 def main():
     # Barre de navigation
@@ -142,7 +148,6 @@ def main():
 
     # Colonne pour la recherche
     with header_col1:
-        header_col1.write("Recherche")
 
         # [TEMP] Filtrer sur les restaurant scrappé
         restaurant_names = [restaurant.nom for restaurant in restaurants]
@@ -153,9 +158,9 @@ def main():
     
     # Colonne pour les filtres
     with header_col2:
-        header_col2.write("Filtres")
 
         # [TEMP] Ajouter des filtres
+        header_col2.write("[Les filtres seront ajoutés ultérieurement]")
 
     # Mise en page des résultats
     results_display_col1, results_display_col2 = st.columns([3, 2])
@@ -186,38 +191,30 @@ def main():
             container = st.container(border=True)
             col1, col2, col3, col4, col5 = container.columns([3.5, 1, 1, 1, 2.5])
             
+            # Affichage des informations du restaurant
             with col1:
                 col1.write(restaurant.nom)
                 stars = display_stars(restaurant.note_globale)
                 col1.image(stars, width=20)
 
+            # Affichage du bouton d'informations
             with col2:
                 if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
                     st.session_state['selected_restaurant'] = restaurant
                     restaurant_info_dialog()
             
+            # Affichage du bouton de statistiques
             with col3:
                 if col3.button("📊", key=f"stats_btn_{restaurant.id_restaurant}"):
                     st.session_state['selected_stats_restaurant'] = restaurant
                     st.rerun()
 
+            # Affichage du bouton de comparaison
             with col4:
-                # Fonction pour ajouter au comparateur
-                def add_to_comparator(restaurant):
-                    comparator = st.session_state['comparator']
-                    if restaurant.id_restaurant not in comparator:
-                        if len(comparator) < 3:
-                            comparator.append(restaurant.id_restaurant)
-                            st.session_state['comparator'] = comparator
-                            st.toast(f"🆚 {restaurant.nom} ajouté au comparateur!")
-                        else:
-                            st.toast("⚠️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
-                    else:
-                        st.toast(f"ℹ️ {restaurant.nom} est déjà dans le comparateur.")
-
                 if col4.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
                     add_to_comparator(restaurant)
             
+            # Affichage du bouton de trajet
             with col5:
                 emoji, fastest_duration = fastest_mode
                 bouton_label = f"{emoji} {fastest_duration}"
