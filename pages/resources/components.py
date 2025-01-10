@@ -5,7 +5,9 @@ import requests
 from pathlib import Path
 import concurrent.futures
 import math
-import numpy
+import base64
+import webbrowser
+
 # Fonction pour afficher la barre de navigation
 def Navbar():
     with st.sidebar:
@@ -42,8 +44,8 @@ def get_personnal_address():
 
 # Fonction pour obtenir les coordonnées d'une adresse
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_coordinates(address,user_agent):
-    geolocator = Nominatim(user_agent=user_agent, timeout=15)
+def get_coordinates(address):
+    geolocator = Nominatim(user_agent="sise_o_resto", timeout=15)
     current_address = address
     while True:
         location = geolocator.geocode(f"{current_address}, Rhône, France")
@@ -70,9 +72,7 @@ def get_restaurant_coordinates(restaurants):
 
     # Récupération des coordonnées géographiques de chaque restaurant
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        # chose a random numer with 10 digits
-        agent = numpy.random.randint(10000000, 99999999)
-        future_to_info = {executor.submit(get_coordinates, addr, str(agent)): name for name, addr in restaurants}
+        future_to_info = {executor.submit(get_coordinates, addr): name for name, addr in restaurants}
         for future in concurrent.futures.as_completed(future_to_info):
             name = future_to_info[future]
             lat, lon = future.result()
@@ -106,37 +106,70 @@ def get_google_maps_link(address):
 
     return google_maps_url
 
+# Fonction pour convertir une image en chaîne base64
+def image_to_base64(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
 # Fonction pour afficher les étoiles Michelin
 def display_michelin_stars(rating):
+    # Définition des chemins des images des étoiles
     base_path = Path(__file__).parent / 'images'
     one_star = base_path / 'one_star.svg'
     two_stars = base_path / 'two_stars.svg'
     three_stars = base_path / 'three_stars.svg'
 
+    # Sélection de l'image en fonction de la note
     if rating == 1:
-        return one_star
+        star_path = one_star
     elif rating == 2:
-        return two_stars
+        star_path = two_stars
     elif rating == 3:
-        return three_stars
+        star_path = three_stars
     else:
-        return None
+        return ""
+
+    # Convertion de l'image en base64
+    star_base64 = image_to_base64(star_path)
+    if star_base64:
+        # Création de la data URI
+        star_data_uri = f"data:image/svg+xml;base64,{star_base64}"
+        return star_data_uri
+    else:
+        return ""
 
 # Fonction pour afficher les étoiles des notes
 def display_stars(rating):
+    # Définition des chemins des images des étoiles
     base_path = Path(__file__).parent / 'images'
     full_star = base_path / 'full_star_icon.svg'
     half_star = base_path / 'half_star_icon.svg'
     empty_star = base_path / 'empty_star_icon.svg'
-
+    
+    # Création de la liste des étoiles
     stars = []
     for i in range(1, 6):
         if rating >= i:
-            stars.append(str(full_star))
+            star_path = full_star
         elif rating >= i - 0.5:
-            stars.append(str(half_star))
+            star_path = half_star
         else:
-            stars.append(str(empty_star))
+            star_path = empty_star
+
+        star_base64 = image_to_base64(star_path)
+        if star_base64:
+            # Création de la data URI
+            star_data_uri = f"data:image/svg+xml;base64,{star_base64}"
+            stars.append(star_data_uri)
+        else:
+            # Utilisation d'une étoile vide par défaut en cas d'erreur
+            empty_star_path = empty_star
+            star_base64_default = image_to_base64(empty_star_path)
+            if star_base64_default:
+                star_data_uri_default = f"data:image/svg+xml;base64,{star_base64_default}"
+                stars.append(star_data_uri_default)
+            else:
+                stars.append("")
     return stars
 
 # Fonction pour obtenir les informations de trajet depuis le site TCL
@@ -272,14 +305,74 @@ def add_to_comparator(restaurant):
         if len(comparator) < 3:
             comparator.append(restaurant.id_restaurant)
             st.session_state['comparator'] = comparator
-            st.toast(f"🆚 {restaurant.nom} ajouté au comparateur!")
+            st.toast(f"🆚 Le restaurant {restaurant.nom} a été ajouté au comparateur")
         else:
-            st.toast("⚠️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
+            st.toast("ℹ️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
     else:
-        st.toast(f"ℹ️ {restaurant.nom} est déjà dans le comparateur.")
+        st.toast(f"ℹ️ Le restaurant {restaurant.nom} est déjà dans le comparateur")
 
 
 # Fonction de traitement des restaurants
 def process_restaurant(personal_address, restaurant):
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
     return (restaurant, tcl_url, fastest_mode)
+
+# Récupération des informations du restaurant sélectionné
+def display_restaurant_infos(personal_address):
+    selected_restaurant = st.session_state.get('selected_restaurant')
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, selected_restaurant.adresse)
+
+    if selected_restaurant:
+        michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+        if michelin_stars:
+            michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+        else:
+            michelin_stars_html = ''
+        st.html(f"<h1>{selected_restaurant.nom}   {michelin_stars_html}</h1>")
+        
+        # Mise en page des informations
+        container = st.container()
+        col1, col2 = container.columns([0.6, 0.4])
+
+        # Affichage des informations de la colonne 1
+        with col1:
+            info_container = st.container()
+            if info_container.button(icon="📍", label=selected_restaurant.adresse):
+                lien_gm = get_google_maps_link(selected_restaurant.adresse)
+                webbrowser.open_new_tab(lien_gm)
+            if info_container.button(icon="🌐", label="Lien vers Tripadvisor"):
+                webbrowser.open_new_tab(selected_restaurant.url_link)
+            if info_container.button(icon="📧", label=selected_restaurant.email):
+                webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
+            if info_container.button(icon="📞", label=selected_restaurant.telephone):
+                webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
+            
+            info_supp_container = st.container(border=True)
+            info_supp_container.write("**Informations complémentaires**")
+            info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+            info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+
+        # Affichage des informations de la colonne 2
+        with col2:
+            score_container = st.container(border=True)
+
+            stars = display_stars(selected_restaurant.note_globale)
+            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+            score_container.html(f"<b>Note globale : </b>{stars_html}")
+            score_container.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
+            score_container.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
+            score_container.write(f"**Note service :** {selected_restaurant.service_note}")
+            score_container.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
+            
+            journeys_container = st.container(border=True)
+            journeys_container.write("**Temps de trajet**")
+            journeys_container.write(f"🚲 {duration_soft}")
+            journeys_container.write(f"🚌 {duration_public}")
+            journeys_container.write(f"🚗 {duration_car}")
+            if tcl_url:
+                if journeys_container.button(label="Consulter les itinéraires TCL"):
+                    webbrowser.open_new_tab(tcl_url)
+            else:
+                emoji, fastest_duration = fastest_mode
+                bouton_label = f"{emoji} {fastest_duration}"
+                journeys_container.button(label=bouton_label, disabled=True)

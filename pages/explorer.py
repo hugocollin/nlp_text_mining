@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api, add_to_comparator, filter_restaurants_by_radius
+from pages.resources.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos
 from pages.statistiques import display_restaurant_stats
 from db.models import get_all_restaurants
 import pydeck as pdk
@@ -26,8 +26,8 @@ personal_address = get_personnal_address()
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
     # Filtrage sur les restaurants non scrappés
-    restaurant_names = [restaurant.nom for restaurant in restaurants if not restaurant.scrapped]
-    options = ["Sélectionner un restaurant"] + restaurant_names
+    scrapped_restaurants = [restaurant.nom for restaurant in restaurants if not restaurant.scrapped]
+    options = ["Sélectionner un restaurant"] + scrapped_restaurants
 
     # Sélection du restaurant à ajouter
     restaurant_select = st.selectbox(label="Sélectionner un restaurant", label_visibility="collapsed", placeholder="Sélectionner un restaurant", options=options, key="restaurant_select")
@@ -42,73 +42,7 @@ def add_restaurant_dialog():
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    # Récupération des informations du restaurant sélectionné
-    selected_restaurant = st.session_state.get('selected_restaurant')
-    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, selected_restaurant.adresse)
-
-    if selected_restaurant:
-        # Mise en page du header
-        title_col1, title_col2 = st.columns([0.9, 0.1], vertical_alignment = "bottom")
-        
-        # Affichage du nom
-        with title_col1:
-            title_col1.header(selected_restaurant.nom)
-
-        # Affichage des étoiles Michelin
-        with title_col2:
-            michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
-            if michelin_stars:
-                title_col2.image(michelin_stars, width=25)
-        
-        # Mise en page des informations
-        container = st.container()
-        col1, col2 = container.columns(2)
-
-        # Affichage des informations de la colonne 1
-        with col1:
-            info_container = st.container()
-            if info_container.button(icon="📍", label=selected_restaurant.adresse):
-                lien_gm = get_google_maps_link(selected_restaurant.adresse)
-                webbrowser.open_new_tab(lien_gm)
-            if info_container.button(icon="🌐", label="Lien vers Tripadvisor"):
-                webbrowser.open_new_tab(selected_restaurant.url_link)
-            if info_container.button(icon="📧", label=selected_restaurant.email):
-                webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
-            if info_container.button(icon="📞", label=selected_restaurant.telephone):
-                webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
-            
-            info_supp_container = st.container(border=True)
-            info_supp_container.write("**Informations complémentaires**")
-            info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
-            info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
-
-        # Affichage des informations de la colonne 2
-        with col2:
-            score_container = st.container(border=True)
-            score_col1, score_col2 = score_container.columns([0.5, 0.5])
-
-            with score_col1:
-                score_col1.write("**Note globale :**")
-                score_col1.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
-                score_col1.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
-                score_col1.write(f"**Note service :** {selected_restaurant.service_note}")
-                score_col1.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
-            with score_col2:
-                stars = display_stars(selected_restaurant.note_globale)
-                score_col2.image(stars, width=20)
-            
-            journeys_container = st.container(border=True)
-            journeys_container.write("**Temps de trajet**")
-            journeys_container.write(f"🚲 {duration_soft}")
-            journeys_container.write(f"🚌 {duration_public}")
-            journeys_container.write(f"🚗 {duration_car}")
-            if tcl_url:
-                if journeys_container.button(label="Consulter les itinéraires TCL"):
-                    webbrowser.open_new_tab(tcl_url)
-            else:
-                emoji, fastest_duration = fastest_mode
-                bouton_label = f"{emoji} {fastest_duration}"
-                journeys_container.button(label=bouton_label, disabled=True)
+    display_restaurant_infos(personal_address)
 
 def main():
     # Barre de navigation
@@ -149,20 +83,50 @@ def main():
     # Colonne pour la recherche
     with header_col1:
         # Filtrage sur les restaurants scrappés
-        restaurant_names = [restaurant.nom for restaurant in restaurants if restaurant.scrapped]
-        options = ["Sélectionner un restaurant"] + restaurant_names
-
-        search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
+        scrapped_restaurants = [restaurant for restaurant in restaurants if restaurant.scrapped]
+        
+        # Checkbox pour activer/désactiver le filtre par rayon
         if personal_address:
             use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter")
             if use_radius_filter:
-                radius = header_col1.slider("Rayon (m)", min_value=1, max_value=3000, step=1, value=500)
+                radius = header_col1.slider("Distance de recherche autour du domicile (m)", min_value=1, max_value=3000, step=1, value=500, key="radius_slider")
             else:
                 radius = 1000000
         else:
             use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter", disabled=True)
             radius = 1000000
-    
+
+        # Filtrage des restaurants par rayon si activé
+        if use_radius_filter and personal_address:
+            center_coords = get_coordinates(personal_address)
+            if center_coords:
+                center_lat, center_lon = center_coords
+                
+                # Récupération des coordonnées des restaurants scrappés
+                restaurant_coords = get_restaurant_coordinates([(r.nom, r.adresse) for r in scrapped_restaurants])
+                
+                # Filtrage des restaurants dans le rayon
+                restaurant_coords_filtered = filter_restaurants_by_radius(restaurant_coords, center_lat, center_lon, radius)
+                
+                # Obtention des noms des restaurants filtrés
+                filtered_names = [restaurant['name'] for restaurant in restaurant_coords_filtered]
+                
+                # Filtrage des restaurants scrappés par les noms filtrés
+                filtered_restaurants = [r for r in scrapped_restaurants if r.nom in filtered_names]
+            else:
+                filtered_restaurants = scrapped_restaurants
+        else:
+            filtered_restaurants = scrapped_restaurants
+
+        # Construction de la liste des noms pour la multiselect
+        restaurant_names = [restaurant.nom for restaurant in filtered_restaurants]
+        options = ["Sélectionner un restaurant"] + restaurant_names
+
+        # Création du multiselect avec les options filtrées
+        search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
+
+        # [TEMP]
+        header_col1.text_input(label="Rechercher avec l'IA", label_visibility="collapsed", placeholder="Rechercher avec l'IA ✨ [disponible ultérieurement]", key="search_restaurant_temp", disabled=True)
     # Colonne pour les filtres
     with header_col2:
 
@@ -251,9 +215,12 @@ def main():
             # Récupération des coordonnées géographiques des restaurants
             map_data = get_restaurant_coordinates(filtered_restaurants)
 
-            # Mise en forme du radius
+            # Mise en forme du radius et de la couleur du domicile
             if radius == 1000000:
                 radius = 25
+                color = '[0, 0, 255]'
+            else:
+                color = '[0, 0, 255, 100]'
 
             # Ajout des coordonnées du domicile s'il est défini
             if personal_address:
@@ -279,7 +246,7 @@ def main():
                 'ScatterplotLayer',
                 data=[point for point in map_data if point['name'] == 'Domicile'],
                 get_position='[lon, lat]',
-                get_color='[0, 0, 255, 100]',
+                get_color=color,
                 get_radius=radius,
                 pickable=True,
                 auto_highlight=True
