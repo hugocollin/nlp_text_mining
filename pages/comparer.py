@@ -26,27 +26,34 @@ def main():
     if 'comparator' not in st.session_state:
         st.session_state['comparator'] = []
     
-    # Vérifier si le comparateur est vide
+    # Vérification si le comparateur est vide
     if not st.session_state['comparator']:
         st.info("Aucun restaurant sélectionné pour la comparaison. Retournez à l'Explorateur pour ajouter des restaurants.")
         return
     
+    # Mise en page du bouton pour réinitialiser le comparateur
+    reinit_cmp_btn_col1, reinit_cmp_btn_col2 = st.columns([2, 1])
+    
     # Bouton pour réinitialiser le comparateur
-    if st.button("🔄 Réinitialiser le Comparateur"):
-        st.session_state['comparator'] = []
-        st.rerun()
+    if reinit_cmp_btn_col2.button("🔄 Réinitialiser le Comparateur"):
+        reinit_cmp_btn_col2.session_state['comparator'] = []
+        reinit_cmp_btn_col2.rerun()
 
-    # Récupérer les restaurants sélectionnés
+    # Récupération des restaurants sélectionnés
     selected_restaurants = [restaurant for restaurant in restaurants if restaurant.id_restaurant in st.session_state['comparator']]
 
     # Affichage des restaurants comparés
     cols = st.columns(len(selected_restaurants), border=True)
     for idx, restaurant in enumerate(selected_restaurants):
         with cols[idx]:
+            # Bouton pour supprimer du comparateur
+            if st.button("❌ Supprimer", key=f"remove_cmp_{restaurant.id_restaurant}"):
+                st.session_state['comparator'].remove(restaurant.id_restaurant)
+                st.rerun()
             st.header(restaurant.nom)
             michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
             if michelin_stars:
-                st.image(michelin_stars, width=100)
+                st.image(michelin_stars, width=25)
             stars = display_stars(restaurant.note_globale)
             st.image(stars, width=20)
             st.write(f"**Adresse :** {restaurant.adresse}")
@@ -58,11 +65,6 @@ def main():
             st.write(f"**Cuisine :** {restaurant.cuisine_note}")
             st.write(f"**Service :** {restaurant.service_note}")
             st.write(f"**Ambiance :** {restaurant.ambiance_note}")
-            
-            # Bouton pour retirer du comparateur
-            if st.button("❌ Retirer", key=f"remove_cmp_{restaurant.id_restaurant}"):
-                st.session_state['comparator'].remove(restaurant.id_restaurant)
-                st.rerun()
 
 if __name__ == '__main__':
     main()
