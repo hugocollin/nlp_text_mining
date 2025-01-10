@@ -5,8 +5,8 @@ import requests
 from pathlib import Path
 import concurrent.futures
 import math
-import numpy
 import base64
+import webbrowser
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -316,3 +316,63 @@ def add_to_comparator(restaurant):
 def process_restaurant(personal_address, restaurant):
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
     return (restaurant, tcl_url, fastest_mode)
+
+# Récupération des informations du restaurant sélectionné
+def display_restaurant_infos(personal_address):
+    selected_restaurant = st.session_state.get('selected_restaurant')
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, selected_restaurant.adresse)
+
+    if selected_restaurant:
+        michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+        if michelin_stars:
+            michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+        else:
+            michelin_stars_html = ''
+        st.html(f"<h1>{selected_restaurant.nom}   {michelin_stars_html}</h1>")
+        
+        # Mise en page des informations
+        container = st.container()
+        col1, col2 = container.columns([0.6, 0.4])
+
+        # Affichage des informations de la colonne 1
+        with col1:
+            info_container = st.container()
+            if info_container.button(icon="📍", label=selected_restaurant.adresse):
+                lien_gm = get_google_maps_link(selected_restaurant.adresse)
+                webbrowser.open_new_tab(lien_gm)
+            if info_container.button(icon="🌐", label="Lien vers Tripadvisor"):
+                webbrowser.open_new_tab(selected_restaurant.url_link)
+            if info_container.button(icon="📧", label=selected_restaurant.email):
+                webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
+            if info_container.button(icon="📞", label=selected_restaurant.telephone):
+                webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
+            
+            info_supp_container = st.container(border=True)
+            info_supp_container.write("**Informations complémentaires**")
+            info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+            info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+
+        # Affichage des informations de la colonne 2
+        with col2:
+            score_container = st.container(border=True)
+
+            stars = display_stars(selected_restaurant.note_globale)
+            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+            score_container.html(f"<b>Note globale : </b>{stars_html}")
+            score_container.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
+            score_container.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
+            score_container.write(f"**Note service :** {selected_restaurant.service_note}")
+            score_container.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
+            
+            journeys_container = st.container(border=True)
+            journeys_container.write("**Temps de trajet**")
+            journeys_container.write(f"🚲 {duration_soft}")
+            journeys_container.write(f"🚌 {duration_public}")
+            journeys_container.write(f"🚗 {duration_car}")
+            if tcl_url:
+                if journeys_container.button(label="Consulter les itinéraires TCL"):
+                    webbrowser.open_new_tab(tcl_url)
+            else:
+                emoji, fastest_duration = fastest_mode
+                bouton_label = f"{emoji} {fastest_duration}"
+                journeys_container.button(label=bouton_label, disabled=True)
