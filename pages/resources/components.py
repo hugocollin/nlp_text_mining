@@ -113,19 +113,30 @@ def image_to_base64(image_path):
 
 # Fonction pour afficher les étoiles Michelin
 def display_michelin_stars(rating):
+    # Définition des chemins des images des étoiles
     base_path = Path(__file__).parent / 'images'
     one_star = base_path / 'one_star.svg'
     two_stars = base_path / 'two_stars.svg'
     three_stars = base_path / 'three_stars.svg'
 
+    # Sélection de l'image en fonction de la note
     if rating == 1:
-        return one_star
+        star_path = one_star
     elif rating == 2:
-        return two_stars
+        star_path = two_stars
     elif rating == 3:
-        return three_stars
+        star_path = three_stars
     else:
-        return None
+        return ""
+
+    # Convertion de l'image en base64
+    star_base64 = image_to_base64(star_path)
+    if star_base64:
+        # Création de la data URI
+        star_data_uri = f"data:image/svg+xml;base64,{star_base64}"
+        return star_data_uri
+    else:
+        return ""
 
 # Fonction pour afficher les étoiles des notes
 def display_stars(rating):

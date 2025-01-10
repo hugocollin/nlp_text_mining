@@ -47,18 +47,12 @@ def restaurant_info_dialog():
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, selected_restaurant.adresse)
 
     if selected_restaurant:
-        # Mise en page du header
-        title_col1, title_col2 = st.columns([0.9, 0.1], vertical_alignment = "bottom")
-        
-        # Affichage du nom
-        with title_col1:
-            title_col1.header(selected_restaurant.nom)
-
-        # Affichage des étoiles Michelin
-        with title_col2:
-            michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
-            if michelin_stars:
-                title_col2.image(michelin_stars, width=25)
+        michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+        if michelin_stars:
+            michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+        else:
+            michelin_stars_html = ''
+        st.html(f"<h1>{selected_restaurant.nom}   {michelin_stars_html}</h1>")
         
         # Mise en page des informations
         container = st.container()
