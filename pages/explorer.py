@@ -270,9 +270,12 @@ def main():
             # Récupération des coordonnées géographiques des restaurants
             map_data = get_restaurant_coordinates(filtered_restaurants)
 
-            # Mise en forme du radius
+            # Mise en forme du radius et de la couleur du domicile
             if radius == 1000000:
                 radius = 25
+                color = '[0, 0, 255]'
+            else:
+                color = '[0, 0, 255, 100]'
 
             # Ajout des coordonnées du domicile s'il est défini
             if personal_address:
@@ -298,7 +301,7 @@ def main():
                 'ScatterplotLayer',
                 data=[point for point in map_data if point['name'] == 'Domicile'],
                 get_position='[lon, lat]',
-                get_color='[0, 0, 255, 100]',
+                get_color=color,
                 get_radius=radius,
                 pickable=True,
                 auto_highlight=True
