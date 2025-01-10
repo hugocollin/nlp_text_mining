@@ -8,6 +8,7 @@ st.set_page_config(page_title="SISE Ô Resto", page_icon="🍽️", layout="wide
 @st.dialog("Paramétrer son adresse personnelle", width="large")
 def add_personal_address_dialog():
     personal_address = get_personnal_address()
+    warning = False
     
     # Paramétrage de l'adresse personnelle
     if personal_address:
@@ -23,8 +24,9 @@ def add_personal_address_dialog():
     with dialog_col1:
         if st.button(icon="💾", label="Enregistrer mon adresse personnelle"):
             if personal_address_input.strip() == "":
-                st.toast("⚠️ L'adresse ne peut pas être vide")
+                warning = True
             else:
+                warning = False
                 st.session_state['personal_address'] = personal_address_input.strip()
                 st.session_state['personal_address_added'] = True
                 st.rerun()
@@ -35,6 +37,9 @@ def add_personal_address_dialog():
             st.session_state.pop('personal_address', None)
             st.session_state['personal_address_suppr'] = True
             st.rerun()
+    
+    if warning == True:
+        st.warning("😢 L'adresse ne peut pas être vide")
 
 def main():
     # Barre de navigation
@@ -81,7 +86,7 @@ def main():
     container_col2_1.write("**📊 Statistiques détaillés des restaurants**")
     container_col2_1.write("Visualisez des statistiques pertinentes telles que [...] pour mieux comprendre chaque restaurant.")
     container_col2_2.write("**🗺️ Localiser les restaurants et obetnir un itinéraire en un clic**")
-    container_col2_2.write("Utilisez la carte interactive pour localiser les restaurants proches de votre domicile et obtenez rapidement un itinéraire pour vous y rendre (veuillez renseigner votre adresse personelle en amont via la page d'accueil).")
+    container_col2_2.write("Utilisez la carte interactive pour localiser les restaurants proches de votre domicile et obtenez rapidement un itinéraire pour vous y rendre (veuillez renseigner votre adresse personelle via la page d'accueil pour accéder à cette fonctionnalité).")
     
     st.write("*Cette application a été développée par KPAMEGAN Falonne, KARAMOKO Awa, GABRYSCH Alexis et COLLIN Hugo, dans le cadre du Master 2 SISE.*")
 
