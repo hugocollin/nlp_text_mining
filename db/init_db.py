@@ -48,7 +48,10 @@ def insert_restaurant(
     prix_min=None,
     prix_max=None,
     etoiles_michelin=None,
-    repas=None
+    repas=None,
+    latitude=None,
+    longitude=None,
+    scrapped=True
 ):
     """Insère un restaurant dans la table dim_restaurants et retourne son id."""
     # Vérifier si le restaurant existe déjà dans la base
@@ -65,9 +68,9 @@ def insert_restaurant(
             INSERT INTO dim_restaurants (
                 nom, adresse, url_link, email, telephone, cuisines, 
                 note_globale, cuisine_note, service_note, qualite_prix_note, ambiance_note,
-                prix_min, prix_max, etoiles_michelin, repas
+                prix_min, prix_max, etoiles_michelin, repas, latitude, longitude, scrapped
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         # Extraire prix_min et prix_max depuis `prix_min` et `prix_max` si fournis en chaîne
         if isinstance(prix_min, str):
@@ -79,7 +82,7 @@ def insert_restaurant(
         params = [
             name, adresse, url, email, telephone, cuisines,
             note_globale, cuisine_note, service_note, qualite_prix_note, ambiance_note,
-            prix_min, prix_max, etoiles_michelin, repas
+            prix_min, prix_max, etoiles_michelin, repas, latitude, longitude, scrapped
         ]
         execute_query(query, params=params)
 
@@ -202,7 +205,8 @@ def process_restaurant_csv(file_name):
     for _, row in df.iterrows():
         # Assurez-vous que chaque colonne du DataFrame correspond aux champs nécessaires
         restaurant_data = parse_to_dict(row['info'])
-        print(restaurant_data['Emplacement et coordonnées'])
+        # print(restaurant_data['Emplacement et coordonnées'])
+        latitude, longitude = get_coordinates(restaurant_data['Emplacement et coordonnées'].get('ADRESSE', None))
 
         # Insérer le restaurant dans la base de données
         restaurant_id = insert_restaurant(
@@ -225,7 +229,9 @@ def process_restaurant_csv(file_name):
             else restaurant_data['Détails'].get('ÉTOILES MICHELIN', None) if isinstance(restaurant_data['Détails'].get('ÉTOILES MICHELIN'), int)
             else None
         ),
-        repas=restaurant_data['Détails'].get('REPAS', None)
+        repas=restaurant_data['Détails'].get('REPAS', None),
+        latitude=latitude,
+        longitude=longitude
     )
         
 
