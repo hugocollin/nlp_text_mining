@@ -139,7 +139,7 @@ def main():
     # Affichage des résultats
     with results_display_col1:
         if not personal_address:
-            st.toast("ℹ️ Veuillez définir votre adresse personnelle pour voir les temps de trajet")
+            st.toast("Veuillez définir votre adresse personnelle pour voir les temps de trajet", icon="ℹ️")
 
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
@@ -208,6 +208,10 @@ def main():
                         webbrowser.open_new_tab(tcl_url)
                 else:
                     col5.button(bouton_label, key=button_key, disabled=True)
+            
+        # Affichage si aucun restaurant n'est trouvé
+        if not filtered_results:
+            st.info("ℹ️ Aucun restaurant trouvé, essayez de modifier vos critères de recherche.")
     
     # Affichage de la carte
     with results_display_col2:
