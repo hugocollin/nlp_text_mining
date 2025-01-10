@@ -5,6 +5,8 @@ import re
 import time
 import numpy as np
 import random
+import string
+
 
 class SearchEngine:
     
@@ -55,17 +57,24 @@ class SearchEngine:
     
     def run(self, url):
         # Fetch the URL and return the soup object
+        random_request_id = "".join(
+        random.choice(string.ascii_lowercase + string.digits) for i in range(180)
+    )
         headers = {
             'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            'Accept': 'text/html',
+            'Accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/avif, image/webp, image/apng, image/*,*/*;q=0.8',
             'Accept-Language': 'fr-FR,fr;q=0.9',
-            'Referer': 'https://www.google.com/',
-            'Origin': 'https://www.tripadvisor.fr',
-            
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'TE': 'Trailers',
+
+
+            "DNT": "1",  # Do Not Track
+
         }
         self.get_session()
         response = self.session.get(url, headers=headers)
-        
+        print(response.headers)
         if response.status_code == 200:
             self.soup = BeautifulSoup(response.content, 'html.parser')
             return None
@@ -74,13 +83,14 @@ class SearchEngine:
             return None
         elif response.status_code == 403:
             print("403 Forbidden")
-            time.sleep(150)
-            self.rank += 1
-            if self.rank < 10:
-                return self.run(url)
-            else:
-                self.rank = 0
-                return None
+            print(response.text)
+            #save html
+            with open('403.html', 'w') as f:
+                f.write(response.text)
+            self.session = None
+            self.cookies = np.random.choice(self.cookies_list)
+            time.sleep(10)
+            return self.run(url)
         elif response.status_code == 503:
             print("503 Service Unavailable")
             return None
@@ -234,20 +244,7 @@ class RestaurantFinder(SearchEngine):
         
         
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
 class restaurant_info_extractor(SearchEngine):
- 
  
     '''
     This class is used to extract the restaurant information from the restaurant page.
@@ -283,13 +280,14 @@ class restaurant_info_extractor(SearchEngine):
             global_note = global_note_tag.text if global_note_tag else 'N/A'
 
             other_notes_tags = notes_avis_section.find('div', class_='khxWm f e Q3')
-            other_notes_div = other_notes_tags.find_all('div', class_='YwaWb u f')
-            if other_notes_div:
-                cuisine_note = re.search(r'\d,\d', other_notes_div[0].text).group()
-                service_note = re.search(r'\d,\d', other_notes_div[1].text).group()
-                quality_price_note = re.search(r'\d,\d', other_notes_div[2].text).group()
-                ambiance_note = re.search(r'\d,\d', other_notes_div[3].text).group()
-                
+            if other_notes_tags:
+                other_notes_div = other_notes_tags.find_all('div', class_='YwaWb u f')
+                if other_notes_div:
+                    cuisine_note = re.search(r'\d,\d', other_notes_div[0].text).group()
+                    service_note = re.search(r'\d,\d', other_notes_div[1].text).group()
+                    quality_price_note = re.search(r'\d,\d', other_notes_div[2].text).group()
+                    ambiance_note = re.search(r'\d,\d', other_notes_div[3].text).group()
+                    
             else:
                 cuisine_note = service_note = quality_price_note = ambiance_note = 'N/A'
         else:
@@ -344,8 +342,34 @@ class restaurant_info_extractor(SearchEngine):
         }
         stars = self.michelin_star_finder(soup)
         restaurant_info['Détails']['ÉTOILES MICHELIN'] = stars
+        image_url = self.get_images(soup)
+        restaurant_info['Détails']['IMAGE'] = image_url
         
         return restaurant_info
+    
+    def get_images(self, soup):
+        photo_viewer_div = soup.find('div', {'data-section-signature': 'photo_viewer'})
+        if photo_viewer_div:
+            # Trouver toutes les balises <source> et <img> à l'intérieur de ce div
+            media_tags = photo_viewer_div.find( 'img')
+            
+            # Extraire les URLs des attributs srcset
+            srcset_urls = []
+            media_tags
+            srcset = media_tags.get('srcset')
+            if srcset:
+                    # Séparer les différentes résolutions et extraire les URLs
+                urls = [s.split(' ')[0] for s in srcset.split(',')]
+                srcset_urls.extend(urls)
+                first_url = srcset_urls[0]
+                cleaned_url = first_url.split('?')[0]
+            else:
+                cleaned_url = 'N/A'
+        else:
+            cleaned_url = 'N/A'
+        return cleaned_url
+
+    
     
     def extract_reviews(self, soup):
         
@@ -387,7 +411,13 @@ class restaurant_info_extractor(SearchEngine):
             except AttributeError:
                 continue
             
-    
+    def scrape_info(self, url):
+        self.run(url)
+        if not self.soup:
+            print(f"Failed to get restaurant page {url}")
+            return None
+        self.restaurant_info = self.get_restaurant_info(self.soup)
+        return self.restaurant_info
     
     def scrape_restaurant(self, url):
         self.run(url)
@@ -397,6 +427,7 @@ class restaurant_info_extractor(SearchEngine):
         self.restaurant_info = self.get_restaurant_info(self.soup)
         next_page_href = self.get_next_url()
         while next_page_href:
+            time.sleep(5)
             self.extract_reviews(self.soup)
             self.run(self.base_url + next_page_href)
             next_page_href = self.get_next_url()
@@ -410,10 +441,12 @@ class restaurant_info_extractor(SearchEngine):
     
     
     def to_dataframe(self):
-        df_reviews = pd.DataFrame(self.reviews)
-        df_avis = pd.DataFrame(self.restaurant_info['Notes et avis'], index=[0])
-        df_details = pd.DataFrame(self.restaurant_info['Détails'], index=[0])
-        df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0])   
+        if self.reviews:
+            df_reviews = pd.DataFrame(self.reviews)
+        if self.restaurant_info:
+            df_avis = pd.DataFrame(self.restaurant_info['Notes et avis'], index=[0])
+            df_details = pd.DataFrame(self.restaurant_info['Détails'], index=[0])
+            df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0])   
         return df_avis, df_details, df_location, df_reviews
     
     def to_csv(self):

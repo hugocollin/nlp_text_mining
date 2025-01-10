@@ -5,3 +5,10 @@ fake-useragent
 geopy
 streamlit
 SQLAlchemy
+nltk
+scikit-learn
+matplotlib
+seaborn
+plotly
+wordcloud
+textblob

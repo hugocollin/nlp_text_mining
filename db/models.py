@@ -94,3 +94,4 @@ def get_restaurants_with_reviews_and_users(session):
         all()
     
     return restaurants_with_reviews
+
