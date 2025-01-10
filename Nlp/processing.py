@@ -206,6 +206,8 @@ class TextAnalyser:
         self.df = df
         self.cleaned_text_column = cleaned_text_column
         self.stop_words = list(set(stopwords.words('french')))
+        self.wordcloud = None
+        self.sentiment_classifier = None
 
     def plot_rating_distribution(self):
         """
@@ -227,13 +229,8 @@ class TextAnalyser:
         :param background_color: Background color for the word cloud.
         """
         text = ' '.join(self.df[self.cleaned_text_column].dropna())
-        wordcloud = WordCloud(width=800, height=400, max_words=max_words, background_color=background_color).generate(text)
+        self.wordcloud = WordCloud(width=800, height=400, max_words=max_words, background_color=background_color).generate(text)
 
-        plt.figure(figsize=(15, 7.5))
-        plt.imshow(wordcloud, interpolation='bilinear')
-        plt.axis('off')
-        plt.title('Word Cloud of Reviews', fontsize=20)
-        plt.show()
 
     def perform_sentiment_analysis(self):
         """
@@ -255,13 +252,14 @@ class TextAnalyser:
         """
         Plot the distribution of sentiment scores.
         """
-        plt.figure(figsize=(8, 6))
-        sns.histplot(self.df['sentiment'], bins=30, kde=True, color='skyblue')
-        plt.title('Sentiment Score Distribution')
-        plt.xlabel('Sentiment Polarity')
-        plt.ylabel('Frequency')
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.histplot(df['sentiment'], bins=30, kde=True, color='skyblue', ax=ax)
+        ax.set_title('Sentiment Score Distribution')
+        ax.set_xlabel('Sentiment Polarity')
+        ax.set_ylabel('Frequency')
         plt.tight_layout()
-        plt.show()
+
+        return fig
 
     def perform_topic_modeling(self, n_topics: int = 5):
         """
@@ -354,14 +352,14 @@ class TextAnalyser:
         """
         Generate a comprehensive report of the analyses.
         """
-        self.plot_rating_distribution()
+        # self.plot_rating_distribution()
         self.generate_wordcloud()
-        self.perform_sentiment_analysis()
-        self.plot_sentiment_distribution()
-        lda, feature_names = self.perform_topic_modeling()
-        self.display_topics(lda, feature_names)
-        self.plot_topic_distribution(lda)
-        self.train_sentiment_classifier()
+        # self.perform_sentiment_analysis()
+        # self.plot_sentiment_distribution()
+        # lda, feature_names = self.perform_topic_modeling()
+        # self.display_topics(lda, feature_names)
+        # self.plot_topic_distribution(lda)
+        # self.train_sentiment_classifier()
 # Example Usage
 if __name__ == "__main__":
     # Charger les données
@@ -403,4 +401,11 @@ if __name__ == "__main__":
     analyser = TextAnalyser(processed_df, cleaned_text_column='review_cleaned')
 
     # Générer le rapport d'analyse
-    analyser.generate_report()
+    analyser.generate_wordcloud()
+    # plot the figure
+    plt.figure(figsize=(8, 6))
+    plt.imshow(analyser.wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    plt.show()
+    
+
