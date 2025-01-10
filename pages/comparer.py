@@ -53,7 +53,7 @@ def main():
         st.rerun()
 
     # Récupération des restaurants sélectionnés
-    selected_restaurants = [restaurant for restaurant in restaurants if restaurant.id_restaurant in st.session_state['comparator']]
+    selected_restaurants = [restaurant for restaurant in restaurants if restaurant.id_restaurant in st.session_state['comparator'][:3]]
 
     # Mise en page des colonnes pour afficher les restaurants comparés
     cols = st.columns(3, border=True)
@@ -90,19 +90,26 @@ def main():
 
                 # Affichage des informations du restaurant
                 st.header(restaurant.nom)
+
+                st.write("**Notation :**")
                 michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
                 if michelin_stars:
-                    st.image(michelin_stars, width=25)
+                    michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+                else:
+                    michelin_stars_html = ' Aucune'
+                st.html(f"<li><b>Étoiles Michelin :</b>{michelin_stars_html}</li>")
                 stars = display_stars(restaurant.note_globale)
                 stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
-                st.html(f"<b>Note globale : </b>{stars_html}")
+                st.html(f"<li><b> Globale : </b>{stars_html}</li>")
                 st.write(f"- **Qualité Prix :** {restaurant.qualite_prix_note}")
                 st.write(f"- **Cuisine :** {restaurant.cuisine_note}")
                 st.write(f"- **Service :** {restaurant.service_note}")
                 st.write(f"- **Ambiance :** {restaurant.ambiance_note}")
+
                 st.write("**Informations complémentaires :**")
                 st.write(f"- **Cuisine :** {restaurant.cuisines}")
                 st.write(f"- **Repas :** {restaurant.repas}")
+
                 st.write("**Temps de trajet :**")
                 st.write(f"- 🚲 {duration_soft}")
                 st.write(f"- 🚌 {duration_public}")
