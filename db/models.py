@@ -95,3 +95,13 @@ def get_restaurants_with_reviews_and_users(session):
     
     return restaurants_with_reviews
 
+
+def get_user_and_review_from_restaurant_id(session, restaurant_id):
+    """Récupère les utilisateurs et leurs avis pour un restaurant donné à partir de son ID."""
+    reviews = session.query(Review).\
+        filter(Review.id_restaurant == restaurant_id).\
+        options(joinedload(Review.user)).\
+        all()
+    
+    user_reviews = [(review.user, review) for review in reviews]
+    return user_reviews
