@@ -1,4 +1,4 @@
-from models import init_db, get_session, Restaurant, Review, User, get_all_restaurants
+from models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
 import sys
 import os
 import pandas as pd
@@ -12,7 +12,7 @@ from searchengine import trip_finder as tf
 from geopy.geocoders import Nominatim
 import locale
 from datetime import datetime
-
+from dateutil import parser
 
 
 # Définir la locale pour le français
@@ -155,13 +155,11 @@ def parse_french_date(date_str):
 
     for fr, en in months.items():
         
-        date_str = date_str.replace(fr, en, regex=False)
+        date_str = date_str.replace(fr, en)
         print(date_str)
 
     try:
-        parsed_date = datetime.strptime(date_str, "%d %B %Y").date()
-        print("parsed date")
-        print(parsed_date)
+        parsed_date = parser.parse(date_str).date()
         return parsed_date
     except ValueError as e:
         print(f"Erreur de parsing pour la date '{date_str}': {e}")
@@ -376,14 +374,28 @@ restaurants = get_all_restaurants(session)
     """reviews = session.query(Review).filter(Review.id_restaurant == 1).all()
     for review in reviews:
         print(f"Review ID: {review.id_review}, User: {review.user.user_name}, Rating: {review.rating}")
-"""
+
 ### Update reviews date
 
     # Exemple d'utilisation
-    date_str = "16 décembre 2024"
-    parsed_date = parse_french_date(date_str)
-    print(parsed_date)  # Affiche : 2024-12-16
+    
+    reviews = session.query(Review).all()
 
+    for review in reviews:
+        # Étape 2 : Appliquer la fonction de parsing sur la date de chaque review
+        print(f"Review ID: {review.id_review}, Date avant parsing : {review.date_review}")
 
-       
+"""
+
+    # Récupérer tous les restaurants
+    restaurants = get_all_restaurants(session)
+    for restaurant in restaurants:
+        print(f"Restaurant ID: {restaurant.id_restaurant}, Name: {restaurant.nom}")
+    # Récupérer tous les restaurants avec leurs avis et utilisateurs associés
+    restaurants_with_reviews = get_restaurants_with_reviews_and_users(session)
+    for restaurant in restaurants_with_reviews:
+        print(f"Restaurant: {restaurant.nom}")
+        for review in restaurant.avis:
+            print(f"  Review by {review.user.user_profile} (Rating: {review.rating})")
+        
 
