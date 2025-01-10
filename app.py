@@ -39,7 +39,7 @@ def add_personal_address_dialog():
             st.rerun()
     
     if warning == True:
-        st.warning("😢 L'adresse ne peut pas être vide")
+        st.warning("ℹ️ L'adresse ne peut pas être vide")
 
 def main():
     # Barre de navigation
