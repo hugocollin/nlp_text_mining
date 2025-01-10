@@ -6,6 +6,8 @@ from pathlib import Path
 import concurrent.futures
 import math
 import numpy
+import base64
+
 # Fonction pour afficher la barre de navigation
 def Navbar():
     with st.sidebar:
@@ -104,6 +106,11 @@ def get_google_maps_link(address):
 
     return google_maps_url
 
+# Fonction pour convertir une image en chaîne base64
+def image_to_base64(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
 # Fonction pour afficher les étoiles Michelin
 def display_michelin_stars(rating):
     base_path = Path(__file__).parent / 'images'
@@ -122,19 +129,36 @@ def display_michelin_stars(rating):
 
 # Fonction pour afficher les étoiles des notes
 def display_stars(rating):
+    # Définition des chemins des images des étoiles
     base_path = Path(__file__).parent / 'images'
     full_star = base_path / 'full_star_icon.svg'
     half_star = base_path / 'half_star_icon.svg'
     empty_star = base_path / 'empty_star_icon.svg'
-
+    
+    # Création de la liste des étoiles
     stars = []
     for i in range(1, 6):
         if rating >= i:
-            stars.append(str(full_star))
+            star_path = full_star
         elif rating >= i - 0.5:
-            stars.append(str(half_star))
+            star_path = half_star
         else:
-            stars.append(str(empty_star))
+            star_path = empty_star
+
+        star_base64 = image_to_base64(star_path)
+        if star_base64:
+            # Création de la data URI
+            star_data_uri = f"data:image/svg+xml;base64,{star_base64}"
+            stars.append(star_data_uri)
+        else:
+            # Utilisation d'une étoile vide par défaut en cas d'erreur
+            empty_star_path = empty_star
+            star_base64_default = image_to_base64(empty_star_path)
+            if star_base64_default:
+                star_data_uri_default = f"data:image/svg+xml;base64,{star_base64_default}"
+                stars.append(star_data_uri_default)
+            else:
+                stars.append("")
     return stars
 
 # Fonction pour obtenir les informations de trajet depuis le site TCL

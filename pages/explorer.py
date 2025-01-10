@@ -62,7 +62,7 @@ def restaurant_info_dialog():
         
         # Mise en page des informations
         container = st.container()
-        col1, col2 = container.columns(2)
+        col1, col2 = container.columns([0.6, 0.4])
 
         # Affichage des informations de la colonne 1
         with col1:
@@ -85,17 +85,14 @@ def restaurant_info_dialog():
         # Affichage des informations de la colonne 2
         with col2:
             score_container = st.container(border=True)
-            score_col1, score_col2 = score_container.columns([0.5, 0.5])
 
-            with score_col1:
-                score_col1.write("**Note globale :**")
-                score_col1.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
-                score_col1.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
-                score_col1.write(f"**Note service :** {selected_restaurant.service_note}")
-                score_col1.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
-            with score_col2:
-                stars = display_stars(selected_restaurant.note_globale)
-                score_col2.image(stars, width=20)
+            stars = display_stars(selected_restaurant.note_globale)
+            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+            score_container.html(f"<b>Note globale : </b>{stars_html}")
+            score_container.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
+            score_container.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
+            score_container.write(f"**Note service :** {selected_restaurant.service_note}")
+            score_container.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
             
             journeys_container = st.container(border=True)
             journeys_container.write("**Temps de trajet**")
