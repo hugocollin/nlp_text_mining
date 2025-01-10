@@ -28,7 +28,10 @@ class Restaurant(Base):
 
     
     avis = relationship("Review", back_populates="restaurant")
-    scrapped = Column(Boolean, default=False)  # Nouvelle colonne
+    scrapped = Column(Boolean, default=False)  
+    latitude = Column(Float)
+    longitude = Column(Float)
+
 
 """class Geographie(Base):
     __tablename__ = 'dim_geographie'

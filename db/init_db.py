@@ -1,4 +1,4 @@
-from models import init_db, get_session, Restaurant, Review, User, get_all_restaurants
+from models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
 import sys
 import os
 import pandas as pd
@@ -9,7 +9,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from databases import execute_query, fetch_one, create_schema, database_exists
 from searchengine import trip_finder as tf
+from geopy.geocoders import Nominatim
+import locale
+from datetime import datetime
+from dateutil import parser
 
+
+# Définir la locale pour le français
+locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
 
 
 def insert_user(user_name, user_profile, num_contributions):
@@ -108,6 +115,11 @@ def insert_review(review, id_restaurant):
     else:
         id_user = existing_user[0]
 
+    review_date = parse_french_date(review.get('date', ''))
+    if not review_date:
+        print(f"Date invalide pour l'avis : {review.get('date', '')}")
+        return
+
     # Insérer l'avis dans fact_reviews
     insert_review_query = """
     INSERT INTO fact_reviews (
@@ -123,12 +135,37 @@ def insert_review(review, id_restaurant):
     execute_query(insert_review_query, [
         id_restaurant,
         id_user,
-        review['date_review'],
+        review_date,
         review['title'],
         review['review'],
         review['rating'],
         review['type_visit']
     ])
+
+
+
+def parse_french_date(date_str):
+    # Dictionnaire pour mapper les mois français aux mois anglais
+    months = {
+        "janvier": "January", "février": "February", "mars": "March",
+        "avril": "April", "mai": "May", "juin": "June",
+        "juillet": "July", "août": "August", "septembre": "September",
+        "octobre": "October", "novembre": "November", "décembre": "December"
+    }
+
+    for fr, en in months.items():
+        
+        date_str = date_str.replace(fr, en)
+        print(date_str)
+
+    try:
+        parsed_date = parser.parse(date_str).date()
+        return parsed_date
+    except ValueError as e:
+        print(f"Erreur de parsing pour la date '{date_str}': {e}")
+        return None
+
+
 
 def parse_to_dict(data_str):
     try:
@@ -190,6 +227,83 @@ def process_restaurant_csv(file_name):
         ),
         repas=restaurant_data['Détails'].get('REPAS', None)
     )
+        
+
+
+def get_coordinates(address):
+    """
+    Obtenir les coordonnées (latitude, longitude) d'une adresse en utilisant Nominatim.
+    Nettoie et tente de nouveau si la géolocalisation échoue.
+    """
+    geolocator = Nominatim(user_agent="sise_o_resto", timeout=15)
+    current_address = address
+    attempts = 0  # Compteur pour éviter une boucle infinie
+
+    while attempts < 5:  # Limite le nombre de tentatives pour éviter une boucle infinie
+        try:
+            location = geolocator.geocode(f"{current_address}, Rhône, France")
+            print(f"Tentative avec adresse : {current_address}")
+            if location:
+                print(f"Adresse trouvée : {location.address}")
+                return location.latitude, location.longitude
+
+            # Si la géolocalisation échoue, nettoyer l'adresse
+            if ',' in current_address:
+                print("Nettoyage de l'adresse...")
+                before_comma, after_comma = current_address.split(',', 1)
+                before_words = before_comma.strip().split(' ')
+                if len(before_words) > 1:
+                    # Retirer le dernier mot avant la virgule
+                    before_words = before_words[:-1]
+                    new_before = ' '.join(before_words)
+                    current_address = f"{new_before}, {after_comma.strip()}"
+                else:
+                    # Utiliser uniquement la partie après la virgule si le segment avant la virgule est trop court
+                    current_address = after_comma.strip()
+            else:
+                # Si l'adresse est trop courte ou mal formée, arrêter
+                print("Impossible de nettoyer davantage l'adresse.")
+                break
+        except Exception as e:
+            print(f"Erreur lors de la géolocalisation : {e}")
+            break  # Arrêter en cas d'erreur inattendue
+        finally:
+            attempts += 1
+
+    print("Coordonnées introuvables après plusieurs tentatives.")
+    return None, None
+
+
+def update_restaurant_coordinates(engine):
+    """
+    Met à jour les colonnes latitude et longitude dans la table dim_restaurants.
+    """
+    with Session(engine) as session:
+        # Requête pour obtenir les restaurants sans latitude ou longitude
+        restaurants_to_update = session.execute(
+            select(Restaurant).where(
+                (Restaurant.latitude.is_(None)) | (Restaurant.longitude.is_(None))
+            )
+        ).scalars()
+
+        # Parcourir les restaurants sans coordonnées
+        for restaurant in restaurants_to_update:
+            if restaurant.adresse:  # Vérifier si l'adresse est disponible
+                print(f"Recherche des coordonnées pour : {restaurant.nom}, {restaurant.adresse}")
+                latitude, longitude = get_coordinates(restaurant.adresse)
+
+                # Si les coordonnées sont trouvées, mettre à jour
+                if latitude and longitude:
+                    restaurant.latitude = latitude
+                    restaurant.longitude = longitude
+                    print(f"Coordonnées mises à jour : {latitude}, {longitude}")
+                else:
+                    print(f"Impossible d'obtenir les coordonnées pour : {restaurant.nom}")
+
+        # Commit des modifications dans la base de données
+        session.commit()
+        print("Mise à jour des coordonnées terminée.")
+
 
 
 
@@ -207,26 +321,29 @@ if __name__ == "__main__":
     # Initialiser la base de données
     engine = init_db()
     session = get_session(engine)
-
-
-    ## Prochaine étape : remplir la base de données avec les données scrapper
+    
     # Insérer les restaurants
     restaurant_csv_file = "info_restaurants_plus.csv"
 
+    # Mise à jour des coordonnées des restaurants
+    # update_restaurant_coordinates(engine)
+
     # process_restaurant_csv(restaurant_csv_file)
 
-    restaurants_scrapped = session.query(Restaurant).all()
+    # restaurants_scrapped = session.query(Restaurant).all()
     
     # Parcourir et imprimer les restaurants
+
     
+    """
     for restaurant in restaurants_scrapped:
         if restaurant.scrapped:
-            print(f"Scrappé ID: {restaurant.id_restaurant}, Nom: {restaurant.nom}, Adresse: {restaurant.adresse}")
+            print(f"Scrappé ID: {restaurant.id_restaurant}, Nom: {restaurant.nom}, Adresse: {restaurant.adresse}, latitude: {restaurant.latitude}, longitude: {restaurant.longitude}")
+
         else:
             print(f"Non scrappé ID: {restaurant.id_restaurant}, Nom: {restaurant.nom}, Adresse: {restaurant.adresse}")
     
-
-    """restaurants = get_all_restaurants(session)
+restaurants = get_all_restaurants(session)
     for restaurant in restaurants:
         print(f"Restaurant ID: {restaurant.id_restaurant}, Name: {restaurant.nom}")
 
@@ -252,7 +369,33 @@ if __name__ == "__main__":
         print("Mise à jour effectuée avec succès.")
         
         
-        
 """
-       
+    # recuperer les avis du restaurant 1
+    """reviews = session.query(Review).filter(Review.id_restaurant == 1).all()
+    for review in reviews:
+        print(f"Review ID: {review.id_review}, User: {review.user.user_name}, Rating: {review.rating}")
+
+### Update reviews date
+
+    # Exemple d'utilisation
+    
+    reviews = session.query(Review).all()
+
+    for review in reviews:
+        # Étape 2 : Appliquer la fonction de parsing sur la date de chaque review
+        print(f"Review ID: {review.id_review}, Date avant parsing : {review.date_review}")
+
+"""
+
+    # Récupérer tous les restaurants
+    restaurants = get_all_restaurants(session)
+    for restaurant in restaurants:
+        print(f"Restaurant ID: {restaurant.id_restaurant}, Name: {restaurant.nom}")
+    # Récupérer tous les restaurants avec leurs avis et utilisateurs associés
+    restaurants_with_reviews = get_restaurants_with_reviews_and_users(session)
+    for restaurant in restaurants_with_reviews:
+        print(f"Restaurant: {restaurant.nom}")
+        for review in restaurant.avis:
+            print(f"  Review by {review.user.user_profile} (Rating: {review.rating})")
+        
 
