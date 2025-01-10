@@ -26,8 +26,8 @@ personal_address = get_personnal_address()
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
     # Filtrage sur les restaurants non scrappés
-    restaurant_names = [restaurant.nom for restaurant in restaurants if not restaurant.scrapped]
-    options = ["Sélectionner un restaurant"] + restaurant_names
+    scrapped_restaurants = [restaurant.nom for restaurant in restaurants if not restaurant.scrapped]
+    options = ["Sélectionner un restaurant"] + scrapped_restaurants
 
     # Sélection du restaurant à ajouter
     restaurant_select = st.selectbox(label="Sélectionner un restaurant", label_visibility="collapsed", placeholder="Sélectionner un restaurant", options=options, key="restaurant_select")
@@ -149,19 +149,47 @@ def main():
     # Colonne pour la recherche
     with header_col1:
         # Filtrage sur les restaurants scrappés
-        restaurant_names = [restaurant.nom for restaurant in restaurants if restaurant.scrapped]
-        options = ["Sélectionner un restaurant"] + restaurant_names
-
-        search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
+        scrapped_restaurants = [restaurant for restaurant in restaurants if restaurant.scrapped]
+        
+        # Checkbox pour activer/désactiver le filtre par rayon
         if personal_address:
             use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter")
             if use_radius_filter:
-                radius = header_col1.slider("Rayon (m)", min_value=1, max_value=3000, step=1, value=500)
+                radius = header_col1.slider("Distance de recherche autour du domicile (m)", min_value=1, max_value=3000, step=1, value=500, key="radius_slider")
             else:
                 radius = 1000000
         else:
             use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter", disabled=True)
             radius = 1000000
+
+        # Filtrage des restaurants par rayon si activé
+        if use_radius_filter and personal_address:
+            center_coords = get_coordinates(personal_address)
+            if center_coords:
+                center_lat, center_lon = center_coords
+                # Récupération des coordonnées des restaurants scrappés
+                restaurant_coords = get_restaurant_coordinates(
+                    [(r.nom, r.adresse) for r in scrapped_restaurants]
+                )
+                # Filtrage des restaurants dans le rayon
+                restaurant_coords_filtered = filter_restaurants_by_radius(
+                    restaurant_coords, center_lat, center_lon, radius
+                )
+                # Obtention des noms des restaurants filtrés
+                filtered_names = [restaurant['name'] for restaurant in restaurant_coords_filtered]
+                # Filtrage des restaurants scrappés par les noms filtrés
+                filtered_restaurants = [r for r in scrapped_restaurants if r.nom in filtered_names]
+            else:
+                filtered_restaurants = scrapped_restaurants
+        else:
+            filtered_restaurants = scrapped_restaurants
+
+        # Construction de la liste des noms pour la multiselect
+        restaurant_names = [restaurant.nom for restaurant in filtered_restaurants]
+        options = ["Sélectionner un restaurant"] + restaurant_names
+
+        # Création du multiselect avec les options filtrées
+        search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
     
     # Colonne pour les filtres
     with header_col2:
