@@ -244,20 +244,7 @@ class RestaurantFinder(SearchEngine):
         
         
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
 class restaurant_info_extractor(SearchEngine):
- 
  
     '''
     This class is used to extract the restaurant information from the restaurant page.
@@ -454,10 +441,12 @@ class restaurant_info_extractor(SearchEngine):
     
     
     def to_dataframe(self):
-        df_reviews = pd.DataFrame(self.reviews)
-        df_avis = pd.DataFrame(self.restaurant_info['Notes et avis'], index=[0])
-        df_details = pd.DataFrame(self.restaurant_info['Détails'], index=[0])
-        df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0])   
+        if self.reviews:
+            df_reviews = pd.DataFrame(self.reviews)
+        if self.restaurant_info:
+            df_avis = pd.DataFrame(self.restaurant_info['Notes et avis'], index=[0])
+            df_details = pd.DataFrame(self.restaurant_info['Détails'], index=[0])
+            df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0])   
         return df_avis, df_details, df_location, df_reviews
     
     def to_csv(self):
