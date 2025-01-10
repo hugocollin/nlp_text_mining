@@ -5,8 +5,8 @@ import requests
 from pathlib import Path
 import concurrent.futures
 import math
-import numpy
 import base64
+import webbrowser
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -113,19 +113,30 @@ def image_to_base64(image_path):
 
 # Fonction pour afficher les étoiles Michelin
 def display_michelin_stars(rating):
+    # Définition des chemins des images des étoiles
     base_path = Path(__file__).parent / 'images'
     one_star = base_path / 'one_star.svg'
     two_stars = base_path / 'two_stars.svg'
     three_stars = base_path / 'three_stars.svg'
 
+    # Sélection de l'image en fonction de la note
     if rating == 1:
-        return one_star
+        star_path = one_star
     elif rating == 2:
-        return two_stars
+        star_path = two_stars
     elif rating == 3:
-        return three_stars
+        star_path = three_stars
     else:
-        return None
+        return ""
+
+    # Convertion de l'image en base64
+    star_base64 = image_to_base64(star_path)
+    if star_base64:
+        # Création de la data URI
+        star_data_uri = f"data:image/svg+xml;base64,{star_base64}"
+        return star_data_uri
+    else:
+        return ""
 
 # Fonction pour afficher les étoiles des notes
 def display_stars(rating):
@@ -294,14 +305,74 @@ def add_to_comparator(restaurant):
         if len(comparator) < 3:
             comparator.append(restaurant.id_restaurant)
             st.session_state['comparator'] = comparator
-            st.toast(f"🆚 {restaurant.nom} ajouté au comparateur!")
+            st.toast(f"🆚 Le restaurant {restaurant.nom} a été ajouté au comparateur")
         else:
-            st.toast("⚠️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
+            st.toast("ℹ️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
     else:
-        st.toast(f"ℹ️ {restaurant.nom} est déjà dans le comparateur.")
+        st.toast(f"ℹ️ Le restaurant {restaurant.nom} est déjà dans le comparateur")
 
 
 # Fonction de traitement des restaurants
 def process_restaurant(personal_address, restaurant):
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
     return (restaurant, tcl_url, fastest_mode)
+
+# Récupération des informations du restaurant sélectionné
+def display_restaurant_infos(personal_address):
+    selected_restaurant = st.session_state.get('selected_restaurant')
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, selected_restaurant.adresse)
+
+    if selected_restaurant:
+        michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+        if michelin_stars:
+            michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+        else:
+            michelin_stars_html = ''
+        st.html(f"<h1>{selected_restaurant.nom}   {michelin_stars_html}</h1>")
+        
+        # Mise en page des informations
+        container = st.container()
+        col1, col2 = container.columns([0.6, 0.4])
+
+        # Affichage des informations de la colonne 1
+        with col1:
+            info_container = st.container()
+            if info_container.button(icon="📍", label=selected_restaurant.adresse):
+                lien_gm = get_google_maps_link(selected_restaurant.adresse)
+                webbrowser.open_new_tab(lien_gm)
+            if info_container.button(icon="🌐", label="Lien vers Tripadvisor"):
+                webbrowser.open_new_tab(selected_restaurant.url_link)
+            if info_container.button(icon="📧", label=selected_restaurant.email):
+                webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
+            if info_container.button(icon="📞", label=selected_restaurant.telephone):
+                webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
+            
+            info_supp_container = st.container(border=True)
+            info_supp_container.write("**Informations complémentaires**")
+            info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+            info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+
+        # Affichage des informations de la colonne 2
+        with col2:
+            score_container = st.container(border=True)
+
+            stars = display_stars(selected_restaurant.note_globale)
+            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+            score_container.html(f"<b>Note globale : </b>{stars_html}")
+            score_container.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
+            score_container.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
+            score_container.write(f"**Note service :** {selected_restaurant.service_note}")
+            score_container.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
+            
+            journeys_container = st.container(border=True)
+            journeys_container.write("**Temps de trajet**")
+            journeys_container.write(f"🚲 {duration_soft}")
+            journeys_container.write(f"🚌 {duration_public}")
+            journeys_container.write(f"🚗 {duration_car}")
+            if tcl_url:
+                if journeys_container.button(label="Consulter les itinéraires TCL"):
+                    webbrowser.open_new_tab(tcl_url)
+            else:
+                emoji, fastest_duration = fastest_mode
+                bouton_label = f"{emoji} {fastest_duration}"
+                journeys_container.button(label=bouton_label, disabled=True)
