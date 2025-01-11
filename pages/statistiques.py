@@ -15,20 +15,8 @@ if 'display_count' not in st.session_state:
     st.session_state['display_count'] = 10  # Afficher initialement 10 reviews
 
 def display_restaurant_stats(restaurant):
-    restaurants = get_all_restaurants(session)
-    # Calculer le nombre de restaurants scrappés
-    nombre_scrapped = len([r for r in restaurants if r.scrapped == 1])
 
-    # Afficher le résultat dans Streamlit
-    st.write(f"Nombre de restaurants scrappés : {nombre_scrapped}")   
-    nom_scrapped = [r.nom for r in restaurants if r.scrapped == 1]
-    st.write(f"Nom des restaurants scrappés : {nom_scrapped}")
-    df = pd.DataFrame(nom_scrapped, columns = ['Nom des restaurants scrappés'])
-    st.write(df)
-    st.write("----")
-    st.write(df.value_counts())
-    
-    
+    # Récupérer l'URL de l'image du restaurant    
     image_restaurant_url = restaurant.image
     # Injecter le CSS pour la section de l'image de fond
         

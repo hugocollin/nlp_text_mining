@@ -4,8 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar
 import pandas as pd
-from sqlalchemy import inspect
-from sqlalchemy.sql import text
+from sqlalchemy import inspect, text
 
 
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
@@ -17,6 +16,27 @@ session = Session()
 
 # Récupération de tous les restaurants
 restaurants = get_all_restaurants(session)
+
+def get_column_type(inspector, table, column):
+    """Helper function to get the data type of a column."""
+    columns = inspector.get_columns(table)
+    for col in columns:
+        if col['name'] == column:
+            return col['type']
+    return None
+
+def make_unique_columns(columns):
+    """Helper function to make column names unique by appending suffixes."""
+    counts = {}
+    new_columns = []
+    for col in columns:
+        if col in counts:
+            counts[col] += 1
+            new_columns.append(f"{col}_{counts[col]}")
+        else:
+            counts[col] = 1
+            new_columns.append(col)
+    return new_columns
 
 def display_restaurant_stats():
     # Calculer le nombre de restaurants scrappés
@@ -45,6 +65,11 @@ def execute_sql_query(session):
     # Sélection des tables
     selected_tables = st.multiselect("Sélectionnez les tables à joindre", options=tables)
 
+    # Vérification des tables nécessaires pour les jointures
+    if 'restaurant' in selected_tables and 'user' in selected_tables and 'review' not in selected_tables:
+        st.warning("La table 'review' est requise pour joindre 'restaurant' et 'user'. Elle a été ajoutée automatiquement.")
+        selected_tables.append('review')
+
     if not selected_tables:
         st.info("Veuillez sélectionner au moins une table pour exécuter une requête.")
         return
@@ -54,7 +79,7 @@ def execute_sql_query(session):
     for table in selected_tables:
         columns = inspector.get_columns(table)
         column_names = [f"{table}.{column['name']}" for column in columns]
-        cols = st.multiselect(f"Sélectionnez les colonnes de la table '{table}'", options=column_names, default=column_names)
+        cols = st.multiselect(f"Sélectionnez les colonnes de la table '{table}'", options=column_names, default=column_names, key=f"columns_{table}")
         selected_columns.extend(cols)
 
     if not selected_columns:
@@ -73,10 +98,10 @@ def execute_sql_query(session):
             left_table = selected_tables[i - 1]
             right_table = selected_tables[i]
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                join_type = st.selectbox(f"Type de jointure pour {right_table}", options=join_types, key=f"join_type_{i}")
+                join_type = st.selectbox(f"Type de jointure pour '{right_table}'", options=join_types, key=f"join_type_{i}")
 
             with col2:
                 left_columns = inspector.get_columns(left_table)
@@ -104,12 +129,97 @@ def execute_sql_query(session):
                 "left_column": left_join_column,
                 "right_column": right_join_column
             })
-            
-    # Construction de la requête SQL avec alias pour éviter les noms de colonnes dupliqués
-    select_clause = []
-    for col in selected_columns:
-        alias = col.replace('.', '_')
-        select_clause.append(f"{col} AS {alias}")
+
+    # Option de Filtrage
+    filter_clauses = []
+    if st.checkbox("Ajouter une clause WHERE"):
+        # Sélectionner les colonnes disponibles pour filtrer
+        filter_columns = st.multiselect(
+            "Sélectionnez les colonnes à filtrer",
+            options=selected_columns,
+            help="Sélectionnez les colonnes sur lesquelles appliquer le filtre."
+        )
+
+        for col in filter_columns:
+            table, column = col.split('.')
+            column_type = get_column_type(inspector, table, column)
+
+            st.markdown(f"**Filtrer par {col}**")
+            if hasattr(column_type, 'python_type'):
+                python_type = column_type.python_type
+            else:
+                python_type = str  # Default to string if type not found
+
+            # Choisir le type de filtre
+            filter_type = st.selectbox(
+                f"Type de filtre pour '{col}'",
+                options=["=", ">=", "<=", "IN", "CONTAINS"],
+                key=f"filter_type_{col}"
+            )
+
+            if filter_type in ["=", ">=", "<="]:
+                # Filtre avec un opérateur simple
+                input_value = st.text_input(
+                    f"Entrez la valeur pour '{col}'",
+                    help=f"Entrez la valeur pour '{col}'.",
+                    key=f"input_{col}"
+                )
+                if input_value:
+                    try:
+                        if python_type == int:
+                            value = int(input_value)
+                        elif python_type == float:
+                            value = float(input_value)
+                        else:
+                            value = f"'{input_value}'"
+                        filter_clauses.append(f"{col} {filter_type} {value}")
+                    except ValueError:
+                        st.error(f"Entrée invalide pour '{col}'. Veuillez entrer une valeur de type approprié.")
+            elif filter_type == "IN":
+                # Filtre avec une liste de valeurs
+                input_values = st.text_input(
+                    f"Entrez les valeurs pour '{col}' séparées par des virgules",
+                    help=f"Entrez les valeurs pour '{col}' séparées par des virgules.",
+                    key=f"in_input_{col}"
+                )
+                if input_values:
+                    try:
+                        if python_type == int:
+                            values = [int(val.strip()) for val in input_values.split(',')]
+                        elif python_type == float:
+                            values = [float(val.strip()) for val in input_values.split(',')]
+                        else:
+                            values = [f"'{val.strip()}'" for val in input_values.split(',')]
+                        formatted_values = ", ".join(map(str, values))
+                        filter_clauses.append(f"{col} IN ({formatted_values})")
+                    except ValueError:
+                        st.error(f"Entrée invalide pour '{col}'. Veuillez entrer des valeurs de type approprié séparées par des virgules.")
+            elif filter_type == "CONTAINS":
+                # Filtre avec une condition LIKE
+                input_value = st.text_input(
+                    f"Entrez la chaîne pour '{col}'",
+                    help=f"Entrer la sous-chaîne que '{col}' doit contenir.",
+                    key=f"contains_input_{col}"
+                )
+                if input_value:
+                    escaped_value = input_value.replace("'", "''")
+                    filter_clauses.append(f"{col} LIKE '%{escaped_value}%'")
+
+        # Test de la clause WHERE avant de construire la requête complète
+        if filter_clauses:
+            test_query = f"SELECT 1 FROM {selected_tables[0]}"
+            for join in joins:
+                test_query += f" {join['join_type']} {join['right_table']} ON {join['left_table']}.{join['left_column']} = {join['right_table']}.{join['right_column']}"
+            test_query += " WHERE " + " AND ".join(filter_clauses)
+            test_query += " LIMIT 1"
+
+            try:
+                # Exécution de la requête de test
+                pd.read_sql_query(text(test_query), session.bind)
+                st.success("Filtres valides. La requête peut être exécutée.")
+            except Exception as e:
+                st.error(f"Erreur dans les filtres WHERE : {e}. Veuillez ajuster vos filtres.")
+                st.stop()  # Arrêter l'exécution si les filtres sont invalides
 
     # Construction de la requête SQL
     query = "SELECT " + ", ".join(selected_columns) + " FROM " + selected_tables[0]
@@ -117,6 +227,9 @@ def execute_sql_query(session):
     for join in joins:
         query += f" {join['join_type']} {join['right_table']} ON {join['left_table']}.{join['left_column']} = {join['right_table']}.{join['right_column']}"
 
+    # Appliquer les filtres
+    if filter_clauses:
+        query += " WHERE " + " AND ".join(filter_clauses)
 
     # Option de Group By
     group_by_columns = []
@@ -128,7 +241,8 @@ def execute_sql_query(session):
         )
         if group_by_columns:
             query += f" GROUP BY {', '.join(group_by_columns)}"
-# Option de Sort By
+
+    # Option de Sort By
     sort_by_columns = []
     if st.checkbox("Ajouter une clause ORDER BY"):
         sort_by_columns = st.multiselect(
@@ -161,26 +275,13 @@ def execute_sql_query(session):
             help="Limitez le nombre de lignes retournées par la requête."
         )
         query += f" LIMIT {limit}"
-    st.write(f"**Requête SQL:** `{query}`")
+    st.write(f"**Requête SQL Finale:** `{query}`")
 
     # Bouton pour exécuter la requête
     if st.button("Exécuter la Requête"):
         try:
             # Exécution de la requête
             df = pd.read_sql_query(text(query), session.bind)
-
-            # Fonction pour rendre les noms de colonnes uniques si des duplications existent
-            def make_unique_columns(columns):
-                counts = {}
-                new_columns = []
-                for col in columns:
-                    if col in counts:
-                        counts[col] += 1
-                        new_columns.append(f"{col}_{counts[col]}")
-                    else:
-                        counts[col] = 1
-                        new_columns.append(col)
-                return new_columns
 
             # Appliquer la fonction pour rendre les noms de colonnes uniques
             df.columns = make_unique_columns(df.columns)
