@@ -15,7 +15,8 @@ def main():
         nom="Restaurant Test",
         adresse="123 Avenue de Test",
         telephone="0123456789",
-        id_restaurant=1
+        id_restaurant=13,
+        image = "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/23/63/53/44/caption.jpg"
     )
 
     # Afficher les statistiques pour le restaurant factice

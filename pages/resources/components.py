@@ -12,6 +12,7 @@ def Navbar():
         st.page_link('app.py', label='Accueil', icon='🏠')
         st.page_link('pages/explorer.py', label='Explorer', icon='🔍')
         st.page_link('pages/comparer.py', label='Comparer', icon='🆚')
+        st.page_link('pages/admin.py', label='Admin', icon='🔒')
 
 # Fonction pour calculer la distance entre deux points
 def haversine(lat1, lon1, lat2, lon2):

@@ -1,9 +1,9 @@
 import streamlit as st
-from db.models import get_user_and_review_from_restaurant_id 
+from db.models import get_user_and_review_from_restaurant_id , get_all_restaurants
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import display_stars
-
+import pandas as pd
 
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')
@@ -15,6 +15,38 @@ if 'display_count' not in st.session_state:
     st.session_state['display_count'] = 10  # Afficher initialement 10 reviews
 
 def display_restaurant_stats(restaurant):
+    restaurants = get_all_restaurants(session)
+    # Calculer le nombre de restaurants scrappés
+    nombre_scrapped = len([r for r in restaurants if r.scrapped == 1])
+
+    # Afficher le résultat dans Streamlit
+    st.write(f"Nombre de restaurants scrappés : {nombre_scrapped}")   
+    nom_scrapped = [r.nom for r in restaurants if r.scrapped == 1]
+    st.write(f"Nom des restaurants scrappés : {nom_scrapped}")
+    df = pd.DataFrame(nom_scrapped, columns = ['Nom des restaurants scrappés'])
+    st.write(df)
+    st.write("----")
+    st.write(df.value_counts())
+    
+    
+    image_restaurant_url = restaurant.image
+    # Injecter le CSS pour la section de l'image de fond
+        
+    st.markdown(f"""
+    <style>
+    .background-section {{
+        background-image: url("{image_restaurant_url}");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
+        padding: 20px;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Commencer la section avec l'image de fond
+    st.markdown('<div class="background-section">', unsafe_allow_html=True)
+
     # Bouton pour revenir en arrière
     if st.button("🔙 Retour"):
         st.session_state['selected_stats_restaurant'] = None
@@ -29,8 +61,13 @@ def display_restaurant_stats(restaurant):
     st.header("Statistiques")
     st.write(f"Nombre d'avis: {len(review)}")
     
+   
+        
+    
     # Modification des largeurs des colonnes
+    
     col1, col2 = st.columns(2)  # 2 colonnes
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("""
     <style>
     .review {
