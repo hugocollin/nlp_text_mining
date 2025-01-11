@@ -24,7 +24,11 @@ CREATE TABLE dim_restaurants (
     prix_min FLOAT,
     prix_max FLOAT,
     etoiles_michelin INTEGER,
-    repas TEXT
+    repas TEXT,
+    latitude FLOAT,
+    longitude FLOAT,
+    scrapped BOOLEAN,
+    image TEXT
 );
 
 

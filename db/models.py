@@ -31,6 +31,7 @@ class Restaurant(Base):
     scrapped = Column(Boolean, default=False)  
     latitude = Column(Float)
     longitude = Column(Float)
+    image = Column(String)
 
 
 """class Geographie(Base):
