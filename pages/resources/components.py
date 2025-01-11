@@ -212,7 +212,7 @@ def tcl_api(personal_address, restaurant_address):
             try:
                 response = requests.get(tcl_api_url, headers=headers, timeout=10)
             except requests.RequestException:
-                st.toast("❌ Erreur lors de la récupération des données de transport.")
+                st.toast("Erreur lors de la récupération des données de transport.", icon="❌")
                 return None, "Trajet indisponible", "Trajet indisponible", "Trajet indisponible", ("❌", "Trajet indisponible")
 
             duration_public = "Trajet indisponible"
@@ -305,11 +305,11 @@ def add_to_comparator(restaurant):
         if len(comparator) < 3:
             comparator.append(restaurant.id_restaurant)
             st.session_state['comparator'] = comparator
-            st.toast(f"🆚 Le restaurant {restaurant.nom} a été ajouté au comparateur")
+            st.toast(f"Le restaurant {restaurant.nom} a été ajouté au comparateur", icon="🆚")
         else:
-            st.toast("ℹ️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
+            st.toast("Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre", icon="ℹ️")
     else:
-        st.toast(f"ℹ️ Le restaurant {restaurant.nom} est déjà dans le comparateur")
+        st.toast(f"Le restaurant {restaurant.nom} est déjà dans le comparateur", icon="ℹ️")
 
 
 # Fonction de traitement des restaurants

@@ -37,7 +37,9 @@ def add_restaurant_dialog():
         if restaurant_select != "Sélectionner un restaurant":
             # [TEMP] Code pour scrapper le restaurant sélectionné et ajouter les informations à la base de données
             st.session_state['restaurant_added'] = True
-        st.rerun()
+            st.rerun()
+        else:
+            st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
 
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("Informations sur le restaurant", width="large")
@@ -71,7 +73,7 @@ def main():
     
     # Popup de confirmation d'ajout de restaurant
     if st.session_state.get('restaurant_added'):
-        st.toast("➕ Restaurant ajouté avec succès")
+        st.toast("Restaurant ajouté avec succès", icon="➕")
         st.session_state['restaurant_added'] = False
 
     # Conteneur pour la recherche et les filtres

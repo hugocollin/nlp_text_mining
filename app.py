@@ -58,12 +58,12 @@ def main():
     
     # Affichage du message de succès
     if st.session_state.get('personal_address_added'):
-        st.toast("💾 Adresse personnelle enregistrée avec succès")
+        st.toast("Adresse personnelle enregistrée avec succès", icon="💾")
         st.session_state['personal_address_added'] = False
 
     # Affichage du message de suppression
     if st.session_state.get('personal_address_suppr'):
-        st.toast("🗑️ Adresse personnelle supprimée avec succès")
+        st.toast("Adresse personnelle supprimée avec succès", icon="🗑️")
         st.session_state['personal_address_suppr'] = False
 
     # Description de l'application
