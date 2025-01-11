@@ -91,7 +91,7 @@ def main():
                 # Affichage des informations du restaurant
                 st.header(restaurant.nom)
 
-                st.write("**Notation :**")
+                st.write("**Notations :**")
                 michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
                 if michelin_stars:
                     michelin_stars_html = f'<img src="{michelin_stars}" width="25">'

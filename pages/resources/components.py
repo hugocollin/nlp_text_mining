@@ -310,6 +310,7 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
         with col2:
             score_container = st.container(border=True)
 
+            score_container.write("**Notations**")
             stars = display_stars(selected_restaurant.note_globale)
             stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
             score_container.html(f"<b>Note globale : </b>{stars_html}")
