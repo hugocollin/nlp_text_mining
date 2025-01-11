@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar
 import pandas as pd
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text , Integer, Float 
 
 
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
@@ -291,6 +291,123 @@ def execute_sql_query(session):
         except Exception as e:
             st.error(f"Erreur lors de l'exécution de la requête: {e}")
 
+
+def edit_table(session):
+    inspector = inspect(session.bind)
+    tables = inspector.get_table_names()
+
+    st.header("Modifier une Table")
+
+    # Sélection de la table à modifier
+    table_to_edit = st.selectbox(
+        "Sélectionnez la table à modifier",
+        options=tables,
+        help="Choisissez la table où vous souhaitez modifier les données."
+    )
+
+    if not table_to_edit:
+        st.info("Veuillez sélectionner une table pour continuer.")
+        return
+
+    # Récupération des colonnes de la table
+    columns = inspector.get_columns(table_to_edit)
+    column_names = [column['name'] for column in columns]
+
+    # Identification des clés primaires
+    primary_keys = [col['name'] for col in columns if col['primary_key']]
+    if not primary_keys:
+        st.error("Cette table n'a pas de clé primaire définie. Impossible de modifier les lignes.")
+        return
+
+    # Affichage des données de la table
+    query = f"SELECT * FROM {table_to_edit} LIMIT 100"
+    try:
+        df = pd.read_sql_query(text(query), session.bind)
+        st.dataframe(df)
+    except Exception as e:
+        st.error(f"Erreur lors de la récupération des données: {e}")
+        return
+
+    st.subheader("Modifier une Ligne")
+
+    # Sélection de la ligne à modifier
+    if df.empty:
+        st.info("La table est vide.")
+        return
+
+    row_index = st.number_input(
+        "Entrez l'index de la ligne à modifier (0 à {})".format(len(df)-1),
+        min_value=0,
+        max_value=len(df)-1,
+        step=1,
+        help="Entrez l'index de la ligne que vous souhaitez modifier."
+    )
+
+    selected_row = df.iloc[row_index]
+
+    # Création des champs de saisie pour chaque colonne
+    new_values = {}
+    for col in column_names:
+        new_values[col] = st.text_input(
+            f"{col}",
+            value=str(selected_row[col]),
+            key=f"edit_{col}"
+        )
+
+    if st.button("Enregistrer les Modifications"):
+        # Construction du filtre basé sur les clés primaires
+        filter_conditions = []
+        for pk in primary_keys:
+            pk_value = selected_row[pk]
+            if isinstance(pk_value, str):
+                filter_conditions.append(f"{pk} = '{pk_value.replace('\'', '\'\'')}'")
+            else:
+                filter_conditions.append(f"{pk} = {pk_value}")
+        where_clause = " AND ".join(filter_conditions)
+
+        # Construction de l'instruction UPDATE
+        set_clause = []
+        for col in column_names:
+            if col in primary_keys:
+                continue  # Ne pas modifier les clés primaires
+            value = new_values[col]
+            column_type = next((c['type'] for c in columns if c['name'] == col), None)
+            if isinstance(column_type, Integer):
+                try:
+                    set_clause.append(f"{col} = {int(value)}")
+                except ValueError:
+                    st.error(f"Valeur invalide pour {col}. Doit être un entier.")
+                    return
+            elif isinstance(column_type, Float):
+                try:
+                    set_clause.append(f"{col} = {float(value)}")
+                except ValueError:
+                    st.error(f"Valeur invalide pour {col}. Doit être un nombre flottant.")
+                    return
+            else:
+                escaped_value = value.replace("'", "''")
+                set_clause.append(f"{col} = '{escaped_value}'")
+
+        if not set_clause:
+            st.info("Aucune modification à appliquer.")
+            return
+
+        update_query = f"UPDATE {table_to_edit} SET {', '.join(set_clause)} WHERE {where_clause}"
+
+        try:
+            session.execute(text(update_query))
+            session.commit()
+            st.success("Ligne mise à jour avec succès.")
+
+            # Rafraîchissement des données affichées
+            df = pd.read_sql_query(text(query), session.bind)
+            st.dataframe(df)
+        except Exception as e:
+            session.rollback()
+            st.error(f"Erreur lors de la mise à jour de la ligne: {e}")
+
+  
+
 def main():
     # Barre de navigation
     Navbar()
@@ -302,11 +419,16 @@ def main():
     execute_sql_query(session)
     st.write("----")
 
+      # Option pour éditer une table
+    if st.checkbox("Modifier une Table"):
+        edit_table(session)
+    st.write("----")
     # Afficher les statistiques pour tous les restaurants
     display_restaurant_stats()
     
     st.write("----")
     
+  
 
 if __name__ == '__main__':
     main()
