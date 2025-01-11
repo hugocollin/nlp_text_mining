@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos
 from pages.statistiques import display_restaurant_stats
 from db.models import get_all_restaurants
 import pydeck as pdk
@@ -20,7 +20,7 @@ session = Session()
 restaurants = get_all_restaurants(session)
 
 # Récupération de l'adresse personnelle
-personal_address = get_personnal_address()
+personal_address, personal_latitude, personal_longitude = get_personal_address()
 
 # Fonction pour afficher le popup d'ajout de restaurant
 @st.dialog("Ajouter un restaurant")
@@ -44,7 +44,7 @@ def add_restaurant_dialog():
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    display_restaurant_infos(personal_address)
+    display_restaurant_infos(personal_address, personal_latitude, personal_longitude)
 
 def main():
     # Barre de navigation
@@ -84,9 +84,16 @@ def main():
 
     # Colonne pour la recherche
     with header_col1:
-        # Filtrage sur les restaurants scrappés
-        scrapped_restaurants = [restaurant for restaurant in restaurants if restaurant.scrapped]
-        
+        # Récupération des informations des restaurants scrappés
+        scrapped_restaurants = [
+            {
+                "nom": restaurant.nom,
+                "latitude": restaurant.latitude,
+                "longitude": restaurant.longitude
+            }
+            for restaurant in [restaurant for restaurant in restaurants if restaurant.scrapped]
+        ]
+
         # Checkbox pour activer/désactiver le filtre par rayon
         if personal_address:
             use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter")
@@ -99,29 +106,10 @@ def main():
             radius = 1000000
 
         # Filtrage des restaurants par rayon si activé
-        if use_radius_filter and personal_address:
-            center_coords = get_coordinates(personal_address)
-            if center_coords:
-                center_lat, center_lon = center_coords
-                
-                # Récupération des coordonnées des restaurants scrappés
-                restaurant_coords = get_restaurant_coordinates([(r.nom, r.adresse) for r in scrapped_restaurants])
-                
-                # Filtrage des restaurants dans le rayon
-                restaurant_coords_filtered = filter_restaurants_by_radius(restaurant_coords, center_lat, center_lon, radius)
-                
-                # Obtention des noms des restaurants filtrés
-                filtered_names = [restaurant['name'] for restaurant in restaurant_coords_filtered]
-                
-                # Filtrage des restaurants scrappés par les noms filtrés
-                filtered_restaurants = [r for r in scrapped_restaurants if r.nom in filtered_names]
-            else:
-                filtered_restaurants = scrapped_restaurants
-        else:
-            filtered_restaurants = scrapped_restaurants
+        filtered_restaurants = filter_restaurants_by_radius(scrapped_restaurants, personal_latitude, personal_longitude, radius)
 
         # Construction de la liste des noms pour la multiselect
-        restaurant_names = [restaurant.nom for restaurant in filtered_restaurants]
+        restaurant_names = [restaurant["nom"] for restaurant in filtered_restaurants]
         options = ["Sélectionner un restaurant"] + restaurant_names
 
         # Création du multiselect avec les options filtrées
@@ -129,6 +117,7 @@ def main():
 
         # [TEMP]
         header_col1.text_input(label="Rechercher avec l'IA", label_visibility="collapsed", placeholder="Rechercher avec l'IA ✨ [disponible ultérieurement]", key="search_restaurant_temp", disabled=True)
+    
     # Colonne pour les filtres
     with header_col2:
 
@@ -146,7 +135,11 @@ def main():
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(process_restaurant, personal_address, restaurant) for restaurant in restaurants if restaurant.scrapped]
+                futures = [
+                    executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant)
+                    for restaurant in restaurants
+                    if restaurant.scrapped
+                ]
                 results = [future.result() for future in concurrent.futures.as_completed(futures)]
         
         # Filtrage des résultats en fonction des restaurants sélectionnés
@@ -156,20 +149,38 @@ def main():
             filtered_results = results
 
         # Extraction des restaurants filtrés pour la carte
-        filtered_restaurants = [(result[0].nom, result[0].adresse) for result in filtered_results if result[0] is not None]
+        filtered_restaurants = [
+            (
+                result[0].nom,
+                result[0].latitude,
+                result[0].longitude
+            )
+            for result in filtered_results
+            if result[0] is not None
+        ]
 
-        # Récupérer les coordonnées des restaurants filtrés
-        restaurant_coords = get_restaurant_coordinates(filtered_restaurants)
+        # Récupération des coordonnées des restaurants pour la carte
+        map_data = []
+        for restaurant in filtered_restaurants:
+            nom, lat, lon = restaurant
+            map_data.append({
+                'name': nom,
+                'latitude': lat,
+                'longitude': lon
+            })
 
-        # Filtrer les restaurants par rayon
+        # Filtrage des restaurants par rayon
         if personal_address:
-            center_lat, center_lon = get_coordinates(personal_address)
-            if center_lat and center_lon:
-                restaurant_coords_filtered = filter_restaurants_by_radius(restaurant_coords, center_lat, center_lon, radius)
-                # Obtenir les noms des restaurants filtrés
-                filtered_names = [restaurant['name'] for restaurant in restaurant_coords_filtered]
-                # Filtrer les résultats en fonction des noms filtrés
-                filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
+            map_data = filter_restaurants_by_radius(
+                map_data,
+                personal_latitude,
+                personal_longitude,
+                radius
+            )
+            # Obtenition dese noms des restaurants filtrés
+            filtered_names = [restaurant['name'] for restaurant in map_data]
+            # Filtrage des résultats en fonction des noms filtrés
+            filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
 
         # Affichage uniquement des restaurants filtrés
         for result in filtered_results:
@@ -183,7 +194,7 @@ def main():
                 stars = display_stars(restaurant.note_globale)
                 col1.image(stars, width=20)
 
-            # Affichage du bouton d'informations
+            # Affichage du bouton d'information
             with col2:
                 if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
                     st.session_state['selected_restaurant'] = restaurant
@@ -218,9 +229,6 @@ def main():
     # Affichage de la carte
     with results_display_col2:
         with st.spinner("Chargement de la carte..."):
-            # Récupération des coordonnées géographiques des restaurants
-            map_data = get_restaurant_coordinates(filtered_restaurants)
-
             # Mise en forme du radius et de la couleur du domicile
             if radius == 1000000:
                 radius = 25
@@ -230,19 +238,19 @@ def main():
 
             # Ajout des coordonnées du domicile s'il est défini
             if personal_address:
-                addr_lat, addr_lon = get_coordinates(personal_address)
-                if addr_lat and addr_lon:
-                    map_data.append({
-                        'name': 'Domicile',
-                        'lat': addr_lat,
-                        'lon': addr_lon
-                    })
+                latitude = personal_latitude
+                longitude = personal_longitude
+                map_data.append({
+                    'name': 'Domicile',
+                    'latitude': personal_latitude,
+                    'longitude': personal_longitude
+                })
             else:
-                addr_lat, addr_lon = 45.7640, 4.8357 # Coordonnées de Lyon
+                latitude, longitude = 45.7640, 4.8357 # Coordonnées de Lyon
 
             view_state = pdk.ViewState(
-                latitude=addr_lat,
-                longitude=addr_lon,
+                latitude=latitude,
+                longitude=longitude,
                 zoom=12,
                 pitch=0
             )
@@ -251,7 +259,7 @@ def main():
             home_layer = pdk.Layer(
                 'ScatterplotLayer',
                 data=[point for point in map_data if point['name'] == 'Domicile'],
-                get_position='[lon, lat]',
+                get_position='[longitude, latitude]',
                 get_color=color,
                 get_radius=radius,
                 pickable=True,
@@ -262,7 +270,7 @@ def main():
             restaurants_layer = pdk.Layer(
                 'ScatterplotLayer',
                 data=[point for point in map_data if point['name'] != 'Domicile'],
-                get_position='[lon, lat]',
+                get_position='[longitude, latitude]',
                 get_color='[255, 0, 0]',
                 get_radius=25,
                 pickable=True,
