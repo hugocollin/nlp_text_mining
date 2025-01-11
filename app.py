@@ -29,7 +29,7 @@ def add_personal_address_dialog():
         # Affichage de l'adresse personnelle
         with header_col1:
             header_col1.write("Votre adresse personnelle actuelle est :")
-            header_col1.write(f"{personal_address}")
+            header_col1.write(f"**{personal_address}**")
 
         # Bouton pour supprimer l'adresse personnelle
         with header_col2:
