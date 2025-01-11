@@ -81,7 +81,7 @@ def main():
         st.session_state['restaurant_added'] = False
 
     # Création d'une tab
-    filter_tab, ai_tab, close_tab = st.tabs(["🎨 Filtres", "✨ Discuter avec l'IA", "Fermer"])
+    close_tab, filter_tab, ai_tab = st.tabs(["🔼", "🎨 Filtres", "✨ Discuter avec l'IA"])
 
     with close_tab:
         st.write("")
