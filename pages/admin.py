@@ -1,10 +1,11 @@
 import streamlit as st
-from db.models import get_user_and_review_from_restaurant_id , get_all_restaurants
+from db.models import  get_all_restaurants
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar
 import pandas as pd
-from sqlalchemy import inspect, text , Integer, Float 
+from sqlalchemy import inspect, text 
+from sqlalchemy.types import Integer, Float
 
 
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
@@ -320,7 +321,7 @@ def edit_table(session):
         return
 
     # Affichage des données de la table
-    query = f"SELECT * FROM {table_to_edit} LIMIT 100"
+    query = f"SELECT * FROM {table_to_edit}"
     try:
         df = pd.read_sql_query(text(query), session.bind)
         st.dataframe(df)
