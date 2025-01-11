@@ -333,7 +333,7 @@ def update_restaurant(
     etoiles_michelin=None,
     repas=None,
     image=None,
-    scrapped=None
+    scrapped=False
 ):
     """
     Met à jour uniquement les champs vides d'un restaurant dans la table dim_restaurants.
@@ -353,7 +353,7 @@ def update_restaurant(
     update_fields = []
     params = []
 
-    print(f"Restaurant {name} trouvé dans la base de données., image : {image}")
+    # print(f"Restaurant {name} trouvé dans la base de données., image : {image}")
 
     # Vérifier chaque champ et mettre à jour uniquement s'il est vide ou NULL
     # print(f"Vérification des champs à mettre à jour pour le restaurant {existing_restaurant}...")
@@ -393,6 +393,7 @@ def update_restaurant(
         update_fields.append("repas = ?")
         params.append(repas)
     if scrapped is not None and existing_restaurant["scrapped"] is None:
+        print(f"Restaurant {name} scrappé : {scrapped}")
         update_fields.append("scrapped = ?")
         params.append(scrapped)
     if image is not None and not existing_restaurant["image"]:
@@ -457,7 +458,7 @@ def update_restaurant_data(restaurant_name, restaurant_data):
 
         # Mise à jour des données
         update_restaurant(
-            name=restaurant_name,
+            restaurant_name,
             cuisines=cuisines,
             note_globale=note_globale,
             cuisine_note=cuisine_note,
@@ -468,8 +469,8 @@ def update_restaurant_data(restaurant_name, restaurant_data):
             prix_max=prix_max,
             etoiles_michelin=etoiles_michelin,
             repas=details.get('REPAS', ''),
-            scrapped=True,
-            image=details.get('IMAGE', '')
+            image=details.get('IMAGE', ''),
+            scrapped=True
         )
 
         print(f"Mise à jour réussie pour {restaurant_name}.")
@@ -601,6 +602,51 @@ def get_restaurants_with_reviews():
     return [row[0] for row in results]
 
 
+def get_scrapped_restaurants():
+    """
+    Récupère la liste des noms des restaurants dont scrapped = True.
+    
+    Returns:
+        list[str]: Une liste contenant les noms des restaurants scrappés.
+    """
+    query = """
+        SELECT nom
+        FROM dim_restaurants
+        WHERE scrapped = 1;
+    """
+    results = fetch_all(query)
+    return [row[0] for row in results]
+
+
+def update_scrapped_status_for_reviews(session, restaurant_names):
+    """
+    Met à jour la colonne scrapped pour les restaurants dans la liste des noms fournie
+    en utilisant une session SQLAlchemy.
+
+    Args:
+        session (Session): La session SQLAlchemy pour interagir avec la base de données.
+        restaurant_names (list[str]): Liste des noms des restaurants à mettre à jour.
+    """
+    if not restaurant_names:
+        print("La liste des noms de restaurants est vide. Aucun traitement effectué.")
+        return
+
+    try:
+        # Mise à jour en une seule requête (si la base de données supporte IN)
+        session.query(Restaurant) \
+            .filter(Restaurant.nom.in_(restaurant_names)) \
+            .update({Restaurant.scrapped: True}, synchronize_session='fetch')
+
+        session.commit()
+        print(f"Colonne 'scrapped' mise à jour pour {len(restaurant_names)} restaurants.")
+    except Exception as e:
+        session.rollback()
+        print("Une erreur s'est produite lors de la mise à jour.")
+        print(f"Erreur : {e}")
+
+
+
+
 if __name__ == "__main__":
     DATABASE_NAME = "restaurant_reviews.db"
 
@@ -699,7 +745,11 @@ restaurants = get_all_restaurants(session)
     # print(get_restaurants_from_folder(scrapping_dir))
     # print(get_restaurants_with_reviews_and_users(session))
 
-    print(get_restaurants_with_reviews())
+    # print(get_restaurants_with_reviews())
+    print(get_scrapped_restaurants())
+    # scrapped_restaurants = get_restaurants_from_folder(scrapping_dir)
+    # print(scrapped_restaurants)
+    # print(update_scrapped_status_for_reviews(session, scrapped_restaurants))
    
     
     
