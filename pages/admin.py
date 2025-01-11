@@ -283,6 +283,10 @@ def execute_sql_query(session):
         try:
             # Exécution de la requête
             df = pd.read_sql_query(text(query), session.bind)
+            for col in df.columns:
+                if 'date' in col.lower():
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                    
 
             # Appliquer la fonction pour rendre les noms de colonnes uniques
             df.columns = make_unique_columns(df.columns)
