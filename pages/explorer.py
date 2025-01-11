@@ -297,6 +297,7 @@ def main():
                 map_style='mapbox://styles/mapbox/light-v11'
             )
 
+            # Affichage de la carte
             st.pydeck_chart(deck)
 
 if __name__ == '__main__':
