@@ -5,9 +5,10 @@ import pandas as pd
 import ast
 from sqlalchemy import update, select, exists, create_engine, text
 from sqlalchemy.orm import Session
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from databases import execute_query, fetch_one, create_schema, database_exists
+from databases import execute_query, fetch_one, create_schema, database_exists, fetch_one_as_dict, fetch_all
 from searchengine import trip_finder as tf
 from geopy.geocoders import Nominatim
 import locale
@@ -51,7 +52,8 @@ def insert_restaurant(
     repas=None,
     latitude=None,
     longitude=None,
-    scrapped=True
+    scrapped=True,
+    image=None
 ):
     """Insère un restaurant dans la table dim_restaurants et retourne son id."""
     # Vérifier si le restaurant existe déjà dans la base
@@ -68,9 +70,9 @@ def insert_restaurant(
             INSERT INTO dim_restaurants (
                 nom, adresse, url_link, email, telephone, cuisines, 
                 note_globale, cuisine_note, service_note, qualite_prix_note, ambiance_note,
-                prix_min, prix_max, etoiles_michelin, repas, latitude, longitude, scrapped
+                prix_min, prix_max, etoiles_michelin, repas, latitude, longitude, scrapped, image
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         # Extraire prix_min et prix_max depuis `prix_min` et `prix_max` si fournis en chaîne
         if isinstance(prix_min, str):
@@ -82,7 +84,7 @@ def insert_restaurant(
         params = [
             name, adresse, url, email, telephone, cuisines,
             note_globale, cuisine_note, service_note, qualite_prix_note, ambiance_note,
-            prix_min, prix_max, etoiles_michelin, repas, latitude, longitude, scrapped
+            prix_min, prix_max, etoiles_michelin, repas, latitude, longitude, scrapped, image
         ]
         execute_query(query, params=params)
 
@@ -159,7 +161,7 @@ def parse_french_date(date_str):
     for fr, en in months.items():
         
         date_str = date_str.replace(fr, en)
-        print(date_str)
+        # print(date_str)
 
     try:
         parsed_date = parser.parse(date_str).date()
@@ -180,11 +182,17 @@ def parse_to_dict(data_str):
         return None
     
 def safe_float(value):
-    """Convertit une valeur en float si possible, sinon retourne None."""
+    """Convertit une valeur en float si possible, sinon retourne None.
+    Si la valeur est déjà un float, la retourne telle quelle.
+    """
+    if isinstance(value, float):
+        return value
     try:
+        # Si la valeur est une chaîne, on la convertit en float
         return float(value.replace(',', '.')) if value not in [None, 'N/A', ''] else None
-    except ValueError:
+    except (ValueError, AttributeError):
         return None
+
 
 def process_restaurant_csv(file_name):
     """Insère les restaurants depuis un fichier CSV situé dans le dossier parent 'data'."""
@@ -231,7 +239,8 @@ def process_restaurant_csv(file_name):
         ),
         repas=restaurant_data['Détails'].get('REPAS', None),
         latitude=latitude,
-        longitude=longitude
+        longitude=longitude,
+        image=restaurant_data['Détails'].get('IMAGE', None),
     )
         
 
@@ -311,7 +320,285 @@ def update_restaurant_coordinates(engine):
         print("Mise à jour des coordonnées terminée.")
 
 
+def update_restaurant(
+    name,
+    cuisines=None,
+    note_globale=None,
+    cuisine_note=None,
+    service_note=None,
+    qualite_prix_note=None,
+    ambiance_note=None,
+    prix_min=None,
+    prix_max=None,
+    etoiles_michelin=None,
+    repas=None,
+    image=None,
+    scrapped=None
+):
+    """
+    Met à jour uniquement les champs vides d'un restaurant dans la table dim_restaurants.
+    """
+    # Vérifier si le restaurant existe dans la base
 
+    existing_restaurant = fetch_one_as_dict("SELECT * FROM dim_restaurants WHERE nom = ?", [name], table_name="dim_restaurants")
+
+
+    if not existing_restaurant:
+        raise ValueError(f"Restaurant {name} non trouvé dans la base de données.")
+
+    # convertir existing_restaurant en dict
+
+    # Construire la requête de mise à jour de manière dynamique
+    update_query = "UPDATE dim_restaurants SET "
+    update_fields = []
+    params = []
+
+    print(f"Restaurant {name} trouvé dans la base de données., image : {image}")
+
+    # Vérifier chaque champ et mettre à jour uniquement s'il est vide ou NULL
+    # print(f"Vérification des champs à mettre à jour pour le restaurant {existing_restaurant}...")
+    
+    if cuisines is not None and not existing_restaurant["cuisines"]:
+        update_fields.append("cuisines = ?")
+        params.append(cuisines)
+    if note_globale is not None and existing_restaurant["note_globale"] is None:
+        update_fields.append("note_globale = ?")
+        params.append(note_globale)
+    if cuisine_note is not None and existing_restaurant["cuisine_note"] is None:
+        update_fields.append("cuisine_note = ?")
+        params.append(cuisine_note)
+    if service_note is not None and existing_restaurant["service_note"] is None:
+        update_fields.append("service_note = ?")
+        params.append(service_note)
+    if qualite_prix_note is not None and existing_restaurant["qualite_prix_note"] is None:
+        update_fields.append("qualite_prix_note = ?")
+        params.append(qualite_prix_note)
+    if ambiance_note is not None and existing_restaurant["ambiance_note"] is None:
+        update_fields.append("ambiance_note = ?")
+        params.append(ambiance_note)
+    if prix_min is not None and existing_restaurant["prix_min"] is None:
+        if isinstance(prix_min, str):
+            prix_min = float(prix_min.replace(',', '.').replace('€', '').strip())
+        update_fields.append("prix_min = ?")
+        params.append(prix_min)
+    if prix_max is not None and existing_restaurant["prix_max"] is None:
+        if isinstance(prix_max, str):
+            prix_max = float(prix_max.replace(',', '.').replace('€', '').strip())
+        update_fields.append("prix_max = ?")
+        params.append(prix_max)
+    if etoiles_michelin is not None and existing_restaurant["etoiles_michelin"] is None:
+        update_fields.append("etoiles_michelin = ?")
+        params.append(etoiles_michelin)
+    if repas is not None and not existing_restaurant["repas"]:
+        update_fields.append("repas = ?")
+        params.append(repas)
+    if scrapped is not None and existing_restaurant["scrapped"] is None:
+        update_fields.append("scrapped = ?")
+        params.append(scrapped)
+    if image is not None and not existing_restaurant["image"]:
+        print(f"Image trouvée pour le restaurant {name} : {image}")
+        update_fields.append("image = ?")
+        params.append(image)
+
+    # Si aucun champ n'est à mettre à jour, lever une exception
+    if not update_fields:
+        print(f"Aucune mise à jour nécessaire pour le restaurant {name}.")
+        return
+
+    # Ajouter les champs à la requête
+    update_query += ", ".join(update_fields)
+    update_query += " WHERE nom = ?"
+    params.append(name)
+
+    # Exécuter la requête
+    execute_query(update_query, params=params)
+    print(f"Restaurant {name} mis à jour avec succès.")
+
+
+
+def update_restaurant_data(restaurant_name, restaurant_data):
+    try:
+        # Vérifiez que restaurant_data est un dictionnaire
+        if not isinstance(restaurant_data, dict):
+            raise ValueError("Les données du restaurant doivent être un dictionnaire.")
+
+        # Vérifiez que les sections 'Détails' et 'Notes et avis' existent
+        details = restaurant_data.get('Détails', {})
+        notes_et_avis = restaurant_data.get('Notes et avis', {})
+
+        # Vérifications supplémentaires pour éviter les erreurs d'accès
+        cuisines = details.get('CUISINES', None)
+        note_globale = safe_float(notes_et_avis.get('NOTE GLOBALE', '0'))
+        cuisine_note = safe_float(notes_et_avis.get('CUISINE', '0'))
+        service_note = safe_float(notes_et_avis.get('SERVICE', '0'))
+        qualite_prix_note = safe_float(notes_et_avis.get('RAPPORT QUALITÉ-PRIX', '0'))
+        ambiance_note = safe_float(notes_et_avis.get('AMBIANCE', '0'))
+
+        # Traitement de la fourchette de prix avec vérification du type
+        fourchette_prix = details.get('FOURCHETTE DE PRIX', '')
+        if isinstance(fourchette_prix, str):
+            fourchette_prix = fourchette_prix.replace('\xa0€', '')
+            if '-' in fourchette_prix:
+                prix_min, prix_max = map(
+                    safe_float,
+                    fourchette_prix.split('-')
+                )
+            else:
+                prix_min, prix_max = None, None
+        else:
+            prix_min, prix_max = None, None
+        
+        # Étoiles Michelin
+        etoiles_michelin = details.get('ÉTOILES MICHELIN', None)
+        if isinstance(etoiles_michelin, str) and etoiles_michelin.isdigit():
+            etoiles_michelin = int(etoiles_michelin)
+        elif not isinstance(etoiles_michelin, int):
+            etoiles_michelin = None
+
+        # Mise à jour des données
+        update_restaurant(
+            name=restaurant_name,
+            cuisines=cuisines,
+            note_globale=note_globale,
+            cuisine_note=cuisine_note,
+            service_note=service_note,
+            qualite_prix_note=qualite_prix_note,
+            ambiance_note=ambiance_note,
+            prix_min=prix_min,
+            prix_max=prix_max,
+            etoiles_michelin=etoiles_michelin,
+            repas=details.get('REPAS', ''),
+            scrapped=True,
+            image=details.get('IMAGE', '')
+        )
+
+        print(f"Mise à jour réussie pour {restaurant_name}.")
+
+    except Exception as e:
+        print(f"Erreur lors de la mise à jour du restaurant {restaurant_name} : {e}")
+
+def insert_restaurant_reviews(restaurant, reviews):
+    # Insérer les avis pour le restaurant
+    try:
+        for review in reviews:
+            review_data = {
+                "user": review['user'],
+                "user_profile": review['user_profile'],
+                "num_contributions": review['num_contributions'],
+                "date": review['date_review'],
+                "title": review['title'],
+                "review": review['review'],
+                "rating": review['rating'],
+                "type_visit": review['type_visit']
+            }
+            insert_review(review_data, restaurant.id_restaurant)
+    except Exception as e:
+        print(f"Erreur lors de l'insertion des avis pour le restaurant {restaurant.nom} : {e}")
+
+
+def get_restaurants_from_folder(scrapping_dir):
+    
+    # Ensemble pour garantir l'unicité des noms de restaurants
+    restaurant_names = set()
+
+    # Parcourir les fichiers dans le dossier
+    for file_name in os.listdir(scrapping_dir):
+        if not file_name.endswith(".csv"):
+            continue  # Ignorer les fichiers qui ne sont pas des CSV
+        
+        # Extraire le nom du restaurant à partir du nom du fichier
+        base_name, _ = os.path.splitext(file_name)
+        parts = base_name.split("_")
+        if len(parts) < 2:
+            print(f"Fichier mal nommé ignoré : {file_name}")
+            continue  # Ignorer les fichiers mal nommés
+
+        restaurant_name = parts[0]  # Le premier élément est le nom du restaurant
+        restaurant_names.add(restaurant_name)
+
+    return sorted(restaurant_names)
+
+
+def process_csv_files(scrapping_dir, session):
+    # Recuperer les nom des restaurants dans le dossier scrapping
+    restaurant_names = get_restaurants_from_folder(scrapping_dir)
+    file_suffixes = ["details", "reviews", "avis", "location"]
+
+    for restaurant_name in restaurant_names:
+        restaurant_data = {"Emplacement et coordonnées": {}, "Détails": {}, "Notes et avis": {}}
+        reviews = None
+        print(f"Traitement du restaurant : {restaurant_name}")
+        restaurant = session.query(Restaurant).filter_by(nom=restaurant_name).first()
+        if not restaurant:
+            print(f"Restaurant {restaurant_name} non trouvé dans la base de données.")
+            # Optionnel : Ajouter ici un code pour insérer le restaurant dans la BDD TODO ???
+            continue
+        # Parcourir les fichiers dans le dossier pour ce restaurant
+        for suffix in file_suffixes:
+            file_name = f"{restaurant_name}_{suffix}.csv"
+            file_path = os.path.join(scrapping_dir, file_name)
+
+            if not os.path.exists(file_path):
+                print(f"Fichier non trouvé : {file_name}")
+                break  # Arrêter le traitement si un fichier est manquant
+
+            # Charger le fichier CSV en DataFrame
+            df = pd.read_csv(file_path)
+            if suffix == "details":
+                restaurant_data["Détails"] = df.to_dict(orient='records')[0]
+            elif suffix == "reviews":
+                reviews = df.to_dict(orient='records')
+            elif suffix == "avis":
+                restaurant_data["Notes et avis"] = df.to_dict(orient='records')[0]
+                    
+            elif suffix == "location":
+                restaurant_data["Emplacement et coordonnées"] = df.to_dict(orient='records')[0]
+        # print(restaurant_data)
+        update_restaurant_data(restaurant_name, restaurant_data)
+                
+        if reviews is not None:
+            print(f"Insertion des avis pour {restaurant_name}...")
+            insert_restaurant_reviews(restaurant, reviews)
+            # print(f"Avis insérés pour {reviews}.")
+        else:
+            print(f"Warning #### : Aucun avis trouvé pour {restaurant_name}.")
+
+
+    session.commit()
+
+
+def get_restaurants_with_reviews():
+    """
+    Récupère la liste des restaurants ayant des avis dans la table review,
+    avec uniquement leurs id et nom.
+    
+    Returns:
+        list[dict]: Une liste de dictionnaires contenant les id et noms des restaurants.
+    """
+    query = """
+        SELECT r.id_restaurant, r.nom
+        FROM dim_restaurants r
+        INNER JOIN fact_reviews rv ON r.id_restaurant = rv.id_restaurant
+        GROUP BY r.id_restaurant, r.nom;
+    """
+    results = fetch_all(query)
+    return [{"id": row[0], "nom": row[1]} for row in results]
+
+def get_restaurants_with_reviews():
+    """
+    Récupère la liste des noms des restaurants ayant des avis dans la table review.
+    
+    Returns:
+        list[str]: Une liste contenant les noms des restaurants.
+    """
+    query = """
+        SELECT r.nom
+        FROM dim_restaurants r
+        INNER JOIN fact_reviews rv ON r.id_restaurant = rv.id_restaurant
+        GROUP BY r.nom;
+    """
+    results = fetch_all(query)
+    return [row[0] for row in results]
 
 
 if __name__ == "__main__":
@@ -394,7 +681,7 @@ restaurants = get_all_restaurants(session)
 """
 
     # Récupérer tous les restaurants
-    restaurants = get_all_restaurants(session)
+    """restaurants = get_all_restaurants(session)
     for restaurant in restaurants:
         print(f"Restaurant ID: {restaurant.id_restaurant}, Name: {restaurant.nom}")
     # Récupérer tous les restaurants avec leurs avis et utilisateurs associés
@@ -403,5 +690,16 @@ restaurants = get_all_restaurants(session)
         print(f"Restaurant: {restaurant.nom}")
         for review in restaurant.avis:
             print(f"  Review by {review.user.user_profile} (Rating: {review.rating})")
-        
+        """
+    
+    # Récupérer les csv des restaurants dans le dossier Data/scrapping
+    # TODO: Ajouter les nouvelles colonnes à la BDD: images, lat long, scrapped
+    scrapping_dir = os.path.join("Data", "scrapping")
+    # process_csv_files(scrapping_dir, session)
+    # print(get_restaurants_from_folder(scrapping_dir))
+    # print(get_restaurants_with_reviews_and_users(session))
 
+    print(get_restaurants_with_reviews())
+   
+    
+    
