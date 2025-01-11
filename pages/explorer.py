@@ -50,6 +50,10 @@ def main():
     # Barre de navigation
     Navbar()
 
+    # Vérification si une adresse personelle a été renseignée
+    if not personal_address:
+            st.toast("Veuillez définir votre adresse personnelle pour voir les temps de trajet", icon="ℹ️")
+
     # Initialisation du comparateur dans session_state
     if 'comparator' not in st.session_state:
         st.session_state['comparator'] = []
@@ -77,7 +81,10 @@ def main():
         st.session_state['restaurant_added'] = False
 
     # Création d'une tab
-    filter_tab, ai_tab = st.tabs(["🎨 Filtres", "✨ Discuter avec l'IA"])
+    filter_tab, ai_tab, close_tab = st.tabs(["🎨 Filtres", "✨ Discuter avec l'IA", "Fermer"])
+
+    with close_tab:
+        st.write("")
     
     with filter_tab:
         # Conteneur pour la recherche et les filtres
@@ -251,9 +258,6 @@ def main():
     
     # Affichage des résultats
     with results_display_col1:
-        if not personal_address:
-            st.toast("Veuillez définir votre adresse personnelle pour voir les temps de trajet", icon="ℹ️")
-
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
             with concurrent.futures.ThreadPoolExecutor() as executor:
