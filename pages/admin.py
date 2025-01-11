@@ -4,6 +4,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar
 import pandas as pd
+from sqlalchemy import inspect
+
 
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
 
@@ -33,6 +35,31 @@ def display_restaurant_stats():
         st.write("Unique values")
         st.write(df.value_counts())
  
+def execute_sql_query(session):
+    inspector = inspect(session.bind)
+    tables = inspector.get_table_names()
+
+    # Sélection de la table
+    selected_table = st.selectbox("From", options=tables)
+
+    if selected_table:
+        # Récupération des colonnes de la table sélectionnée
+        columns = inspector.get_columns(selected_table)
+        column_names = [column['name'] for column in columns]
+
+        # Sélection des colonnes
+        selected_columns = st.multiselect("Select", options=column_names, default=column_names)
+
+        if selected_columns:
+            query = f"SELECT {', '.join(selected_columns)} FROM {selected_table}"
+            st.write(f"**Requête SQL:** `{query}`")
+
+            try:
+                # Exécution de la requête
+                df = pd.read_sql_query(query, session.bind)
+                st.dataframe(df)
+            except Exception as e:
+                st.error(f"Erreur lors de l'exécution de la requête: {e}")
 
 def main():
     # Barre de navigation
@@ -40,7 +67,7 @@ def main():
     
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
-    
+    execute_sql_query(session)
     # Afficher les statistiques pour tous les restaurants
     display_restaurant_stats()
 if __name__ == '__main__':
