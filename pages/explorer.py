@@ -99,14 +99,16 @@ def main():
             use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter")
             if use_radius_filter:
                 radius = header_col1.slider("Distance de recherche autour du domicile (m)", min_value=1, max_value=3000, step=1, value=500, key="radius_slider")
+            
+                # Filtrage des restaurants par rayon si activé
+                filtered_restaurants = filter_restaurants_by_radius(scrapped_restaurants, personal_latitude, personal_longitude, radius)
             else:
                 radius = 1000000
+                filtered_restaurants = scrapped_restaurants
         else:
             use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter", disabled=True)
             radius = 1000000
-
-        # Filtrage des restaurants par rayon si activé
-        filtered_restaurants = filter_restaurants_by_radius(scrapped_restaurants, personal_latitude, personal_longitude, radius)
+            filtered_restaurants = scrapped_restaurants
 
         # Construction de la liste des noms pour la multiselect
         restaurant_names = [restaurant["nom"] for restaurant in filtered_restaurants]
