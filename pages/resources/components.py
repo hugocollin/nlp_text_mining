@@ -286,7 +286,7 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
         
         # Mise en page des informations
         container = st.container()
-        col1, col2 = container.columns([0.6, 0.4])
+        col1, col2 = container.columns([0.64, 0.36])
 
         # Affichage des informations de la colonne 1
         with col1:
@@ -313,11 +313,11 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
             score_container.write("**Notations**")
             stars = display_stars(selected_restaurant.note_globale)
             stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
-            score_container.html(f"<b>Note globale : </b>{stars_html}")
-            score_container.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
-            score_container.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
-            score_container.write(f"**Note service :** {selected_restaurant.service_note}")
-            score_container.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
+            score_container.html(f"<b>Globale : </b>{stars_html}")
+            score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
+            score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
+            score_container.write(f"**Service :** {selected_restaurant.service_note}")
+            score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
             
             journeys_container = st.container(border=True)
             journeys_container.write("**Temps de trajet**")

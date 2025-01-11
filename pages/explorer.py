@@ -82,23 +82,39 @@ def main():
     # Mise en page de la recherche et des filtres
     header_col1, header_col2 = header_container.columns(2)
 
-    # Colonne pour la recherche
+    # Colonne pour le chat avec l'IA [TEMP]
     with header_col1:
+        chat_container = header_col1.container(height=900)
+        if message := header_col1.chat_input(placeholder="Rechercher avec l'IA ✨ [disponible ultérieurement]", key="search_restaurant_temp"):
+            chat_container.chat_message(avatar="👤", name="User").write(message)
+            chat_container.chat_message(avatar="✨", name="AI").write(f"Je ne suis actuellement pas disponible 😢")
+    
+    # Colonne pour les filtres
+    with header_col2:
         # Récupération des informations des restaurants scrappés
         scrapped_restaurants = [
             {
                 "nom": restaurant.nom,
                 "latitude": restaurant.latitude,
-                "longitude": restaurant.longitude
+                "longitude": restaurant.longitude,
+                "etoiles_michelin": restaurant.etoiles_michelin,
+                "note_globale": restaurant.note_globale,
+                "qualite_prix_note": restaurant.qualite_prix_note,
+                "cuisine_note": restaurant.cuisine_note,
+                "service_note": restaurant.service_note,
+                "ambiance_note": restaurant.ambiance_note,
+                "cuisines": restaurant.cuisines,
+                "repas": restaurant.repas
             }
             for restaurant in [restaurant for restaurant in restaurants if restaurant.scrapped]
         ]
 
         # Checkbox pour activer/désactiver le filtre par rayon
+        container = header_col2.container(border=True)
         if personal_address:
-            use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter")
+            use_radius_filter = container.toggle(label="Recherche par distance autour du domicile", value=False, key="use_radius_filter")
             if use_radius_filter:
-                radius = header_col1.slider("Distance de recherche autour du domicile (m)", min_value=1, max_value=3000, step=1, value=500, key="radius_slider")
+                radius = container.slider("Distance de recherche autour du domicile (en mètres)", min_value=1, max_value=3000, step=1, value=500, key="radius_slider")
             
                 # Filtrage des restaurants par rayon si activé
                 filtered_restaurants = filter_restaurants_by_radius(scrapped_restaurants, personal_latitude, personal_longitude, radius)
@@ -106,25 +122,122 @@ def main():
                 radius = 1000000
                 filtered_restaurants = scrapped_restaurants
         else:
-            use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter", disabled=True)
+            use_radius_filter = container.toggle(label="Recherche par distance autour du domicile", value=False, key="use_radius_filter", disabled=True)
             radius = 1000000
             filtered_restaurants = scrapped_restaurants
 
-        # Construction de la liste des noms pour la multiselect
-        restaurant_names = [restaurant["nom"] for restaurant in filtered_restaurants]
-        options = ["Sélectionner un restaurant"] + restaurant_names
+        grades_col1, grades_col2 = st.columns(2)
 
-        # Création du multiselect avec les options filtrées
-        search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
+        # Filtre par étoiles Michelin
+        container = grades_col1.container(border=True)
+        option_map = {
+            1: ":material/asterisk:",
+            2: ":material/asterisk::material/asterisk:",
+            3: ":material/asterisk::material/asterisk::material/asterisk:",
+        }
+        selected_michelin_stars = container.pills(
+            "Étoiles Michelin minimale",
+            options=option_map.keys(),
+            format_func=lambda option: option_map[option],
+            selection_mode="single",
+        )
 
-        # [TEMP]
-        header_col1.text_input(label="Rechercher avec l'IA", label_visibility="collapsed", placeholder="Rechercher avec l'IA ✨ [disponible ultérieurement]", key="search_restaurant_temp", disabled=True)
-    
-    # Colonne pour les filtres
-    with header_col2:
+        # Filtre par note globale
+        container = grades_col2.container(border=True)
+        container.write("Note globale minimale")
+        global_rating = [1, 2, 3, 4, 5]
+        global_rating_selected = container.feedback("stars", key="filter_global_stars")
+        if global_rating_selected is None:
+            global_rating_selected = 0
 
-        # [TEMP] Ajouter des filtres
-        header_col2.write("[Les filtres seront ajoutés ultérieurement]")
+        # Filtre par note qualité-prix
+        container = grades_col1.container(border=True)
+        quality_price = container.slider(
+            label="Note qualité prix minimale",
+            min_value=0.0,
+            max_value=5.0,
+            step=0.1,
+            value=0.0,
+            key="filter_quality_price"
+        )
+
+        # Filtre par note cuisine
+        container = grades_col2.container(border=True)
+        cuisine_note = container.slider(
+            label="Note cuisine minimale",
+            min_value=0.0,
+            max_value=5.0,
+            step=0.1,
+            value=0.0,
+            key="filter_cuisine_note"
+        )
+
+        # Filtre par note service
+        container = grades_col1.container(border=True)
+        service_note = container.slider(
+            label="Note service minimale",
+            min_value=0.0,
+            max_value=5.0,
+            step=0.1,
+            value=0.0,
+            key="filter_service_note"
+        )
+
+        # Filtre par note ambiance
+        container = grades_col2.container(border=True)
+        ambiance_note = container.slider(
+            label="Note ambiance minimale",
+            min_value=0.0,
+            max_value=5.0,
+            step=0.1,
+            value=0.0,
+            key="filter_ambiance_note"
+        )
+
+        # Filtre par temps de trajet
+        if personal_address:
+            container = st.container(border=True)
+            time_travel = container.slider(
+                label="Temps de trajet maximal (en minutes)",
+                min_value=0,
+                max_value=120,
+                step=1,
+                value=120,
+                key="filter_time_travel"
+            )
+        else:
+            container = st.container(border=True)
+            time_travel = container.slider(
+                label="Temps de trajet maximal (en minutes)",
+                min_value=0,
+                max_value=120,
+                step=1,
+                value=120,
+                disabled=True,
+                key="filter_time_travel"
+            )
+
+        # Filtre par cuisine
+        container = st.container(border=True)
+        cuisines = sorted(list(set([c.strip() for restaurant in scrapped_restaurants for c in restaurant["cuisines"].split(',')])))
+        selected_cuisines = container.pills(
+            label="Cuisine",
+            options=cuisines,
+            default=[],
+            selection_mode = "multi",
+            key="filter_cuisines"
+        )
+
+        # Filtre par type de repas
+        container = st.container(border=True)
+        meals = sorted(list(set([m.strip() for restaurant in scrapped_restaurants for m in restaurant["repas"].split(',')])))
+        selected_meals = container.pills(
+            label="Type de repas",
+            options=meals,
+            default=[],
+            selection_mode = "multi",
+            key="filter_meals"
+        )
 
     # Mise en page des résultats
     results_display_col1, results_display_col2 = st.columns([3, 2])
@@ -143,12 +256,48 @@ def main():
                     if restaurant.scrapped
                 ]
                 results = [future.result() for future in concurrent.futures.as_completed(futures)]
-        
-        # Filtrage des résultats en fonction des restaurants sélectionnés
-        if search_restaurant:
-            filtered_results = [result for result in results if result[0].nom in search_restaurant]
-        else:
-            filtered_results = results
+
+        # Filtrage des résultats en fonction des filtres
+        filtered_results = []
+        for result in results:
+            restaurant, tcl_url, fastest_mode = result
+
+            # Filtrage par étoiles Michelin
+            if selected_michelin_stars:
+                if not (restaurant.etoiles_michelin >= selected_michelin_stars):
+                    continue
+            # Filtrage par note globale
+            if not (global_rating[global_rating_selected] <= restaurant.note_globale):
+                continue
+            # Filtrage par note qualité-prix
+            if not (quality_price <= restaurant.qualite_prix_note):
+                continue
+            # Filtrage par note cuisine
+            if not (cuisine_note <= restaurant.cuisine_note):
+                continue
+            # Filtrage par note service
+            if not (service_note <= restaurant.service_note):
+                continue
+            # Filtrage par note ambiance
+            if not (ambiance_note <= restaurant.ambiance_note):
+                continue
+            # Filtrage par temps de trajet
+            if tcl_url:
+                # Assuming fastest_mode contains duration in minutes
+                duration = int(fastest_mode[1].split()[0])
+                if not (duration <= time_travel):
+                    continue
+            # Filtrage par cuisine
+            if selected_cuisines:
+                restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
+                if not any(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
+                    continue
+            # Filtrage par type de repas
+            if selected_meals:
+                restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
+                if not any(meal in restaurant_meals for meal in selected_meals):
+                    continue
+            filtered_results.append(result)
 
         # Extraction des restaurants filtrés pour la carte
         filtered_restaurants = [
