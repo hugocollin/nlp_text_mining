@@ -278,6 +278,11 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, selected_restaurant.latitude, selected_restaurant.longitude)
 
     if selected_restaurant:
+        # Affichage de l'image du restaurant
+        st.image(selected_restaurant.image)
+
+        # Commencer la section avec l'image de fond
+        st.markdown('<div class="background-section">', unsafe_allow_html=True)
         michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
         if michelin_stars:
             michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
