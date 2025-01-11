@@ -293,7 +293,14 @@ def main():
             
             # Filtrage par temps de trajet
             if tcl_url:
-                duration = int(fastest_mode[1].split()[0])
+                duration_str = fastest_mode[1]
+                if 'h' in duration_str:
+                    parts = duration_str.split('h')
+                    hours = int(parts[0])
+                    minutes = int(parts[1].replace('min', '')) if parts[1] else 0
+                    duration = hours * 60 + minutes
+                else:
+                    duration = int(duration_str.replace('min', ''))
                 if not (duration <= time_travel):
                     continue
             
