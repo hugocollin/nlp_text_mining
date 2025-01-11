@@ -17,15 +17,15 @@ restaurants = get_all_restaurants(session)
 
 def display_restaurant_stats():
     # Calculer le nombre de restaurants scrappés
-    col1 , col2 = st.columns(2)
+    
     nombre_scrapped = len([r for r in restaurants if r.scrapped == 1])
 
     # Afficher le résultat dans Streamlit
     st.write(f"Nombre de restaurants scrappés : {nombre_scrapped}")   
     nom_scrapped = [r.nom for r in restaurants if r.scrapped == 1]
-    st.write(f"Nom des restaurants scrappés : {nom_scrapped}")
-    df = pd.DataFrame(nom_scrapped, columns = ['Nom des restaurants scrappés'])
 
+    df = pd.DataFrame(nom_scrapped, columns = ['Nom des restaurants scrappés'])
+    col1 , col2 = st.columns(2)
     with col1:
         st.write("Liste des restaurants scrappés")
         st.write(df)
@@ -40,7 +40,6 @@ def main():
     
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
-    st.write("Vous trouverez ci-dessous la liste de tous les restaurants scrappés :")
     
     # Afficher les statistiques pour tous les restaurants
     display_restaurant_stats()
