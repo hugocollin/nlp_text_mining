@@ -128,6 +128,25 @@ def execute_sql_query(session):
         )
         if group_by_columns:
             query += f" GROUP BY {', '.join(group_by_columns)}"
+# Option de Sort By
+    sort_by_columns = []
+    if st.checkbox("Ajouter une clause ORDER BY"):
+        sort_by_columns = st.multiselect(
+            "Sélectionnez les colonnes pour ORDER BY",
+            options=selected_columns,
+            help="Sélectionnez les colonnes par lesquelles trier les résultats."
+        )
+        if sort_by_columns:
+            # Sélection de l'ordre de tri pour chaque colonne
+            sort_orders = {}
+            for col in sort_by_columns:
+                sort_orders[col] = st.selectbox(
+                    f"Ordre pour '{col}'",
+                    options=["ASC", "DESC"],
+                    key=f"sort_order_{col}"
+                )
+            order_clause = ", ".join([f"{col} {order}" for col, order in sort_orders.items()])
+            query += f" ORDER BY {order_clause}"
 
     # Option de Limitation des Résultats
     add_limit = st.checkbox("Limiter le nombre de lignes retournées", value=True)
@@ -149,6 +168,23 @@ def execute_sql_query(session):
         try:
             # Exécution de la requête
             df = pd.read_sql_query(text(query), session.bind)
+
+            # Fonction pour rendre les noms de colonnes uniques si des duplications existent
+            def make_unique_columns(columns):
+                counts = {}
+                new_columns = []
+                for col in columns:
+                    if col in counts:
+                        counts[col] += 1
+                        new_columns.append(f"{col}_{counts[col]}")
+                    else:
+                        counts[col] = 1
+                        new_columns.append(col)
+                return new_columns
+
+            # Appliquer la fonction pour rendre les noms de colonnes uniques
+            df.columns = make_unique_columns(df.columns)
+
             st.success("Requête exécutée avec succès!")
             st.dataframe(df)
         except Exception as e:
