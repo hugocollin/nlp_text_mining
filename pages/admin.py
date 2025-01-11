@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar
 import pandas as pd
 from sqlalchemy import inspect
+from sqlalchemy.sql import text
 
 
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
@@ -39,27 +40,119 @@ def execute_sql_query(session):
     inspector = inspect(session.bind)
     tables = inspector.get_table_names()
 
-    # Sélection de la table
-    selected_table = st.selectbox("From", options=tables)
+    st.header("Exécuter une requête SQL avec Jointure")
 
-    if selected_table:
-        # Récupération des colonnes de la table sélectionnée
-        columns = inspector.get_columns(selected_table)
-        column_names = [column['name'] for column in columns]
+    # Sélection des tables
+    selected_tables = st.multiselect("Sélectionnez les tables à joindre", options=tables)
 
-        # Sélection des colonnes
-        selected_columns = st.multiselect("Select", options=column_names, default=column_names)
+    if not selected_tables:
+        st.info("Veuillez sélectionner au moins une table pour exécuter une requête.")
+        return
 
-        if selected_columns:
-            query = f"SELECT {', '.join(selected_columns)} FROM {selected_table}"
-            st.write(f"**Requête SQL:** `{query}`")
+    # Sélection des colonnes à afficher
+    selected_columns = []
+    for table in selected_tables:
+        columns = inspector.get_columns(table)
+        column_names = [f"{table}.{column['name']}" for column in columns]
+        cols = st.multiselect(f"Sélectionnez les colonnes de la table '{table}'", options=column_names, default=column_names)
+        selected_columns.extend(cols)
 
-            try:
-                # Exécution de la requête
-                df = pd.read_sql_query(query, session.bind)
-                st.dataframe(df)
-            except Exception as e:
-                st.error(f"Erreur lors de l'exécution de la requête: {e}")
+    if not selected_columns:
+        st.warning("Veuillez sélectionner au moins une colonne à afficher.")
+        return
+
+    # Gestion des jointures
+    join_types = ["INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL OUTER JOIN"]
+    joins = []
+
+    if len(selected_tables) > 1:
+        st.subheader("Configurer les Jointures")
+
+        for i in range(1, len(selected_tables)):
+            st.markdown(f"**Jointure {i}**")
+            left_table = selected_tables[i - 1]
+            right_table = selected_tables[i]
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                join_type = st.selectbox(f"Type de jointure pour {right_table}", options=join_types, key=f"join_type_{i}")
+
+            with col2:
+                left_columns = inspector.get_columns(left_table)
+                left_col_names = [column['name'] for column in left_columns]
+                left_join_column = st.selectbox(
+                    f"Colonne de jointure dans '{left_table}'",
+                    options=left_col_names,
+                    key=f"left_join_col_{i}"
+                )
+
+            with col3:
+                right_columns = inspector.get_columns(right_table)
+                right_col_names = [column['name'] for column in right_columns]
+                right_join_column = st.selectbox(
+                    f"Colonne de jointure dans '{right_table}'",
+                    options=right_col_names,
+                    key=f"right_join_col_{i}"
+                )
+
+            # Ajouter la jointure à la liste
+            joins.append({
+                "join_type": join_type,
+                "left_table": left_table,
+                "right_table": right_table,
+                "left_column": left_join_column,
+                "right_column": right_join_column
+            })
+            
+    # Construction de la requête SQL avec alias pour éviter les noms de colonnes dupliqués
+    select_clause = []
+    for col in selected_columns:
+        alias = col.replace('.', '_')
+        select_clause.append(f"{col} AS {alias}")
+
+    # Construction de la requête SQL
+    query = "SELECT " + ", ".join(selected_columns) + " FROM " + selected_tables[0]
+
+    for join in joins:
+        query += f" {join['join_type']} {join['right_table']} ON {join['left_table']}.{join['left_column']} = {join['right_table']}.{join['right_column']}"
+
+
+    # Option de Group By
+    group_by_columns = []
+    if st.checkbox("Ajouter une clause GROUP BY"):
+        group_by_columns = st.multiselect(
+            "Sélectionnez les colonnes pour GROUP BY",
+            options=selected_columns,
+            help="Sélectionnez les colonnes sur lesquelles grouper les résultats."
+        )
+        if group_by_columns:
+            query += f" GROUP BY {', '.join(group_by_columns)}"
+
+    # Option de Limitation des Résultats
+    add_limit = st.checkbox("Limiter le nombre de lignes retournées", value=True)
+    limit = 100  # Valeur par défaut
+    if add_limit:
+        limit = st.number_input(
+            "Nombre de lignes à retourner",
+            min_value=1,
+            max_value=10000,
+            value=100,
+            step=1,
+            help="Limitez le nombre de lignes retournées par la requête."
+        )
+        query += f" LIMIT {limit}"
+    st.write(f"**Requête SQL:** `{query}`")
+
+    # Bouton pour exécuter la requête
+    if st.button("Exécuter la Requête"):
+        try:
+            # Exécution de la requête
+            df = pd.read_sql_query(text(query), session.bind)
+            st.success("Requête exécutée avec succès!")
+            st.dataframe(df)
+        except Exception as e:
+            st.error(f"Erreur lors de l'exécution de la requête: {e}")
 
 def main():
     # Barre de navigation
@@ -67,8 +160,16 @@ def main():
     
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
+    
+    # Exécuter la requête SQL personnalisée
     execute_sql_query(session)
+    st.write("----")
+
     # Afficher les statistiques pour tous les restaurants
     display_restaurant_stats()
+    
+    st.write("----")
+    
+
 if __name__ == '__main__':
     main()
