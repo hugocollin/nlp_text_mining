@@ -84,9 +84,6 @@ class SearchEngine:
         elif response.status_code == 403:
             print("403 Forbidden")
             print(response.text)
-            #save html
-            with open('403.html', 'w') as f:
-                f.write(response.text)
             self.session = None
             self.cookies = np.random.choice(self.cookies_list)
             time.sleep(10)
@@ -104,7 +101,7 @@ class SearchEngine:
             time.sleep(60)
             print("429 Too Many Requests")
             self.rank += 1
-            if self.rank < 10:
+            if self.rank < 5:
                 return self.run(url)
             else:
                 self.rank = 0

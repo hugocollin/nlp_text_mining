@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, display_michelin_stars, display_stars, display_restaurant_infos, get_personnal_address, tcl_api
+from pages.resources.components import Navbar, display_michelin_stars, display_stars, display_restaurant_infos, get_personal_address, tcl_api
 from pages.statistiques import display_restaurant_stats
 from db.models import get_all_restaurants
 
@@ -17,12 +17,12 @@ session = Session()
 restaurants = get_all_restaurants(session)
 
 # Récupération de l'adresse personnelle
-personal_address = get_personnal_address()
+personal_address, personal_latitude, personal_longitude = get_personal_address()
 
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    display_restaurant_infos(personal_address)
+    display_restaurant_infos(personal_address, personal_latitude, personal_longitude)
 
 def main():
     # Barre de navigation
@@ -65,7 +65,7 @@ def main():
                 restaurant = selected_restaurants[idx]
             
                 # Récupération des informations de trajet
-                tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
+                tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
 
                 # Mise en page des boutons
                 btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 3])
@@ -91,7 +91,7 @@ def main():
                 # Affichage des informations du restaurant
                 st.header(restaurant.nom)
 
-                st.write("**Notation :**")
+                st.write("**Notations :**")
                 michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
                 if michelin_stars:
                     michelin_stars_html = f'<img src="{michelin_stars}" width="25">'

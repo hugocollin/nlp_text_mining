@@ -1,9 +1,7 @@
 import streamlit as st
-from geopy.geocoders import Nominatim
 import urllib.parse
 import requests
 from pathlib import Path
-import concurrent.futures
 import math
 import base64
 import webbrowser
@@ -14,6 +12,7 @@ def Navbar():
         st.page_link('app.py', label='Accueil', icon='🏠')
         st.page_link('pages/explorer.py', label='Explorer', icon='🔍')
         st.page_link('pages/comparer.py', label='Comparer', icon='🆚')
+        st.page_link('pages/admin.py', label='Admin', icon='🔒')
 
 # Fonction pour calculer la distance entre deux points
 def haversine(lat1, lon1, lat2, lon2):
@@ -39,56 +38,17 @@ def haversine(lat1, lon1, lat2, lon2):
     return distance
 
 # Fonction pour enregistrer l'adresse personnelle
-def get_personnal_address():
-    return st.session_state.get('personal_address')
-
-# Fonction pour obtenir les coordonnées d'une adresse
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_coordinates(address):
-    geolocator = Nominatim(user_agent="sise_o_resto", timeout=15)
-    current_address = address
-    while True:
-        location = geolocator.geocode(f"{current_address}, Rhône, France")
-        if location:
-            return location.latitude, location.longitude
-        # Nettoyage de l'adresse si la géolocalisation a échoué
-        if ',' in current_address:
-            before_comma, after_comma = current_address.split(',', 1)
-            before_words = before_comma.strip().split(' ')
-            if len(before_words) > 1:
-                before_words = before_words[:-1]
-                new_before = ' '.join(before_words)
-                current_address = f"{new_before}, {after_comma.strip()}"
-            else:
-                current_address = after_comma.strip()
-        else:
-            break
-    return None, None
-
-# Fonction pour récupérer les coordonnées des restaurants
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_restaurant_coordinates(restaurants):
-    coordinates = []
-
-    # Récupération des coordonnées géographiques de chaque restaurant
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_info = {executor.submit(get_coordinates, addr): name for name, addr in restaurants}
-        for future in concurrent.futures.as_completed(future_to_info):
-            name = future_to_info[future]
-            lat, lon = future.result()
-            if lat and lon:
-                coordinates.append({
-                    'name': name,
-                    'lat': lat,
-                    'lon': lon
-                })
-    return coordinates
+def get_personal_address():
+    personal_address = st.session_state.get('personal_address')
+    personal_latitude = st.session_state.get('personal_latitude')
+    personal_longitude = st.session_state.get('personal_longitude')
+    return personal_address, personal_latitude, personal_longitude
 
 # Fonction pour filtrer les restaurants par rayon
-def filter_restaurants_by_radius(restaurants, center_lat, center_lon, radius):
+def filter_restaurants_by_radius(restaurants, personal_latitude, personal_longitude, radius):
     filtered = []
     for restaurant in restaurants:
-        distance = haversine(center_lat, center_lon, restaurant['lat'], restaurant['lon'])
+        distance = haversine(personal_latitude, personal_longitude, restaurant["latitude"], restaurant["longitude"])
         if distance <= radius:
             filtered.append(restaurant)
     return filtered
@@ -172,19 +132,28 @@ def display_stars(rating):
                 stars.append("")
     return stars
 
+# Fonction pour ajouter un restaurant au comparateur
+def add_to_comparator(restaurant):
+    comparator = st.session_state['comparator']
+    if restaurant.id_restaurant not in comparator:
+        if len(comparator) < 3:
+            comparator.append(restaurant.id_restaurant)
+            st.session_state['comparator'] = comparator
+            st.toast(f"Le restaurant {restaurant.nom} a été ajouté au comparateur", icon="🆚")
+        else:
+            st.toast("Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre", icon="ℹ️")
+    else:
+        st.toast(f"Le restaurant {restaurant.nom} est déjà dans le comparateur", icon="ℹ️")
+
 # Fonction pour obtenir les informations de trajet depuis le site TCL
 @st.cache_data(ttl=300, show_spinner=False)
-def tcl_api(personal_address, restaurant_address):
+def tcl_api(personal_address, personal_latitude, personal_longitude, restaurant_latitude, restaurant_longitude):
     
     if personal_address:
-        # Récupération des coordonnées de l'adresse personnelle et du restaurant
-        dep_lat, dep_lon = get_coordinates(personal_address)
-        arr_lat, arr_lon = get_coordinates(restaurant_address)
-        
         # Si les coordonnées sont valides
-        if dep_lat and dep_lon and arr_lat and arr_lon:
-            from_coord = f"{dep_lon};{dep_lat}"
-            to_coord = f"{arr_lon};{arr_lat}"
+        if personal_latitude and personal_longitude and restaurant_latitude and restaurant_longitude:
+            from_coord = f"{personal_longitude};{personal_latitude}"
+            to_coord = f"{restaurant_longitude};{restaurant_latitude}"
             encoded_from = urllib.parse.quote(from_coord)
             encoded_to = urllib.parse.quote(to_coord)
             
@@ -298,31 +267,22 @@ def tcl_api(personal_address, restaurant_address):
 
     return None, "Trajet indisponible", "Trajet indisponible", "Trajet indisponible", ("❌", "Trajet indisponible")
 
-# Fonction pour ajouter un restaurant au comparateur
-def add_to_comparator(restaurant):
-    comparator = st.session_state['comparator']
-    if restaurant.id_restaurant not in comparator:
-        if len(comparator) < 3:
-            comparator.append(restaurant.id_restaurant)
-            st.session_state['comparator'] = comparator
-            st.toast(f"Le restaurant {restaurant.nom} a été ajouté au comparateur", icon="🆚")
-        else:
-            st.toast("Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre", icon="ℹ️")
-    else:
-        st.toast(f"Le restaurant {restaurant.nom} est déjà dans le comparateur", icon="ℹ️")
-
-
 # Fonction de traitement des restaurants
-def process_restaurant(personal_address, restaurant):
-    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
+def process_restaurant(personal_address, personal_latitude, personal_longitude, restaurant):
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
     return (restaurant, tcl_url, fastest_mode)
 
 # Récupération des informations du restaurant sélectionné
-def display_restaurant_infos(personal_address):
+def display_restaurant_infos(personal_address, personal_latitude, personal_longitude):
     selected_restaurant = st.session_state.get('selected_restaurant')
-    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, selected_restaurant.adresse)
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, selected_restaurant.latitude, selected_restaurant.longitude)
 
     if selected_restaurant:
+        # Affichage de l'image du restaurant
+        st.image(selected_restaurant.image)
+
+        # Commencer la section avec l'image de fond
+        st.markdown('<div class="background-section">', unsafe_allow_html=True)
         michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
         if michelin_stars:
             michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
@@ -332,7 +292,7 @@ def display_restaurant_infos(personal_address):
         
         # Mise en page des informations
         container = st.container()
-        col1, col2 = container.columns([0.6, 0.4])
+        col1, col2 = container.columns([0.64, 0.36])
 
         # Affichage des informations de la colonne 1
         with col1:
@@ -356,13 +316,14 @@ def display_restaurant_infos(personal_address):
         with col2:
             score_container = st.container(border=True)
 
+            score_container.write("**Notations**")
             stars = display_stars(selected_restaurant.note_globale)
             stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
-            score_container.html(f"<b>Note globale : </b>{stars_html}")
-            score_container.write(f"**Note qualité prix :** {selected_restaurant.qualite_prix_note}")
-            score_container.write(f"**Note cuisine :** {selected_restaurant.cuisine_note}")
-            score_container.write(f"**Note service :** {selected_restaurant.service_note}")
-            score_container.write(f"**Note ambiance :** {selected_restaurant.ambiance_note}")
+            score_container.html(f"<b>Globale : </b>{stars_html}")
+            score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
+            score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
+            score_container.write(f"**Service :** {selected_restaurant.service_note}")
+            score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
             
             journeys_container = st.container(border=True)
             journeys_container.write("**Temps de trajet**")

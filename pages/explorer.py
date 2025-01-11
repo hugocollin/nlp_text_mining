@@ -1,7 +1,7 @@
 import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personnal_address, get_coordinates, display_michelin_stars, display_stars, process_restaurant, get_restaurant_coordinates, get_google_maps_link, tcl_api, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos
 from pages.statistiques import display_restaurant_stats
 from db.models import get_all_restaurants
 import pydeck as pdk
@@ -20,7 +20,7 @@ session = Session()
 restaurants = get_all_restaurants(session)
 
 # Récupération de l'adresse personnelle
-personal_address = get_personnal_address()
+personal_address, personal_latitude, personal_longitude = get_personal_address()
 
 # Fonction pour afficher le popup d'ajout de restaurant
 @st.dialog("Ajouter un restaurant")
@@ -44,11 +44,15 @@ def add_restaurant_dialog():
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    display_restaurant_infos(personal_address)
+    display_restaurant_infos(personal_address, personal_latitude, personal_longitude)
 
 def main():
     # Barre de navigation
     Navbar()
+
+    # Vérification si une adresse personelle a été renseignée
+    if not personal_address:
+            st.toast("Veuillez définir votre adresse personnelle pour voir les temps de trajet", icon="ℹ️")
 
     # Initialisation du comparateur dans session_state
     if 'comparator' not in st.session_state:
@@ -76,100 +80,287 @@ def main():
         st.toast("Restaurant ajouté avec succès", icon="➕")
         st.session_state['restaurant_added'] = False
 
-    # Conteneur pour la recherche et les filtres
-    header_container = st.container(border=True)
+    # Création d'une tab
+    close_tab, filter_tab, ai_tab = st.tabs(["🔼", "🎨 Filtres", "✨ Discuter avec l'IA"])
 
-    # Mise en page de la recherche et des filtres
-    header_col1, header_col2 = header_container.columns(2)
+    with close_tab:
+        st.write("")
+    
+    with filter_tab:
+        # Conteneur pour la recherche et les filtres
+        header_container = filter_tab.container(border=True)
 
-    # Colonne pour la recherche
-    with header_col1:
-        # Filtrage sur les restaurants scrappés
-        scrapped_restaurants = [restaurant for restaurant in restaurants if restaurant.scrapped]
+        # Mise en page de la recherche et des filtres
+        header_col1, header_col2 = header_container.columns(2)
         
-        # Checkbox pour activer/désactiver le filtre par rayon
-        if personal_address:
-            use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter")
-            if use_radius_filter:
-                radius = header_col1.slider("Distance de recherche autour du domicile (m)", min_value=1, max_value=3000, step=1, value=500, key="radius_slider")
+        # Colonne pour les filtres
+        with header_col1:
+            # Récupération des informations des restaurants scrappés
+            scrapped_restaurants = [
+                {
+                    "nom": restaurant.nom,
+                    "latitude": restaurant.latitude,
+                    "longitude": restaurant.longitude,
+                    "etoiles_michelin": restaurant.etoiles_michelin,
+                    "note_globale": restaurant.note_globale,
+                    "qualite_prix_note": restaurant.qualite_prix_note,
+                    "cuisine_note": restaurant.cuisine_note,
+                    "service_note": restaurant.service_note,
+                    "ambiance_note": restaurant.ambiance_note,
+                    "cuisines": restaurant.cuisines,
+                    "repas": restaurant.repas
+                }
+                for restaurant in [restaurant for restaurant in restaurants if restaurant.scrapped]
+            ]
+
+            # Checkbox pour activer/désactiver le filtre par rayon
+            container = header_col1.container(border=True)
+            if personal_address:
+                use_radius_filter = container.toggle(label="Recherche par distance autour du domicile", value=False, key="use_radius_filter")
+                if use_radius_filter:
+                    radius = container.slider("Distance de recherche autour du domicile (en mètres)", min_value=1, max_value=3000, step=1, value=500, key="radius_slider")
+                
+                    # Filtrage des restaurants par rayon si activé
+                    filtered_restaurants = filter_restaurants_by_radius(scrapped_restaurants, personal_latitude, personal_longitude, radius)
+                else:
+                    radius = 1000000
+                    filtered_restaurants = scrapped_restaurants
             else:
+                use_radius_filter = container.toggle(label="Recherche par distance autour du domicile", value=False, key="use_radius_filter", disabled=True)
                 radius = 1000000
-        else:
-            use_radius_filter = header_col1.checkbox(label="Activer le filtre de recherche par distance autour du domicile", value=False, key="use_radius_filter", disabled=True)
-            radius = 1000000
-
-        # Filtrage des restaurants par rayon si activé
-        if use_radius_filter and personal_address:
-            center_coords = get_coordinates(personal_address)
-            if center_coords:
-                center_lat, center_lon = center_coords
-                
-                # Récupération des coordonnées des restaurants scrappés
-                restaurant_coords = get_restaurant_coordinates([(r.nom, r.adresse) for r in scrapped_restaurants])
-                
-                # Filtrage des restaurants dans le rayon
-                restaurant_coords_filtered = filter_restaurants_by_radius(restaurant_coords, center_lat, center_lon, radius)
-                
-                # Obtention des noms des restaurants filtrés
-                filtered_names = [restaurant['name'] for restaurant in restaurant_coords_filtered]
-                
-                # Filtrage des restaurants scrappés par les noms filtrés
-                filtered_restaurants = [r for r in scrapped_restaurants if r.nom in filtered_names]
-            else:
                 filtered_restaurants = scrapped_restaurants
-        else:
-            filtered_restaurants = scrapped_restaurants
 
-        # Construction de la liste des noms pour la multiselect
-        restaurant_names = [restaurant.nom for restaurant in filtered_restaurants]
-        options = ["Sélectionner un restaurant"] + restaurant_names
+            grades_col1, grades_col2 = st.columns(2)
 
-        # Création du multiselect avec les options filtrées
-        search_restaurant = header_col1.multiselect(label="Rechercher un restaurant", label_visibility="collapsed", placeholder="Rechercher un restaurant", options=options, key="search_restaurant")
+            # Filtre par étoiles Michelin
+            container = grades_col1.container(border=True)
+            option_map = {
+                1: ":material/asterisk:",
+                2: ":material/asterisk::material/asterisk:",
+                3: ":material/asterisk::material/asterisk::material/asterisk:",
+            }
+            selected_michelin_stars = container.pills(
+                "Étoiles Michelin minimale",
+                options=option_map.keys(),
+                format_func=lambda option: option_map[option],
+                selection_mode="single",
+            )
 
-        # [TEMP]
-        header_col1.text_input(label="Rechercher avec l'IA", label_visibility="collapsed", placeholder="Rechercher avec l'IA ✨ [disponible ultérieurement]", key="search_restaurant_temp", disabled=True)
-    # Colonne pour les filtres
-    with header_col2:
+            # Filtre par note globale
+            container = grades_col2.container(border=True)
+            container.write("Note globale minimale")
+            global_rating = [1, 2, 3, 4, 5]
+            global_rating_selected = container.feedback("stars", key="filter_global_stars")
+            if global_rating_selected is None:
+                global_rating_selected = 0
 
-        # [TEMP] Ajouter des filtres
-        header_col2.write("[Les filtres seront ajoutés ultérieurement]")
+            # Filtre par note qualité-prix
+            container = grades_col1.container(border=True)
+            quality_price = container.slider(
+                label="Note qualité prix minimale",
+                min_value=0.0,
+                max_value=5.0,
+                step=0.1,
+                value=0.0,
+                key="filter_quality_price"
+            )
+
+            # Filtre par temps de trajet
+            if personal_address:
+                container = st.container(border=True)
+                time_travel = container.slider(
+                    label="Temps de trajet maximal (en minutes)",
+                    min_value=0,
+                    max_value=120,
+                    step=1,
+                    value=120,
+                    key="filter_time_travel"
+                )
+            else:
+                container = st.container(border=True)
+                time_travel = container.slider(
+                    label="Temps de trajet maximal (en minutes)",
+                    min_value=0,
+                    max_value=120,
+                    step=1,
+                    value=120,
+                    disabled=True,
+                    key="filter_time_travel"
+                )
+        
+        with header_col2:
+
+            # Filtre par note cuisine
+            container = grades_col2.container(border=True)
+            cuisine_note = container.slider(
+                label="Note cuisine minimale",
+                min_value=0.0,
+                max_value=5.0,
+                step=0.1,
+                value=0.0,
+                key="filter_cuisine_note"
+            )
+
+            # Filtre par note service
+            container = grades_col1.container(border=True)
+            service_note = container.slider(
+                label="Note service minimale",
+                min_value=0.0,
+                max_value=5.0,
+                step=0.1,
+                value=0.0,
+                key="filter_service_note"
+            )
+
+            # Filtre par note ambiance
+            container = grades_col2.container(border=True)
+            ambiance_note = container.slider(
+                label="Note ambiance minimale",
+                min_value=0.0,
+                max_value=5.0,
+                step=0.1,
+                value=0.0,
+                key="filter_ambiance_note"
+            )
+
+            # Filtre par cuisine
+            container = st.container(border=True)
+            cuisines = sorted(list(set([c.strip() for restaurant in scrapped_restaurants for c in restaurant["cuisines"].split(',') if c.strip()])))
+            selected_cuisines = container.pills(
+                label="Cuisine",
+                options=cuisines,
+                default=[],
+                selection_mode = "multi",
+                key="filter_cuisines"
+            )
+
+            # Filtre par type de repas
+            container = st.container(border=True)
+            meals = sorted(list(set([m.strip() for restaurant in scrapped_restaurants for m in restaurant["repas"].split(',') if m.strip()])))
+            selected_meals = container.pills(
+                label="Type de repas",
+                options=meals,
+                default=[],
+                selection_mode = "multi",
+                key="filter_meals"
+            )
+
+    # Colonne pour le chat avec l'IA [TEMP]
+    with ai_tab:
+        header_container = st.container(border=True)
+        chat_container = header_container.container(height=500)
+        if message := header_container.chat_input(placeholder="Rechercher avec l'IA ✨ [disponible ultérieurement]", key="search_restaurant_temp"):
+            chat_container.chat_message(avatar="👤", name="User").write(message)
+            chat_container.chat_message(avatar="✨", name="AI").write(f"Je ne suis actuellement pas disponible 😢")
 
     # Mise en page des résultats
     results_display_col1, results_display_col2 = st.columns([3, 2])
     
     # Affichage des résultats
     with results_display_col1:
-        if not personal_address:
-            st.toast("Veuillez définir votre adresse personnelle pour voir les temps de trajet", icon="ℹ️")
-
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(process_restaurant, personal_address, restaurant) for restaurant in restaurants if restaurant.scrapped]
+                futures = [
+                    executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant)
+                    for restaurant in restaurants
+                    if restaurant.scrapped
+                ]
                 results = [future.result() for future in concurrent.futures.as_completed(futures)]
-        
-        # Filtrage des résultats en fonction des restaurants sélectionnés
-        if search_restaurant:
-            filtered_results = [result for result in results if result[0].nom in search_restaurant]
-        else:
-            filtered_results = results
+
+        # Filtrage des résultats en fonction des filtres
+        filtered_results = []
+        for result in results:
+            restaurant, tcl_url, fastest_mode = result
+
+            # Filtrage par étoiles Michelin
+            if selected_michelin_stars:
+                if not (restaurant.etoiles_michelin >= selected_michelin_stars):
+                    continue
+            
+            # Filtrage par note globale
+            if not (global_rating[global_rating_selected] <= restaurant.note_globale):
+                continue
+            
+            # Filtrage par note qualité-prix
+            if quality_price > 0:
+                if restaurant.qualite_prix_note is None or restaurant.qualite_prix_note < quality_price:
+                    continue
+
+            # Filtrage par note cuisine
+            if cuisine_note > 0:
+                if restaurant.cuisine_note is None or restaurant.cuisine_note < cuisine_note:
+                    continue
+
+            # Filtrage par note service
+            if service_note > 0:
+                if restaurant.service_note is None or restaurant.service_note < service_note:
+                    continue
+
+            # Filtrage par note ambiance
+            if ambiance_note > 0:
+                if restaurant.ambiance_note is None or restaurant.ambiance_note < ambiance_note:
+                    continue
+            
+            # Filtrage par temps de trajet
+            if tcl_url:
+                duration_str = fastest_mode[1]
+                if 'h' in duration_str:
+                    parts = duration_str.split('h')
+                    hours = int(parts[0])
+                    minutes = int(parts[1].replace('min', '')) if parts[1] else 0
+                    duration = hours * 60 + minutes
+                else:
+                    duration = int(duration_str.replace('min', ''))
+                if not (duration <= time_travel):
+                    continue
+            
+            # Filtrage par cuisine
+            if selected_cuisines:
+                restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
+                if not any(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
+                    continue
+            
+            # Filtrage par type de repas
+            if selected_meals:
+                restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
+                if not any(meal in restaurant_meals for meal in selected_meals):
+                    continue
+            filtered_results.append(result)
 
         # Extraction des restaurants filtrés pour la carte
-        filtered_restaurants = [(result[0].nom, result[0].adresse) for result in filtered_results if result[0] is not None]
+        filtered_restaurants = [
+            (
+                result[0].nom,
+                result[0].latitude,
+                result[0].longitude
+            )
+            for result in filtered_results
+            if result[0] is not None
+        ]
 
-        # Récupérer les coordonnées des restaurants filtrés
-        restaurant_coords = get_restaurant_coordinates(filtered_restaurants)
+        # Récupération des coordonnées des restaurants pour la carte
+        map_data = []
+        for restaurant in filtered_restaurants:
+            nom, lat, lon = restaurant
+            map_data.append({
+                'name': nom,
+                'latitude': lat,
+                'longitude': lon
+            })
 
-        # Filtrer les restaurants par rayon
+        # Filtrage des restaurants par rayon
         if personal_address:
-            center_lat, center_lon = get_coordinates(personal_address)
-            if center_lat and center_lon:
-                restaurant_coords_filtered = filter_restaurants_by_radius(restaurant_coords, center_lat, center_lon, radius)
-                # Obtenir les noms des restaurants filtrés
-                filtered_names = [restaurant['name'] for restaurant in restaurant_coords_filtered]
-                # Filtrer les résultats en fonction des noms filtrés
-                filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
+            map_data = filter_restaurants_by_radius(
+                map_data,
+                personal_latitude,
+                personal_longitude,
+                radius
+            )
+            # Obtention des noms des restaurants filtrés
+            filtered_names = [restaurant['name'] for restaurant in map_data]
+            # Filtrage des résultats en fonction des noms filtrés
+            filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
 
         # Affichage uniquement des restaurants filtrés
         for result in filtered_results:
@@ -183,7 +374,7 @@ def main():
                 stars = display_stars(restaurant.note_globale)
                 col1.image(stars, width=20)
 
-            # Affichage du bouton d'informations
+            # Affichage du bouton d'information
             with col2:
                 if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
                     st.session_state['selected_restaurant'] = restaurant
@@ -218,9 +409,6 @@ def main():
     # Affichage de la carte
     with results_display_col2:
         with st.spinner("Chargement de la carte..."):
-            # Récupération des coordonnées géographiques des restaurants
-            map_data = get_restaurant_coordinates(filtered_restaurants)
-
             # Mise en forme du radius et de la couleur du domicile
             if radius == 1000000:
                 radius = 25
@@ -230,19 +418,19 @@ def main():
 
             # Ajout des coordonnées du domicile s'il est défini
             if personal_address:
-                addr_lat, addr_lon = get_coordinates(personal_address)
-                if addr_lat and addr_lon:
-                    map_data.append({
-                        'name': 'Domicile',
-                        'lat': addr_lat,
-                        'lon': addr_lon
-                    })
+                latitude = personal_latitude
+                longitude = personal_longitude
+                map_data.append({
+                    'name': 'Domicile',
+                    'latitude': personal_latitude,
+                    'longitude': personal_longitude
+                })
             else:
-                addr_lat, addr_lon = 45.7640, 4.8357 # Coordonnées de Lyon
+                latitude, longitude = 45.7640, 4.8357 # Coordonnées de Lyon
 
             view_state = pdk.ViewState(
-                latitude=addr_lat,
-                longitude=addr_lon,
+                latitude=latitude,
+                longitude=longitude,
                 zoom=12,
                 pitch=0
             )
@@ -251,7 +439,7 @@ def main():
             home_layer = pdk.Layer(
                 'ScatterplotLayer',
                 data=[point for point in map_data if point['name'] == 'Domicile'],
-                get_position='[lon, lat]',
+                get_position='[longitude, latitude]',
                 get_color=color,
                 get_radius=radius,
                 pickable=True,
@@ -262,7 +450,7 @@ def main():
             restaurants_layer = pdk.Layer(
                 'ScatterplotLayer',
                 data=[point for point in map_data if point['name'] != 'Domicile'],
-                get_position='[lon, lat]',
+                get_position='[longitude, latitude]',
                 get_color='[255, 0, 0]',
                 get_radius=25,
                 pickable=True,
@@ -289,6 +477,7 @@ def main():
                 map_style='mapbox://styles/mapbox/light-v11'
             )
 
+            # Affichage de la carte
             st.pydeck_chart(deck)
 
 if __name__ == '__main__':
