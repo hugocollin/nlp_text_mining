@@ -321,7 +321,7 @@ def edit_table(session):
         return
 
     # Affichage des données de la table
-    query = f"SELECT * FROM {table_to_edit} LIMIT 100"
+    query = f"SELECT * FROM {table_to_edit}"
     try:
         df = pd.read_sql_query(text(query), session.bind)
         st.dataframe(df)
