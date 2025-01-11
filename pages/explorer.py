@@ -84,7 +84,7 @@ def main():
 
     # Colonne pour le chat avec l'IA [TEMP]
     with header_col1:
-        chat_container = header_col1.container(height=900)
+        chat_container = header_col1.container(height=1000)
         if message := header_col1.chat_input(placeholder="Rechercher avec l'IA ✨ [disponible ultérieurement]", key="search_restaurant_temp"):
             chat_container.chat_message(avatar="👤", name="User").write(message)
             chat_container.chat_message(avatar="✨", name="AI").write(f"Je ne suis actuellement pas disponible 😢")
@@ -219,7 +219,7 @@ def main():
 
         # Filtre par cuisine
         container = st.container(border=True)
-        cuisines = sorted(list(set([c.strip() for restaurant in scrapped_restaurants for c in restaurant["cuisines"].split(',')])))
+        cuisines = sorted(list(set([c.strip() for restaurant in scrapped_restaurants for c in restaurant["cuisines"].split(',') if c.strip()])))
         selected_cuisines = container.pills(
             label="Cuisine",
             options=cuisines,
@@ -230,7 +230,7 @@ def main():
 
         # Filtre par type de repas
         container = st.container(border=True)
-        meals = sorted(list(set([m.strip() for restaurant in scrapped_restaurants for m in restaurant["repas"].split(',')])))
+        meals = sorted(list(set([m.strip() for restaurant in scrapped_restaurants for m in restaurant["repas"].split(',') if m.strip()])))
         selected_meals = container.pills(
             label="Type de repas",
             options=meals,
@@ -266,32 +266,43 @@ def main():
             if selected_michelin_stars:
                 if not (restaurant.etoiles_michelin >= selected_michelin_stars):
                     continue
+            
             # Filtrage par note globale
             if not (global_rating[global_rating_selected] <= restaurant.note_globale):
                 continue
+            
             # Filtrage par note qualité-prix
-            if not (quality_price <= restaurant.qualite_prix_note):
-                continue
+            if quality_price > 0:
+                if restaurant.qualite_prix_note is None or restaurant.qualite_prix_note < quality_price:
+                    continue
+
             # Filtrage par note cuisine
-            if not (cuisine_note <= restaurant.cuisine_note):
-                continue
+            if cuisine_note > 0:
+                if restaurant.cuisine_note is None or restaurant.cuisine_note < cuisine_note:
+                    continue
+
             # Filtrage par note service
-            if not (service_note <= restaurant.service_note):
-                continue
+            if service_note > 0:
+                if restaurant.service_note is None or restaurant.service_note < service_note:
+                    continue
+
             # Filtrage par note ambiance
-            if not (ambiance_note <= restaurant.ambiance_note):
-                continue
+            if ambiance_note > 0:
+                if restaurant.ambiance_note is None or restaurant.ambiance_note < ambiance_note:
+                    continue
+            
             # Filtrage par temps de trajet
             if tcl_url:
-                # Assuming fastest_mode contains duration in minutes
                 duration = int(fastest_mode[1].split()[0])
                 if not (duration <= time_travel):
                     continue
+            
             # Filtrage par cuisine
             if selected_cuisines:
                 restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
                 if not any(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
                     continue
+            
             # Filtrage par type de repas
             if selected_meals:
                 restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
@@ -328,7 +339,7 @@ def main():
                 personal_longitude,
                 radius
             )
-            # Obtenition dese noms des restaurants filtrés
+            # Obtention des noms des restaurants filtrés
             filtered_names = [restaurant['name'] for restaurant in map_data]
             # Filtrage des résultats en fonction des noms filtrés
             filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
