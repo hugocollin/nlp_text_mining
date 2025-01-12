@@ -25,3 +25,4 @@ openai
 ecologits
 numpy
 tqdm
+rapidfuzz
