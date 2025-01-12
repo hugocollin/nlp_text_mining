@@ -973,8 +973,8 @@ restaurants = get_all_restaurants(session)
 """
 
     # Récupérer tous les restaurants
-    restaurants = get_all_restaurants(session)
-    print(f"Nombre de restaurants : {len(restaurants)}")
+    # restaurants = get_all_restaurants(session)
+    # print(f"Nombre de restaurants : {len(restaurants)}")
     """restaurants = get_all_restaurants(session)
     for restaurant in restaurants:
         print(f"Restaurant ID: {restaurant.id_restaurant}, Name: {restaurant.nom}")
@@ -1014,6 +1014,14 @@ restaurants = get_all_restaurants(session)
 
     # print(check_restaurants_in_db(scrapped_restaurants, session))
     # create_restaurants_from_csv("liste_restaurants.csv", session)
+    resume_avis = "resume_avis_restaurants_1.xlsx"
+    file_path = os.path.join("Data", resume_avis)
+
+    df = pd.read_excel(file_path)
+
+    for _, row in df.iterrows():
+        # print(row['restaurant'], row['resume_avis'])
+        update_restaurant_columns(row['restaurant'], {"resume_avis": row['resume_avis']}, session)
 
 
     
