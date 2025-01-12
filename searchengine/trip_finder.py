@@ -323,7 +323,11 @@ class restaurant_info_extractor(SearchEngine):
         if location_section:
             address_tag = location_section.find('a', href=True)
             address = address_tag.text.strip() if address_tag else 'N/A'
-
+            # get href attribute of the <a> tag
+            href = address_tag['href'] if address_tag else None
+            # extract latitude and longitude from the href attribute
+            lat, lon = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', href).groups() if href else ('N/A', 'N/A')
+            
             email_tag = soup.find('a', href=lambda href: href and href.startswith('mailto:'))
             email = email_tag['href'].split(':')[1] if email_tag else 'N/A'
 
@@ -341,6 +345,8 @@ class restaurant_info_extractor(SearchEngine):
             'Détails': details,
             'Emplacement et coordonnées': {
                 'ADRESSE': address,
+                'LATITUDE': lat,
+                'LONGITUDE': lon,
                 'EMAIL': email,
                 'TELEPHONE': phone
             }
@@ -447,12 +453,16 @@ class restaurant_info_extractor(SearchEngine):
     
     
     def to_dataframe(self):
-        if self.reviews:
-            df_reviews = pd.DataFrame(self.reviews)
+        df_reviews = pd.DataFrame(self.reviews) if self.reviews else pd.DataFrame()
+       
         if self.restaurant_info:
             df_avis = pd.DataFrame(self.restaurant_info['Notes et avis'], index=[0])
             df_details = pd.DataFrame(self.restaurant_info['Détails'], index=[0])
-            df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0])   
+            df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0]) 
+        else:
+            df_avis = pd.DataFrame()
+            df_details = pd.DataFrame()
+            df_location = pd.DataFrame()  
         return df_avis, df_details, df_location, df_reviews
     
     def to_csv(self):

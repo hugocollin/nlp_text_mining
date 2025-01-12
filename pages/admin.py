@@ -6,6 +6,9 @@ from pages.resources.components import Navbar
 import pandas as pd
 from sqlalchemy import inspect, text 
 from sqlalchemy.types import Integer, Float
+from searchengine.trip_finder import SearchEngine, restaurant_info_extractor
+import time
+
 
 # Configuration de la page
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
@@ -45,11 +48,13 @@ def make_unique_columns(columns):
 
 def display_restaurant_stats():
     # Calculer le nombre de restaurants scrappés
-    
+    st.header("Statistiques des Restaurants")
     nombre_scrapped = len([r for r in restaurants if r.scrapped == 1])
 
     # Afficher le résultat dans Streamlit
-    st.write(f"Nombre de restaurants scrappés : {nombre_scrapped}")   
+    st.write(f"Nombre de restaurants scrappés : {nombre_scrapped}")  
+    nombre_restaurants = len(restaurants)
+    st.write(f"Nombre total de restaurants : {nombre_restaurants}") 
     nom_scrapped = [r.nom for r in restaurants if r.scrapped == 1]
 
     df = pd.DataFrame(nom_scrapped, columns = ['Nom des restaurants scrappés'])
@@ -304,7 +309,7 @@ def edit_table(session):
     inspector = inspect(session.bind)
     tables = inspector.get_table_names()
 
-    st.header("Modifier une Table")
+    st.header("Modification de la base de données")
 
     # Sélection de la table à modifier
     table_to_edit = st.selectbox(
@@ -417,13 +422,182 @@ def edit_table(session):
             session.execute(text(update_query))
             session.commit()
             st.success("Ligne mise à jour avec succès.")
-
-            # Rafraîchissement des données affichées
-            df = pd.read_sql_query(text(query), session.bind)
-            st.dataframe(df)
+            
+            time.sleep(1)
+            # refresh les données edits
+            st.rerun()
         except Exception as e:
             session.rollback()
             st.error(f"Erreur lors de la mise à jour de la ligne: {e}")
+
+#######################
+def get_element_inspector_js():
+ return """
+    <script>
+    let isInspecting = true;
+    
+    function cleanElement(element) {
+        // Create a new element of the same type
+        const clean = element.cloneNode(false);
+        // Remove style attribute
+        clean.removeAttribute('style');
+        // Copy children recursively
+        for (const child of element.childNodes) {
+            if (child.nodeType === 1) { // Element node
+                clean.appendChild(cleanElement(child));
+            } else {
+                clean.appendChild(child.cloneNode(true));
+            }
+        }
+        return clean;
+    }
+    
+    function getElementInfo(element) {
+        // Get clean copy without styles
+        const clean = cleanElement(element);
+        
+        // Escape HTML special characters
+        const escaped = clean.outerHTML
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+            
+        return `<pre class="code-display"><code>${escaped}</code></pre>`;
+    }
+    document.addEventListener('mouseover', function(e) {
+        // Skip if element is part of selected-text or has code-display class
+        if (!isInspecting || 
+            e.target.closest('#selected-text') || 
+            e.target.closest('.code-display')) return;
+        e.target.style.outline = '2px solid red';
+    });
+  
+    document.addEventListener('mouseout', function(e) {
+        if (!isInspecting || 
+            e.target.closest('#selected-text') || 
+            e.target.closest('.code-display')) return;
+        e.target.style.outline = '';
+    });
+    
+    document.addEventListener('click', function(e) {
+        if (!isInspecting || 
+            e.target.closest('#selected-text') || 
+            e.target.closest('.code-display')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const html = getElementInfo(e.target);
+        document.getElementById('selected-text').innerHTML = html;
+    });
+    </script>
+    <style>
+    #selected-text {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        background: white;
+        padding: 10px;
+        border: 1px solid black;
+        user-select: text;
+        -webkit-user-select: text;
+        cursor: text;
+        z-index: 9999;
+    }
+    .code-display {
+        pointer-events: none;
+    }
+    .code-display * {
+        pointer-events: none;
+        outline: none !important;
+    }
+    </style>
+    """
+def scrape_and_embed_tripadvisor(session):
+    st.header("Affichage html des élements HTML d'un restaurant")
+    # Récupérer les restaurants non scrappés
+    restaurants = get_all_restaurants(session)
+    # Filtrer les restaurants non scrappés
+    non_scrapped_restaurants = [r for r in restaurants if r.scrapped == 0]
+    if not non_scrapped_restaurants:
+        st.warning("Tous les restaurants ont déjà été scrappés.")
+    else:
+        restaurant_names = {r.nom: r for r in non_scrapped_restaurants}
+        selected_name = st.selectbox("Sélectionnez un restaurant à scrappé pour analyse d'élements HTML", list(restaurant_names.keys()))
+    # Get selected restaurant object
+        restaurant = restaurant_names[selected_name]
+        st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
+        
+        if st.button("Scraper le restaurant"):
+                with st.spinner("Récupération des données TripAdvisor..."):
+                    url = restaurant.url_link
+                    search = SearchEngine()
+                    search.run(url)
+                
+                if 'selected_html' not in st.session_state:
+                    st.session_state.selected_html = None
+                st.session_state.inspecting = True
+                    
+                # Add text area for element info
+                element_info = st.empty()
+                
+                # Embed page with inspector
+                html_content = search.soup.prettify()
+                html_with_inspector = f"""
+                            {get_element_inspector_js()}
+                            <div id="content">
+                                {html_content}
+                            </div>
+                            <div id="selected-text" 
+                                style="position:fixed;bottom:0;left:0;
+                                        background:white;padding:10px;
+                                        border:1px solid black;">
+                                Cliquez sur un élément pour voir son contenu
+                            </div>
+                        """
+                            
+                st.components.v1.html(
+                            html_with_inspector,
+                            height=800,
+                            scrolling=True
+                        )
+    
+def scrape_restaurant_informations(session):
+    # Récupérer les restaurants non scrappés
+    st.header("Scraper les informations des restaurants")
+    restaurants = get_all_restaurants(session)
+    # Filtrer les restaurants non scrappés
+    non_scrapped_restaurants = [r for r in restaurants if r.scrapped == 0]
+    if not non_scrapped_restaurants:
+        st.warning("Tous les restaurants ont déjà été scrappés.")
+    else:
+        restaurant_names = {r.nom: r for r in non_scrapped_restaurants}
+        selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
+    # Get selected restaurant object
+        restaurant = restaurant_names[selected_name]
+        st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
+        
+        if st.button("Scraper le restaurant", key="scrape_info"):
+                with st.spinner("Récupération des données TripAdvisor..."):
+                    url = restaurant.url_link
+                    search = restaurant_info_extractor()
+                    search.scrape_info(url)
+                    df_avis, df_details, df_location, _ = search.to_dataframe()
+                st.write("Les données ont été scrappées avec succès.")
+                st.write("----")
+                col1,col2, col3 = st.columns(3)
+                with col1:
+                    st.write("Détails du restaurant")
+                    st.write(df_details)
+                with col2:
+                    st.write("Localisation")
+                    st.write(df_location)
+                with col3:
+                    st.write("Avis")
+                    st.write(df_avis)
+        
+                
+               
+    
 
 def main():
     # Barre de navigation
@@ -431,19 +605,23 @@ def main():
     
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
-    
+    scrape_and_embed_tripadvisor(session)
+    st.write("----")
+    scrape_restaurant_informations(session)
     # Exécuter la requête SQL personnalisée
     execute_sql_query(session)
     st.write("----")
 
       # Option pour éditer une table
-    if st.checkbox("Modifier une Table"):
+    st.header("Modifier une Table")
+    if st.checkbox("Check to Edit"):
         edit_table(session)
     st.write("----")
     # Afficher les statistiques pour tous les restaurants
     display_restaurant_stats()
     
     st.write("----")
+
     
   
 
