@@ -516,14 +516,14 @@ def scrape_and_embed_tripadvisor(session):
     st.header("Affichage html des élements HTML d'un restaurant")
     # Récupérer les restaurants non scrappés
     restaurants = get_all_restaurants(session)
-    # Filtrer les restaurants non scrappés
-    non_scrapped_restaurants = [r for r in restaurants if r.scrapped == 0]
-    if not non_scrapped_restaurants:
-        st.warning("Tous les restaurants ont déjà été scrappés.")
+    if not restaurants:
+        st.warning("Aucun restaurant n'a été trouvé.")
     else:
-        restaurant_names = {r.nom: r for r in non_scrapped_restaurants}
-        selected_name = st.selectbox("Sélectionnez un restaurant à scrappé pour analyse d'élements HTML", list(restaurant_names.keys()))
-    # Get selected restaurant object
+        
+ 
+        restaurant_names = {r.nom : r for r in restaurants}
+        selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()) , key="select_html_rest")
+        # Get selected restaurant object
         restaurant = restaurant_names[selected_name]
         st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
         
@@ -561,43 +561,57 @@ def scrape_and_embed_tripadvisor(session):
                             scrolling=True
                         )
     
+    
+    
+    # pour plus tard 
+    #     # Récupérer les restaurants non scrappés
+    # st.header("Scraper les informations des restaurants")
+    # restaurants = get_all_restaurants(session)
+    # # Filtrer les restaurants non scrappés
+    # non_scrapped_restaurants = [r for r in restaurants if r.scrapped == 0]
+    # if not non_scrapped_restaurants:
+    #     st.warning("Tous les restaurants ont déjà été scrappés.")
+    # else:
+    #     restaurant_names = {r.nom: r for r in non_scrapped_restaurants}
+    #     selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
+    # # Get selected restaurant object
+    #     restaurant = restaurant_names[selected_name]
+    #     st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
+        
 def scrape_restaurant_informations(session):
     # Récupérer les restaurants non scrappés
     st.header("Scraper les informations des restaurants")
     restaurants = get_all_restaurants(session)
     # Filtrer les restaurants non scrappés
-    non_scrapped_restaurants = [r for r in restaurants if r.scrapped == 0]
-    if not non_scrapped_restaurants:
-        st.warning("Tous les restaurants ont déjà été scrappés.")
-    else:
-        restaurant_names = {r.nom: r for r in non_scrapped_restaurants}
-        selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
-    # Get selected restaurant object
-        restaurant = restaurant_names[selected_name]
-        st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
-        
-        if st.button("Scraper le restaurant", key="scrape_info"):
-                with st.spinner("Récupération des données TripAdvisor..."):
-                    url = restaurant.url_link
-                    search = restaurant_info_extractor()
-                    search.scrape_info(url)
-                    df_avis, df_details, df_location, _ = search.to_dataframe()
-                st.write("Les données ont été scrappées avec succès.")
-                st.write("----")
-                col1,col2, col3 = st.columns(3)
-                with col1:
-                    st.write("Détails du restaurant")
-                    st.write(df_details)
-                with col2:
-                    st.write("Localisation")
-                    st.write(df_location)
-                with col3:
-                    st.write("Avis")
-                    st.write(df_avis)
-        
-                
-               
     
+    restaurant_names = {r.nom : r for r in restaurants}
+    selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
+# Get selected restaurant object
+    restaurant = restaurant_names[selected_name]
+    st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
+    
+    if st.button("Scraper le restaurant", key="scrape_info"):
+            with st.spinner("Récupération des données TripAdvisor..."):
+                url = restaurant.url_link
+                search = restaurant_info_extractor()
+                search.scrape_info(url)
+                df_avis, df_details, df_location, _ = search.to_dataframe()
+            st.write("Les données ont été scrappées avec succès.")
+            st.write("----")
+            col1,col2, col3 = st.columns(3)
+            with col1:
+                st.write("Détails du restaurant")
+                st.write(df_details)
+            with col2:
+                st.write("Localisation")
+                st.write(df_location)
+            with col3:
+                st.write("Avis")
+                st.write(df_avis)
+    
+            
+            
+
 
 def main():
     # Barre de navigation
