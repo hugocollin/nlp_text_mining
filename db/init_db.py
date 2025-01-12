@@ -246,39 +246,52 @@ def process_restaurant_csv(file_name):
 
 
 def get_coordinates(address):
-    """
-    Obtenir les coordonnées (latitude, longitude) d'une adresse en utilisant Nominatim.
-    Nettoie et tente de nouveau si la géolocalisation échoue.
-    """
-    geolocator = Nominatim(user_agent="sise_o_resto", timeout=15)
-    current_address = address
-    attempts = 0  # Compteur pour éviter une boucle infinie
 
-    while attempts < 5:  # Limite le nombre de tentatives pour éviter une boucle infinie
+    geolocator = Nominatim(user_agent="sise_o_resto", timeout=15)
+    attempts = 0  # Compteur pour limiter les tentatives
+    segments = [seg.strip() for seg in address.split(',')]
+
+    if len(segments) < 2:
+        print("Adresse invalide : il faut au moins un segment principal et un code postal.")
+        return None, None
+
+    first_segment = segments[0]  # Adresse principale
+    last_segment = segments[-1]  # Code postal ou ville
+    middle_segments = segments[1:-1]  # Autres segments intermédiaires (s'il y en a)
+
+    # Essayer en priorité : premier segment + code postal
+    current_address = f"{first_segment}, {last_segment}"
+    print(f"Tentative initiale avec : {current_address}")
+
+    while attempts < 10:  # Limiter à 5 tentatives au maximum
         try:
+            # Essayer de géocoder l'adresse actuelle
             location = geolocator.geocode(f"{current_address}, Rhône, France")
-            print(f"Tentative avec adresse : {current_address}")
             if location:
                 print(f"Adresse trouvée : {location.address}")
                 return location.latitude, location.longitude
 
             # Si la géolocalisation échoue, nettoyer l'adresse
-            if ',' in current_address:
-                print("Nettoyage de l'adresse...")
-                before_comma, after_comma = current_address.split(',', 1)
-                before_words = before_comma.strip().split(' ')
-                if len(before_words) > 1:
-                    # Retirer le dernier mot avant la virgule
-                    before_words = before_words[:-1]
-                    new_before = ' '.join(before_words)
-                    current_address = f"{new_before}, {after_comma.strip()}"
+            print("Géolocalisation échouée. Nettoyage ou passage au segment suivant...")
+
+            # Si on est encore sur le premier segment, enlever un mot
+            if first_segment:
+                first_segment_words = first_segment.split()
+                if len(first_segment_words) > 1:
+                    first_segment = ' '.join(first_segment_words[:-1])  # Retirer le dernier mot
+                    current_address = f"{first_segment}, {last_segment}"
+                    print(f"Nouvelle tentative avec : {current_address}")
                 else:
-                    # Utiliser uniquement la partie après la virgule si le segment avant la virgule est trop court
-                    current_address = after_comma.strip()
+                    first_segment = None  # On a épuisé les mots du premier segment
+
+            # Sinon, tester les segments intermédiaires
+            elif middle_segments:
+                next_segment = middle_segments.pop(0)  # Prendre le premier segment intermédiaire
+                current_address = f"{next_segment}, {last_segment}"
+                print(f"Tentative avec un segment intermédiaire : {current_address}")
             else:
-                # Si l'adresse est trop courte ou mal formée, arrêter
-                print("Impossible de nettoyer davantage l'adresse.")
-                break
+                print("Plus d'adresses à tester.")
+                break  # Sortir de la boucle si plus de tentatives possibles
         except Exception as e:
             print(f"Erreur lors de la géolocalisation : {e}")
             break  # Arrêter en cas d'erreur inattendue
@@ -645,6 +658,78 @@ def update_scrapped_status_for_reviews(session, restaurant_names):
         print(f"Erreur : {e}")
 
 
+def update_restaurant_columns(restaurant_name, updates, session):
+    """
+    Met à jour des colonnes spécifiques dans la table dim_restaurants pour un restaurant donné.
+    
+    Args:
+        restaurant_name (str): Le nom du restaurant à mettre à jour.
+        updates (dict): Un dictionnaire contenant les colonnes à mettre à jour comme clés et leurs nouvelles valeurs.
+        session (Session): La session SQLAlchemy à utiliser.
+    
+    Returns:
+        bool: True si la mise à jour a réussi, False sinon.
+    """
+    if not updates:
+        print("Aucune mise à jour spécifiée.")
+        return False
+
+    try:
+        # Construire la requête d'update avec SQLAlchemy
+        session.query(Restaurant).filter_by(nom=restaurant_name).update(updates)
+        session.commit()
+        print(f"Restaurant '{restaurant_name}' mis à jour avec succès.")
+        return True
+    except Exception as e:
+        session.rollback()  # Annuler les changements en cas d'erreur
+        print(f"Erreur lors de la mise à jour du restaurant '{restaurant_name}': {e}")
+        return False
+    
+
+def get_restaurant(session, restaurant_id=None, restaurant_name=None):
+    """
+    Récupère un restaurant depuis la table dim_restaurants à partir de son id_restaurant ou de son nom.
+    
+    Args:
+        session (Session): La session SQLAlchemy utilisée pour exécuter la requête.
+        restaurant_id (int, optional): L'identifiant unique du restaurant. Prioritaire.
+        restaurant_name (str, optional): Le nom du restaurant. Utilisé si restaurant_id est None.
+    
+    Returns:
+        dict: Un dictionnaire contenant les colonnes et leurs valeurs du restaurant, ou None si non trouvé.
+    """
+    if not restaurant_id and not restaurant_name:
+        print("Erreur : Vous devez spécifier soit un id_restaurant, soit un nom.")
+        return None
+
+    try:
+        from models import Restaurant  # Assurez-vous que le modèle est importé correctement
+
+        # Construire la requête basée sur les paramètres
+        query = session.query(Restaurant)
+        if restaurant_id:
+            query = query.filter_by(id_restaurant=restaurant_id)
+        elif restaurant_name:
+            query = query.filter_by(nom=restaurant_name)
+        
+        # Récupérer le premier résultat correspondant
+        restaurant = query.first()
+
+        if not restaurant:
+            print(f"Aucun restaurant trouvé avec {'id=' + str(restaurant_id) if restaurant_id else 'nom=' + restaurant_name}.")
+            return None
+
+        # Convertir l'objet en dictionnaire
+        restaurant_dict = {
+            column.name: getattr(restaurant, column.name)
+            for column in Restaurant.__table__.columns
+        }
+        return restaurant_dict
+    except Exception as e:
+        print(f"Erreur lors de la récupération du restaurant : {e}")
+        return None
+
+
 
 
 if __name__ == "__main__":
@@ -739,17 +824,22 @@ restaurants = get_all_restaurants(session)
         """
     
     # Récupérer les csv des restaurants dans le dossier Data/scrapping
-    # TODO: Ajouter les nouvelles colonnes à la BDD: images, lat long, scrapped
+    
     scrapping_dir = os.path.join("Data", "scrapping")
     # process_csv_files(scrapping_dir, session)
     # print(get_restaurants_from_folder(scrapping_dir))
     # print(get_restaurants_with_reviews_and_users(session))
 
     # print(get_restaurants_with_reviews())
-    print(get_scrapped_restaurants())
+    # print(get_scrapped_restaurants())
     # scrapped_restaurants = get_restaurants_from_folder(scrapping_dir)
     # print(scrapped_restaurants)
     # print(update_scrapped_status_for_reviews(session, scrapped_restaurants))
+    # latitude, longitude = get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France")
+    # print(get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France"))
+    # update_restaurant_columns("L'Étage", {"latitude": latitude, "longitude": longitude}, session)
+    # update_restaurant_columns("Kenbo", {"image": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2d/2f/d2/89/le-bouchon-des-filles.jpg"}, session)
+    print(get_restaurant(session=session, restaurant_name="L'Étage"))
    
     
     
