@@ -336,6 +336,10 @@ def update_restaurant_coordinates(engine):
 
 def update_restaurant(
     name,
+    adresse=None,
+    url=None,
+    email=None,
+    telephone=None,
     cuisines=None,
     note_globale=None,
     cuisine_note=None,
@@ -347,7 +351,9 @@ def update_restaurant(
     etoiles_michelin=None,
     repas=None,
     image=None,
-    scrapped=False
+    scrapped=False,
+    latitude=None,
+    longitude=None
 ):
     """
     Met à jour uniquement les champs vides d'un restaurant dans la table dim_restaurants.
@@ -371,7 +377,18 @@ def update_restaurant(
 
     # Vérifier chaque champ et mettre à jour uniquement s'il est vide ou NULL
     # print(f"Vérification des champs à mettre à jour pour le restaurant {existing_restaurant}...")
-    
+    if adresse is not None and not existing_restaurant["adresse"]:
+        update_fields.append("adresse = ?")
+        params.append(adresse)  
+    if url is not None and not existing_restaurant["url_link"]:
+        update_fields.append("url_link = ?")
+        params.append(url)
+    if email is not None and not existing_restaurant["email"]:
+        update_fields.append("email = ?")
+        params.append(email)
+    if telephone is not None and not existing_restaurant["telephone"]:
+        update_fields.append("telephone = ?")
+        params.append(telephone)
     if cuisines is not None and not existing_restaurant["cuisines"]:
         update_fields.append("cuisines = ?")
         params.append(cuisines)
@@ -414,6 +431,13 @@ def update_restaurant(
         print(f"Image trouvée pour le restaurant {name} : {image}")
         update_fields.append("image = ?")
         params.append(image)
+    if latitude is not None and not existing_restaurant["latitude"]:
+        update_fields.append("latitude = ?")
+        params.append(latitude)
+
+    if longitude is not None and not existing_restaurant["longitude"]:
+        update_fields.append("longitude = ?")
+        params.append(longitude)
 
     # Si aucun champ n'est à mettre à jour, lever une exception
     if not update_fields:
@@ -472,7 +496,12 @@ def update_restaurant_data(restaurant_name, restaurant_data):
 
         # Mise à jour des données
         update_restaurant(
+            
             restaurant_name,
+            adresse=restaurant_data.get('Emplacement et coordonnées', {}).get('ADRESSE', ''),
+            url=restaurant_data.get('Emplacement et coordonnées', {}).get('URL', ''),
+            email=restaurant_data.get('Emplacement et coordonnées', {}).get('EMAIL', ''),
+            telephone=restaurant_data.get('Emplacement et coordonnées', {}).get('TELEPHONE', ''),
             cuisines=cuisines,
             note_globale=note_globale,
             cuisine_note=cuisine_note,
@@ -484,7 +513,9 @@ def update_restaurant_data(restaurant_name, restaurant_data):
             etoiles_michelin=etoiles_michelin,
             repas=details.get('REPAS', ''),
             image=details.get('IMAGE', ''),
-            scrapped=True
+            scrapped=True,
+            latitude=restaurant_data.get('Emplacement et coordonnées', {}).get('LATITUDE', None),
+            longitude=restaurant_data.get('Emplacement et coordonnées', {}).get('LONGITUDE', None),
         )
 
         print(f"Mise à jour réussie pour {restaurant_name}.")
@@ -534,10 +565,10 @@ def get_restaurants_from_folder(scrapping_dir):
     return sorted(restaurant_names)
 
 
-def process_csv_files(scrapping_dir, session):
+def process_csv_files(scrapping_dir, session, with_reviews=True):
     # Recuperer les nom des restaurants dans le dossier scrapping
     restaurant_names = get_restaurants_from_folder(scrapping_dir)
-    file_suffixes = ["details", "reviews", "avis", "location"]
+    file_suffixes = ["details", "reviews", "avis", "location"] if with_reviews else ["details", "location", "avis"]
 
     for restaurant_name in restaurant_names:
         restaurant_data = {"Emplacement et coordonnées": {}, "Détails": {}, "Notes et avis": {}}
@@ -575,13 +606,15 @@ def process_csv_files(scrapping_dir, session):
         # print(restaurant_data)
         update_restaurant_data(restaurant_name, restaurant_data)
                 
-        if reviews is not None:
+        if reviews is not None and with_reviews:
             print(f"Insertion des avis pour {restaurant_name}...")
             insert_restaurant_reviews(restaurant, reviews)
             # print(f"Avis insérés pour {reviews}.")
         else:
             print(f"Warning #### : Aucun avis trouvé pour {restaurant_name}.")
-
+        
+        update_restaurant_columns(restaurant_name, {"scrapped": False}, session)
+    
 
     session.commit()
 
@@ -988,8 +1021,8 @@ restaurants = get_all_restaurants(session)
     
     # Récupérer les csv des restaurants dans le dossier Data/scrapping
     
-    scrapping_dir = os.path.join("Data", "data_scrapped")
-    # process_csv_files(scrapping_dir, session)
+    scrapping_dir = os.path.join("Data", "scrapping_bis")
+    # process_csv_files(scrapping_dir, session, with_reviews=False)
     # print(get_restaurants_from_folder(scrapping_dir))
     # print(get_restaurants_with_reviews_and_users(session))
 
@@ -1004,17 +1037,17 @@ restaurants = get_all_restaurants(session)
     url_list = {"Miraflores":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d5002878-Reviews-Miraflores-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
                 "Restaurant Rustique":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d19384388-Reviews-Restaurant_Rustique-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
                 "La Mere Brazier": "https://www.tripadvisor.fr/Restaurant_Review-g187265-d718686-Reviews-La_Mere_Brazier-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
-                      "Le Neuvieme Art":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d6852234-Reviews-Le_Neuvieme_Art-Lyon_Rhone_Auvergne_Rhone_Alpes.html"}
+                      "Le Neuvième Art":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d6852234-Reviews-Le_Neuvieme_Art-Lyon_Rhone_Auvergne_Rhone_Alpes.html"}
     
-    #for restaurant_name, url in url_list.items():
+    for restaurant_name, url in url_list.items():
         
-        # update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
+         update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
     # update_restaurant_columns(restaurant_name, {"url_link": url}, session)
     # print(get_restaurant(session=session, restaurant_name="L'Étage"))
 
     # print(check_restaurants_in_db(scrapped_restaurants, session))
     # create_restaurants_from_csv("liste_restaurants.csv", session)
-    resume_avis = "resume_avis_restaurants_1.xlsx"
+    """resume_avis = "resume_avis_restaurants_1.xlsx"
     file_path = os.path.join("Data", resume_avis)
 
     df = pd.read_excel(file_path)
@@ -1023,6 +1056,6 @@ restaurants = get_all_restaurants(session)
         # print(row['restaurant'], row['resume_avis'])
         update_restaurant_columns(row['restaurant'], {"resume_avis": row['resume_avis']}, session)
 
-
+    """
     
     
