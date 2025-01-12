@@ -187,7 +187,7 @@ def main():
 
     container_col2_1.write("**📊 Statistiques détaillés des restaurants**")
     container_col2_1.write("Visualisez des statistiques pertinentes telles que [...] pour mieux comprendre chaque restaurant.")
-    container_col2_2.write("**🗺️ Localiser les restaurants et obetnir un itinéraire en un clic**")
+    container_col2_2.write("**🗺️ Localiser les restaurants et obtenir un itinéraire en un clic**")
     container_col2_2.write("Utilisez la carte interactive pour localiser les restaurants proches de votre domicile et obtenez rapidement un itinéraire pour vous y rendre (veuillez renseigner votre adresse personelle via la page d'accueil pour accéder à cette fonctionnalité).")
     
     st.write("*Cette application a été développée par KPAMEGAN Falonne, KARAMOKO Awa, GABRYSCH Alexis et COLLIN Hugo, dans le cadre du Master 2 SISE.*")

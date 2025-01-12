@@ -5,6 +5,7 @@ from pathlib import Path
 import math
 import base64
 import webbrowser
+import pydeck as pdk
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -279,10 +280,22 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
 
     if selected_restaurant:
         # Affichage de l'image du restaurant
-        st.image(selected_restaurant.image)
-
-        # Commencer la section avec l'image de fond
+        st.html(f"""
+        <style>
+        .background-section {{
+            background-image: url("{selected_restaurant.image}");
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            padding: 20px;
+            height: 300px;
+            border-radius: 10px;
+        }}
+        </style>
+        """)
         st.markdown('<div class="background-section">', unsafe_allow_html=True)
+
+        # Affichage des étoiles Michelin
         michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
         if michelin_stars:
             michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
@@ -315,7 +328,8 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
         # Affichage des informations de la colonne 2
         with col2:
             score_container = st.container(border=True)
-
+            
+            # Affichage des notations
             score_container.write("**Notations**")
             stars = display_stars(selected_restaurant.note_globale)
             stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
@@ -325,6 +339,7 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
             score_container.write(f"**Service :** {selected_restaurant.service_note}")
             score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
             
+            # Affichage des temps de trajet
             journeys_container = st.container(border=True)
             journeys_container.write("**Temps de trajet**")
             journeys_container.write(f"🚲 {duration_soft}")
@@ -337,3 +352,42 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
                 emoji, fastest_duration = fastest_mode
                 bouton_label = f"{emoji} {fastest_duration}"
                 journeys_container.button(label=bouton_label, disabled=True)
+            
+            # Définition de la vue de la carte
+            view = pdk.ViewState(
+                latitude=selected_restaurant.latitude,
+                longitude=selected_restaurant.longitude,
+                zoom=13,
+                pitch=0
+            )
+
+            # Définition de la couche de la carte
+            layer = pdk.Layer(
+                'ScatterplotLayer',
+                data=[{'position': [selected_restaurant.longitude, selected_restaurant.latitude]}],
+                get_position='position',
+                get_color='[255, 0, 0]',
+                get_radius=25,
+                pickable=True,
+                auto_highlight=True
+            )
+
+            # Paramètres de l'infos-bulle
+            tooltip = {
+                "html": f"<b>{selected_restaurant.nom}</b>",
+                "style": {
+                    "backgroundColor": "white",
+                    "color": "black"
+                }
+            }
+
+            # Définition du rendu PyDeck
+            deck = pdk.Deck(
+                layers=layer,
+                initial_view_state=view,
+                tooltip=tooltip,
+                map_style='mapbox://styles/mapbox/light-v11'
+            )
+
+            # Affichage de la carte
+            st.pydeck_chart(deck)
