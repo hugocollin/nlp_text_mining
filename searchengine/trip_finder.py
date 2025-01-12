@@ -133,7 +133,6 @@ class SearchEngine:
         for page in pagination:
             page_elements = page.find("a", attrs=attrs_possible[0]) or page.find("button", attrs=attrs_possible[1]) or page.find("a", attrs=attrs_possible[2])
             if page_elements:
-                print("Next page found", page_elements.get("href"))
                 return page_elements.get("href")
             else:
                 print("No next page found")
@@ -210,11 +209,11 @@ class RestaurantFinder(SearchEngine):
         self.current_page = 1
     
         while self.current_url:
-
+            time.sleep(5)
             # Break if max_pages limit reached
             if max_pages and self.current_page > max_pages:
                 break
-                
+            
             print(f"Scraping page {self.current_page}...")
             print(f"Current URL: {self.current_url}")
             # Get soup for current page
@@ -234,7 +233,6 @@ class RestaurantFinder(SearchEngine):
                 print("scrapping end")
                 break
             else:
-                print(f"Next page: {next_page_href}")
                 # Update URL for next iteration
                 self.current_url = self.base_url + next_page_href if next_page_href.startswith('/') else self.base_url + '/' + next_page_href
                 self.current_page += 1
@@ -244,6 +242,12 @@ class RestaurantFinder(SearchEngine):
         
         print(f"Found {len(self.all_restaurants)} restaurants total")
         return self.all_restaurants
+    def to_dataframe(self):
+        return pd.DataFrame(self.all_restaurants)
+    
+    def to_csv(self):
+        df = self.to_dataframe()
+        df.to_csv('Data/liste_restaurants.csv', index=False)
         
         
         
@@ -280,6 +284,8 @@ class restaurant_info_extractor(SearchEngine):
         # Notes et avis
         notes_avis_section = soup.find('div', class_='QSyom f e Q3 _Z')
         notes = {}
+        global_note = cuisine_note = service_note = quality_price_note = ambiance_note = 'N/A'
+
         if notes_avis_section:
             global_note_tag = notes_avis_section.find('span', class_='biGQs _P fiohW uuBRH')
             global_note = global_note_tag.text if global_note_tag else 'N/A'
@@ -287,17 +293,16 @@ class restaurant_info_extractor(SearchEngine):
             other_notes_tags = notes_avis_section.find('div', class_='khxWm f e Q3')
             if other_notes_tags:
                 other_notes_div = other_notes_tags.find_all('div', class_='YwaWb u f')
-                if other_notes_div:
-                    cuisine_note = re.search(r'\d,\d', other_notes_div[0].text).group()
-                    service_note = re.search(r'\d,\d', other_notes_div[1].text).group()
-                    quality_price_note = re.search(r'\d,\d', other_notes_div[2].text).group()
-                    ambiance_note = re.search(r'\d,\d', other_notes_div[3].text).group()
-                    
-            else:
-                cuisine_note = service_note = quality_price_note = ambiance_note = 'N/A'
-        else:
-            global_note = cuisine_note = service_note = quality_price_note = ambiance_note = 'N/A'
-        
+                if other_notes_div and len(other_notes_div) == 4:
+                    def extract_note(text):
+                        match = re.search(r'\d,\d', text)
+                        return match.group() if match else 'N/A'
+                
+                cuisine_note = extract_note(other_notes_div[0].text)
+                service_note = extract_note(other_notes_div[1].text)
+                quality_price_note = extract_note(other_notes_div[2].text)
+                ambiance_note = extract_note(other_notes_div[3].text)
+            
         notes = {
             'CUISINE': cuisine_note,
             'SERVICE': service_note,
@@ -326,7 +331,10 @@ class restaurant_info_extractor(SearchEngine):
             # get href attribute of the <a> tag
             href = address_tag['href'] if address_tag else None
             # extract latitude and longitude from the href attribute
-            lat, lon = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', href).groups() if href else ('N/A', 'N/A')
+            def extract_lat_lon(href):
+                match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', href)
+                return match.groups() if match else ('N/A', 'N/A')
+            lat, lon = extract_lat_lon(href)
             
             email_tag = soup.find('a', href=lambda href: href and href.startswith('mailto:'))
             email = email_tag['href'].split(':')[1] if email_tag else 'N/A'
