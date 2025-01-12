@@ -292,7 +292,6 @@ def execute_sql_query(session):
         except Exception as e:
             st.error(f"Erreur lors de l'exécution de la requête: {e}")
 
-
 def edit_table(session):
     inspector = inspect(session.bind)
     tables = inspector.get_table_names()
@@ -373,21 +372,31 @@ def edit_table(session):
                 continue  # Ne pas modifier les clés primaires
             value = new_values[col]
             column_type = next((c['type'] for c in columns if c['name'] == col), None)
+
             if isinstance(column_type, Integer):
-                try:
-                    set_clause.append(f"{col} = {int(value)}")
-                except ValueError:
-                    st.error(f"Valeur invalide pour {col}. Doit être un entier.")
-                    return
+                if value.lower() == 'nan' or value == '':
+                    set_clause.append(f"{col} = NULL")
+                else:
+                    try:
+                        set_clause.append(f"{col} = {int(value)}")
+                    except ValueError:
+                        st.error(f"Valeur invalide pour {col}. Doit être un entier.")
+                        return
             elif isinstance(column_type, Float):
-                try:
-                    set_clause.append(f"{col} = {float(value)}")
-                except ValueError:
-                    st.error(f"Valeur invalide pour {col}. Doit être un nombre flottant.")
-                    return
+                if value.lower() == 'nan' or value == '':
+                    set_clause.append(f"{col} = NULL")
+                else:
+                    try:
+                        set_clause.append(f"{col} = {float(value)}")
+                    except ValueError:
+                        st.error(f"Valeur invalide pour {col}. Doit être un nombre flottant.")
+                        return
             else:
-                escaped_value = value.replace("'", "''")
-                set_clause.append(f"{col} = '{escaped_value}'")
+                if value.lower() == 'nan' or value == '':
+                    set_clause.append(f"{col} = NULL")
+                else:
+                    escaped_value = value.replace("'", "''")
+                    set_clause.append(f"{col} = '{escaped_value}'")
 
         if not set_clause:
             st.info("Aucune modification à appliquer.")
@@ -406,8 +415,6 @@ def edit_table(session):
         except Exception as e:
             session.rollback()
             st.error(f"Erreur lors de la mise à jour de la ligne: {e}")
-
-  
 
 def main():
     # Barre de navigation
