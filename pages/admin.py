@@ -6,6 +6,12 @@ from pages.resources.components import Navbar
 import pandas as pd
 from sqlalchemy import inspect, text 
 from sqlalchemy.types import Integer, Float
+from db.models import Restaurant  # Assurez-vous que le modèle Restaurant est correctement défini
+import requests
+from bs4 import BeautifulSoup
+from searchengine.trip_finder import SearchEngine
+
+
 
 # Configuration de la page
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
@@ -425,13 +431,110 @@ def edit_table(session):
             session.rollback()
             st.error(f"Erreur lors de la mise à jour de la ligne: {e}")
 
+#######################
+def get_element_inspector_js():
+    return """
+    <script>
+    let isInspecting = true;
+    
+    function getElementInfo(element) {
+        // Escape HTML special characters
+        const escaped = element.outerHTML
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        return `<pre><code>${escaped}</code></pre>`;
+    }
+    
+    document.addEventListener('mouseover', function(e) {
+        if (!isInspecting) return;
+        e.target.style.outline = '2px solid red';
+    });
+  
+    document.addEventListener('mouseout', function(e) {
+        if (!isInspecting) return;
+        e.target.style.outline = '';
+    });
+    
+    document.addEventListener('click', function(e) {
+        if (!isInspecting) return;
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const html = getElementInfo(e.target);
+        document.getElementById('selected-text').innerHTML = html;
+    });
+    </script>
+    <style>
+    pre {
+        background-color: #f5f5f5;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+    }
+    code {
+        font-family: monospace;
+        white-space: pre;
+    }
+    </style>
+    """
+def scrape_and_embed_tripadvisor(session):
+    # Récupérer les restaurants non scrappés
+    restaurants = get_all_restaurants(session)
+    # Filtrer les restaurants non scrappés
+    non_scrapped_restaurants = [r for r in restaurants if r.scrapped == 0]
+    if not non_scrapped_restaurants:
+        st.warning("Tous les restaurants ont déjà été scrappés.")
+    else:
+        restaurant_names = {r.nom: r for r in non_scrapped_restaurants}
+        selected_name = st.selectbox("Sélectionnez un restaurant à scrappé pour analyse d'élements HTML", list(restaurant_names.keys()))
+    # Get selected restaurant object
+        restaurant = restaurant_names[selected_name]
+        st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
+        
+        if st.button("Scraper le restaurant"):
+                with st.spinner("Récupération des données TripAdvisor..."):
+                    url = restaurant.url_link
+                    search = SearchEngine()
+                    search.run(url)
+                
+                if 'selected_html' not in st.session_state:
+                    st.session_state.selected_html = None
+                st.session_state.inspecting = True
+                    
+                # Add text area for element info
+                element_info = st.empty()
+                
+                # Embed page with inspector
+                html_content = search.soup.prettify()
+                html_with_inspector = f"""
+                            {get_element_inspector_js()}
+                            <div id="content">
+                                {html_content}
+                            </div>
+                            <div id="selected-text" 
+                                style="position:fixed;bottom:0;left:0;
+                                        background:white;padding:10px;
+                                        border:1px solid black;">
+                                Cliquez sur un élément pour voir son contenu
+                            </div>
+                        """
+                            
+                st.components.v1.html(
+                            html_with_inspector,
+                            height=800,
+                            scrolling=True
+                        )
+    
+
 def main():
     # Barre de navigation
     Navbar()
     
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
-    
+    scrape_and_embed_tripadvisor(session)
+
     # Exécuter la requête SQL personnalisée
     execute_sql_query(session)
     st.write("----")
@@ -442,6 +545,9 @@ def main():
     st.write("----")
     # Afficher les statistiques pour tous les restaurants
     display_restaurant_stats()
+    
+    st.write("----")
+    
     
     st.write("----")
     
