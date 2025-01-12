@@ -760,6 +760,73 @@ def add_columns_to_table(engine, table_name, columns):
                 print(f"Erreur lors de l'ajout de la colonne '{column_name}' : {e}")
 
 
+def fill_review_cleaned_column(df, session):
+    """
+    Remplit la colonne `review_cleaned` dans la base de données à partir d'un DataFrame.
+
+    Args:
+        df (pd.DataFrame): DataFrame contenant `nom` (restaurant), `user_profile`, `review` et `title`.
+        session: La session SQLAlchemy pour interagir avec la base de données.
+    """
+    for _, row in df.iterrows():
+        restaurant_name = row['restaurant']
+        user_profile = row['user_profile']
+        title = row['title']
+
+        # Mettre à jour la base de données
+        try:
+            # Rechercher l'enregistrement correspondant dans la base
+            review_entry = session.query(Review).join(Restaurant).filter(
+                Restaurant.nom == restaurant_name,
+                Review.user_profile == user_profile,
+                Review.title_review == title
+            ).first()
+            
+            if review_entry:
+                # Mettre à jour la colonne `review_cleaned`
+                review_entry.review_cleaned = row['review_cleaned']
+                review_entry.sentiment = int(row['sentiment'])
+                review_entry.sentiment_rating = row['sentiment_rating']
+
+                session.commit()
+                print(f"Colonne review_cleaned mise à jour pour {restaurant_name}, {user_profile}.")
+            else:
+                print(f"Aucun avis trouvé pour {restaurant_name}, {user_profile}.")
+        except Exception as e:
+            print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
+
+
+def fill_resume_avis_column(df, session):
+    """
+    Remplit la colonne `resume_avis` dans la table des restaurants à partir d'un DataFrame.
+
+    Args:
+        df (pd.DataFrame): DataFrame contenant `nom` (nom du restaurant).
+        session: La session SQLAlchemy pour interagir avec la base de données.
+    """
+    for _, row in df.iterrows():
+        restaurant_name = row['restaurant'],
+        resume_avis = row['resume_avis']
+        
+        try:
+            # Rechercher le restaurant correspondant dans la base
+            restaurant = session.query(Restaurant).filter_by(nom=restaurant_name).first()
+
+            if not restaurant:
+                print(f"Restaurant {restaurant_name} non trouvé dans la base de données. Ignoré.")
+                continue
+
+            # Mettre à jour la colonne `resume_avis`
+            restaurant.resume_avis = resume_avis
+            session.commit()
+
+            print(f"Colonne resume_avis mise à jour pour {restaurant_name} : {resume_avis}")
+        
+        except Exception as e:
+            print(f"Erreur lors de la mise à jour pour {restaurant_name} : {e}")
+
+
+
 
 
 if __name__ == "__main__":
@@ -861,7 +928,7 @@ restaurants = get_all_restaurants(session)
     # print(get_restaurants_with_reviews_and_users(session))
 
     # print(get_restaurants_with_reviews())
-    # print(get_scrapped_restaurants())
+    print(get_scrapped_restaurants())
     # scrapped_restaurants = get_restaurants_from_folder(scrapping_dir)
     # print(scrapped_restaurants)
     # print(update_scrapped_status_for_reviews(session, scrapped_restaurants))
@@ -871,25 +938,6 @@ restaurants = get_all_restaurants(session)
     # update_restaurant_columns("Kenbo", {"image": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2d/2f/d2/89/le-bouchon-des-filles.jpg"}, session)
     # print(get_restaurant(session=session, restaurant_name="L'Étage"))
 
-    with engine.connect() as connection:
-        connection.execute(
-            text("ALTER TABLE dim_restaurants ADD COLUMN resume_avis TEXT")
-        )
-
-    with engine.connect() as connection:
-        connection.execute(
-            text("ALTER TABLE fact_reviews ADD COLUMN review_cleaned TEXT")
-        )
-    
-    with engine.connect() as connection:
-        connection.execute(
-            text("ALTER TABLE fact_reviews ADD COLUMN sentiment INTEGER")
-        )
-
-    with engine.connect() as connection:
-        connection.execute(
-            text("ALTER TABLE fact_reviews ADD COLUMN sentiment_rating STRING")
-        )
    
     
     
