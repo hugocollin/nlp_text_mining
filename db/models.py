@@ -31,6 +31,7 @@ class Restaurant(Base):
     scrapped = Column(Boolean, default=False)  
     latitude = Column(Float)
     longitude = Column(Float)
+    resume_avis = Column(Text)
     image = Column(String)
 
 
@@ -60,6 +61,9 @@ class Review(Base):
     review_text = Column(Text)
     rating = Column(Float)
     type_visit = Column(String)
+    review_cleaned = Column(Text)
+    sentiment = Column(Integer)
+    sentiment_rating = Column(String)
 
     restaurant = relationship("Restaurant", back_populates="avis")
     user = relationship("User", back_populates="avis")
