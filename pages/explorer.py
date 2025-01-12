@@ -263,12 +263,22 @@ def main():
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [
-                    executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant)
+                # Map des restaurants scrappés aux futurs
+                futures = {
+                    executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant): restaurant
                     for restaurant in restaurants
                     if restaurant.scrapped
-                ]
-                results = [future.result() for future in concurrent.futures.as_completed(futures)]
+                }
+                # Collecte des résultats dans l'ordre des restaurants
+                results = []
+                for restaurant in restaurants:
+                    if restaurant.scrapped:
+                        future = next(f for f, r in futures.items() if r == restaurant)
+                        try:
+                            result = future.result()
+                            results.append(result)
+                        except Exception as e:
+                            st.error(f"Erreur lors du traitement du restaurant {restaurant.nom}: {e}")
 
         # Filtrage des résultats en fonction des filtres
         filtered_results = []

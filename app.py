@@ -7,7 +7,8 @@ import pydeck as pdk
 st.set_page_config(page_title="SISE Ô Resto", page_icon="🍽️", layout="wide")
 
 # Réinitialisation de popup de vérification de l'adresse renseignée
-del st.session_state['address_toast_shown']
+if 'address_toast_shown' in st.session_state:
+    del st.session_state['address_toast_shown']
 
 # Fonction pour afficher le popup de paramétrage de l'adresse personnelle
 @st.dialog("Paramétrer l'adresse personnelle", width="large")

@@ -6,7 +6,8 @@ from pages.resources.components import display_stars
 import pandas as pd
 
 # Réinitialisation de popup de vérification de l'adresse renseignée
-del st.session_state['address_toast_shown']
+if 'address_toast_shown' in st.session_state:
+    del st.session_state['address_toast_shown']
 
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')

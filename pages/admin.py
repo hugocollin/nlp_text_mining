@@ -11,7 +11,8 @@ from sqlalchemy.types import Integer, Float
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
 
 # Réinitialisation de popup de vérification de l'adresse renseignée
-del st.session_state['address_toast_shown']
+if 'address_toast_shown' in st.session_state:
+    del st.session_state['address_toast_shown']
 
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')
