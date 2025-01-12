@@ -52,7 +52,9 @@ def main():
 
     # Vérification si une adresse personelle a été renseignée
     if not personal_address:
+        if 'address_toast_shown' not in st.session_state:
             st.toast("Veuillez définir votre adresse personnelle pour voir les temps de trajet", icon="ℹ️")
+            st.session_state['address_toast_shown'] = True
 
     # Initialisation du comparateur dans session_state
     if 'comparator' not in st.session_state:

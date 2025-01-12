@@ -7,8 +7,11 @@ import pandas as pd
 from sqlalchemy import inspect, text 
 from sqlalchemy.types import Integer, Float
 
-
+# Configuration de la page
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
+
+# Réinitialisation de popup de vérification de l'adresse renseignée
+del st.session_state['address_toast_shown']
 
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')
