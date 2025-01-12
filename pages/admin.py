@@ -48,11 +48,13 @@ def make_unique_columns(columns):
 
 def display_restaurant_stats():
     # Calculer le nombre de restaurants scrappés
-    
+    st.header("Statistiques des Restaurants")
     nombre_scrapped = len([r for r in restaurants if r.scrapped == 1])
 
     # Afficher le résultat dans Streamlit
-    st.write(f"Nombre de restaurants scrappés : {nombre_scrapped}")   
+    st.write(f"Nombre de restaurants scrappés : {nombre_scrapped}")  
+    nombre_restaurants = len(restaurants)
+    st.write(f"Nombre total de restaurants : {nombre_restaurants}") 
     nom_scrapped = [r.nom for r in restaurants if r.scrapped == 1]
 
     df = pd.DataFrame(nom_scrapped, columns = ['Nom des restaurants scrappés'])
@@ -580,9 +582,7 @@ def main():
     display_restaurant_stats()
     
     st.write("----")
-    
-    
-    st.write("----")
+
     
   
 
