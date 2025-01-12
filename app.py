@@ -6,6 +6,9 @@ import pydeck as pdk
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto", page_icon="🍽️", layout="wide")
 
+# Réinitialisation de popup de vérification de l'adresse renseignée
+del st.session_state['address_toast_shown']
+
 # Fonction pour afficher le popup de paramétrage de l'adresse personnelle
 @st.dialog("Paramétrer l'adresse personnelle", width="large")
 def add_personal_address_dialog():
