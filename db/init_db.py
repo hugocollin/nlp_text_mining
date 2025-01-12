@@ -3,7 +3,8 @@ import sys
 import os
 import pandas as pd
 import ast
-from sqlalchemy import update, select, exists, create_engine, text
+from sqlalchemy import update, select, exists, create_engine, text, MetaData
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -730,6 +731,41 @@ def get_restaurant(session, restaurant_id=None, restaurant_name=None):
         return None
 
 
+
+def add_columns_to_table(engine, table_name, columns):
+    """
+    Ajoute de nouvelles colonnes à une table existante dans la base de données.
+
+    Args:
+        engine: L'objet SQLAlchemy engine connecté à la base de données.
+        table_name (str): Nom de la table à modifier.
+        columns (dict): Un dictionnaire où la clé est le nom de la colonne et la valeur est le type SQLAlchemy.
+            Exemple : {"new_column1": String, "new_column2": Integer}
+
+    Raises:
+        Exception: Si une erreur survient pendant l'ajout des colonnes.
+    """
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
+    
+    if table_name not in metadata.tables:
+        raise ValueError(f"La table '{table_name}' n'existe pas dans la base de données.")
+    
+    table = metadata.tables[table_name]
+    
+    with engine.connect() as connection:
+        for column_name, column_type in columns.items():
+            try:
+                if column_name in table.c:
+                    print(f"La colonne '{column_name}' existe déjà dans la table '{table_name}'.")
+                    continue
+
+                # Générer une commande SQL pour ajouter la colonne
+                alter_stmt = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type.compile(dialect=engine.dialect)}"
+                connection.execute(alter_stmt)
+                print(f"Colonne '{column_name}' ajoutée à la table '{table_name}' avec succès.")
+            except OperationalError as e:
+                print(f"Erreur lors de l'ajout de la colonne '{column_name}': {e}")
 
 
 if __name__ == "__main__":
