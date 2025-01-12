@@ -61,4 +61,3 @@ class NLPPretraitement:
 
     def afficher_dataframe_complet(self):
         return self.avis_restaurants
-
