@@ -3,7 +3,7 @@ import sys
 import os
 import pandas as pd
 import ast
-from sqlalchemy import update, select, exists, create_engine, text, MetaData
+from sqlalchemy import update, select, exists, create_engine, text, MetaData, Column, String, Integer, Float, Boolean
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -734,38 +734,32 @@ def get_restaurant(session, restaurant_id=None, restaurant_name=None):
 
 def add_columns_to_table(engine, table_name, columns):
     """
-    Ajoute de nouvelles colonnes à une table existante dans la base de données.
+    Ajoute de nouvelles colonnes à une table existante dans une base de données SQLite.
 
     Args:
-        engine: L'objet SQLAlchemy engine connecté à la base de données.
+        engine: L'objet SQLAlchemy engine connecté à SQLite.
         table_name (str): Nom de la table à modifier.
         columns (dict): Un dictionnaire où la clé est le nom de la colonne et la valeur est le type SQLAlchemy.
-            Exemple : {"new_column1": String, "new_column2": Integer}
-
-    Raises:
-        Exception: Si une erreur survient pendant l'ajout des colonnes.
+            Exemple : {"new_column1": "TEXT", "new_column2": "INTEGER"}
     """
-    metadata = MetaData()
-    metadata.reflect(bind=engine)
-    
-    if table_name not in metadata.tables:
-        raise ValueError(f"La table '{table_name}' n'existe pas dans la base de données.")
-    
-    table = metadata.tables[table_name]
-    
     with engine.connect() as connection:
         for column_name, column_type in columns.items():
             try:
-                if column_name in table.c:
+                # Vérifier si la colonne existe déjà
+                result = connection.execute(f"PRAGMA table_info({table_name});").fetchall()
+                existing_columns = [row[1] for row in result]
+                if column_name in existing_columns:
                     print(f"La colonne '{column_name}' existe déjà dans la table '{table_name}'.")
                     continue
 
-                # Générer une commande SQL pour ajouter la colonne
-                alter_stmt = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type.compile(dialect=engine.dialect)}"
+                # Ajouter la nouvelle colonne
+                alter_stmt = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
                 connection.execute(alter_stmt)
-                print(f"Colonne '{column_name}' ajoutée à la table '{table_name}' avec succès.")
+                print(f"Colonne '{column_name}' ajoutée à la table '{table_name}'.")
             except OperationalError as e:
-                print(f"Erreur lors de l'ajout de la colonne '{column_name}': {e}")
+                print(f"Erreur lors de l'ajout de la colonne '{column_name}' : {e}")
+
+
 
 
 if __name__ == "__main__":
@@ -875,7 +869,27 @@ restaurants = get_all_restaurants(session)
     # print(get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France"))
     # update_restaurant_columns("L'Étage", {"latitude": latitude, "longitude": longitude}, session)
     # update_restaurant_columns("Kenbo", {"image": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2d/2f/d2/89/le-bouchon-des-filles.jpg"}, session)
-    print(get_restaurant(session=session, restaurant_name="L'Étage"))
+    # print(get_restaurant(session=session, restaurant_name="L'Étage"))
+
+    with engine.connect() as connection:
+        connection.execute(
+            text("ALTER TABLE dim_restaurants ADD COLUMN resume_avis TEXT")
+        )
+
+    with engine.connect() as connection:
+        connection.execute(
+            text("ALTER TABLE fact_reviews ADD COLUMN review_cleaned TEXT")
+        )
+    
+    with engine.connect() as connection:
+        connection.execute(
+            text("ALTER TABLE fact_reviews ADD COLUMN sentiment INTEGER")
+        )
+
+    with engine.connect() as connection:
+        connection.execute(
+            text("ALTER TABLE fact_reviews ADD COLUMN sentiment_rating STRING")
+        )
    
     
     
