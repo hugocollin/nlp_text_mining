@@ -6,11 +6,8 @@ from pages.resources.components import Navbar
 import pandas as pd
 from sqlalchemy import inspect, text 
 from sqlalchemy.types import Integer, Float
-from db.models import Restaurant  # Assurez-vous que le modèle Restaurant est correctement défini
-import requests
-from bs4 import BeautifulSoup
 from searchengine.trip_finder import SearchEngine
-
+import time
 
 
 # Configuration de la page
@@ -310,7 +307,7 @@ def edit_table(session):
     inspector = inspect(session.bind)
     tables = inspector.get_table_names()
 
-    st.header("Modifier une Table")
+    st.header("Modification de la base de données")
 
     # Sélection de la table à modifier
     table_to_edit = st.selectbox(
@@ -423,10 +420,10 @@ def edit_table(session):
             session.execute(text(update_query))
             session.commit()
             st.success("Ligne mise à jour avec succès.")
-
-            # Rafraîchissement des données affichées
-            df = pd.read_sql_query(text(query), session.bind)
-            st.dataframe(df)
+            
+            time.sleep(1)
+            # refresh les données edits
+            st.rerun()
         except Exception as e:
             session.rollback()
             st.error(f"Erreur lors de la mise à jour de la ligne: {e}")
@@ -540,7 +537,8 @@ def main():
     st.write("----")
 
       # Option pour éditer une table
-    if st.checkbox("Modifier une Table"):
+    st.header("Modifier une Table")
+    if st.checkbox("Check to Edit"):
         edit_table(session)
     st.write("----")
     # Afficher les statistiques pour tous les restaurants
