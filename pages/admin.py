@@ -364,7 +364,7 @@ def edit_table(session):
         for pk in primary_keys:
             pk_value = selected_row[pk]
             if isinstance(pk_value, str):
-                filter_conditions.append(f"{pk} = '{pk_value.replace('\'', '\'\'')}'")
+                filter_conditions.append(f"{pk} = '{pk_value.replace("\"'\"", "\"''\"")}'")
             else:
                 filter_conditions.append(f"{pk} = {pk_value}")
         where_clause = " AND ".join(filter_conditions)
