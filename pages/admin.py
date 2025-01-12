@@ -430,31 +430,57 @@ def edit_table(session):
 
 #######################
 def get_element_inspector_js():
-    return """
+ return """
     <script>
     let isInspecting = true;
     
+    function cleanElement(element) {
+        // Create a new element of the same type
+        const clean = element.cloneNode(false);
+        // Remove style attribute
+        clean.removeAttribute('style');
+        // Copy children recursively
+        for (const child of element.childNodes) {
+            if (child.nodeType === 1) { // Element node
+                clean.appendChild(cleanElement(child));
+            } else {
+                clean.appendChild(child.cloneNode(true));
+            }
+        }
+        return clean;
+    }
+    
     function getElementInfo(element) {
+        // Get clean copy without styles
+        const clean = cleanElement(element);
+        
         // Escape HTML special characters
-        const escaped = element.outerHTML
+        const escaped = clean.outerHTML
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
-        return `<pre><code>${escaped}</code></pre>`;
+            
+        return `<pre class="code-display"><code>${escaped}</code></pre>`;
     }
-    
     document.addEventListener('mouseover', function(e) {
-        if (!isInspecting) return;
+        // Skip if element is part of selected-text or has code-display class
+        if (!isInspecting || 
+            e.target.closest('#selected-text') || 
+            e.target.closest('.code-display')) return;
         e.target.style.outline = '2px solid red';
     });
   
     document.addEventListener('mouseout', function(e) {
-        if (!isInspecting) return;
+        if (!isInspecting || 
+            e.target.closest('#selected-text') || 
+            e.target.closest('.code-display')) return;
         e.target.style.outline = '';
     });
     
     document.addEventListener('click', function(e) {
-        if (!isInspecting) return;
+        if (!isInspecting || 
+            e.target.closest('#selected-text') || 
+            e.target.closest('.code-display')) return;
         e.preventDefault();
         e.stopPropagation();
         
@@ -463,15 +489,24 @@ def get_element_inspector_js():
     });
     </script>
     <style>
-    pre {
-        background-color: #f5f5f5;
+    #selected-text {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        background: white;
         padding: 10px;
-        border-radius: 4px;
-        overflow-x: auto;
+        border: 1px solid black;
+        user-select: text;
+        -webkit-user-select: text;
+        cursor: text;
+        z-index: 9999;
     }
-    code {
-        font-family: monospace;
-        white-space: pre;
+    .code-display {
+        pointer-events: none;
+    }
+    .code-display * {
+        pointer-events: none;
+        outline: none !important;
     }
     </style>
     """
