@@ -9,12 +9,9 @@ def test_pretraitement():
 
     # Nettoyage des avis
     pretraitement.appliquer_nettoyage()
-
-    # Nettoyage des dates
-    pretraitement.nettoyage_dates()
-
-    # Extraction de l'année, du mois et du jour
-    pretraitement.extraire_annee_mois_jour()
+    
+    # Vectorisation
+    # pretraitement.vectorisation()
 
     # Affichage et vérification du DataFrame final
     df_final = pretraitement.afficher_dataframe_complet()
