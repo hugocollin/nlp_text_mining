@@ -84,10 +84,17 @@ class SearchEngine:
         elif response.status_code == 403:
             print("403 Forbidden")
             print(response.text)
-            self.session = None
-            self.cookies = np.random.choice(self.cookies_list)
-            time.sleep(10)
-            return self.run(url)
+            if self.rank < 5:
+                self.rank += 1
+                self.session = None
+                self.cookies = np.random.choice(self.cookies_list)
+                time.sleep(10)
+                return self.run(url)
+            else:
+                self.rank = 0
+                return None
+                
+            
         elif response.status_code == 503:
             print("503 Service Unavailable")
             return None
@@ -255,6 +262,7 @@ class restaurant_info_extractor(SearchEngine):
         super().__init__()
         self.restaurant_info = {}
         self.reviews = []
+        self.soup_list = []
         
             
     # Trouver les étoiles Michelin renvoie le nombre d'étoiles du restaurant (0, 1, 2 ou 3)
@@ -425,6 +433,7 @@ class restaurant_info_extractor(SearchEngine):
         next_page_href = self.get_next_url()
         while next_page_href:
             time.sleep(5)
+            self.soup_list.append(self.soup)
             self.extract_reviews(self.soup)
             self.run(self.base_url + next_page_href)
             next_page_href = self.get_next_url()
