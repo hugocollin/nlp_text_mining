@@ -544,10 +544,14 @@ def process_csv_files(scrapping_dir, session):
         reviews = None
         print(f"Traitement du restaurant : {restaurant_name}")
         restaurant = session.query(Restaurant).filter_by(nom=restaurant_name).first()
+        
         if not restaurant:
-            print(f"Restaurant {restaurant_name} non trouvé dans la base de données.")
-            # Optionnel : Ajouter ici un code pour insérer le restaurant dans la BDD TODO ???
-            continue
+            print(f"Restaurant {restaurant_name} non trouvé dans la base de données. Création...")
+            restaurant = Restaurant(nom=restaurant_name)  # Crée un nouvel objet restaurant
+            session.add(restaurant)  # Ajouter à la session
+            session.commit()  # Sauvegarder dans la base de données pour obtenir un ID valide
+            print(f"Restaurant {restaurant_name} ajouté à la base avec succès.")
+        
         # Parcourir les fichiers dans le dossier pour ce restaurant
         for suffix in file_suffixes:
             file_name = f"{restaurant_name}_{suffix}.csv"
@@ -827,6 +831,66 @@ def fill_resume_avis_column(df, session):
 
 
 
+def check_restaurants_in_db(resto_list, session):
+    """
+    Vérifie quels restaurants dans une liste sont présents ou absents dans la base de données.
+    
+    Args:
+        resto_list (list): Liste de noms de restaurants à vérifier.
+        session: Session SQLAlchemy connectée à la base de données.
+        
+    Returns:
+        dict: Deux listes - 'present' et 'absent'.
+    """
+    # Requête pour récupérer tous les noms dans la base de données
+    db_restaurants = session.query(Restaurant.nom).all()
+    
+    # Convertir le résultat en une liste de noms (tuple -> str)
+    db_restaurant_names = {name[0] for name in db_restaurants}
+    
+    # Séparer les restaurants présents et absents
+    present = [resto for resto in resto_list if resto in db_restaurant_names]
+    absent = [resto for resto in resto_list if resto not in db_restaurant_names]
+    
+    return {'present': present, 'absent': absent}
+
+
+
+def create_restaurants_from_csv(csv_path, session):
+    #data_dir = os.path.join("Data", csv_path)  # Chemin vers le dossier 'data'
+    file_path = os.path.join("Data", csv_path) 
+    
+    try:
+        # Charger le fichier CSV dans un DataFrame
+        df = pd.read_csv(file_path, sep=",")
+        
+        # Vérifier que le fichier contient les colonnes requises
+        if 'name' not in df.columns or 'url' not in df.columns:
+            raise ValueError("Le fichier CSV doit contenir les colonnes 'nom' et 'url'.")
+        
+        # Parcourir chaque ligne du DataFrame
+        for _, row in df.iterrows():
+            restaurant_name = row['name'].strip()
+            restaurant_url = row['url'].strip()
+            
+            # Vérifier si le restaurant existe déjà dans la base
+            existing_restaurant = session.query(Restaurant).filter_by(nom=restaurant_name).first()
+            
+            if existing_restaurant:
+                print(f"Le restaurant '{restaurant_name}' existe déjà dans la base de données.")
+            else:
+                # Créer un nouveau restaurant
+                new_restaurant = Restaurant(nom=restaurant_name, url_link=restaurant_url, scrapped=False)
+                session.add(new_restaurant)
+                print(f"Ajouté : {restaurant_name} avec l'URL {restaurant_url}")
+        
+        # Commit des changements dans la base de données
+        session.commit()
+        print("Tous les nouveaux restaurants ont été ajoutés avec succès.")
+    
+    except Exception as e:
+        print(f"Erreur lors du traitement : {e}")
+
 
 
 if __name__ == "__main__":
@@ -844,7 +908,7 @@ if __name__ == "__main__":
     session = get_session(engine)
     
     # Insérer les restaurants
-    restaurant_csv_file = "info_restaurants_plus.csv"
+    restaurant_csv_file = "liste_restaurants.csv"
 
     # Mise à jour des coordonnées des restaurants
     # update_restaurant_coordinates(engine)
@@ -909,6 +973,8 @@ restaurants = get_all_restaurants(session)
 """
 
     # Récupérer tous les restaurants
+    # restaurants = get_all_restaurants(session)
+    # print(f"Nombre de restaurants : {len(restaurants)}")
     """restaurants = get_all_restaurants(session)
     for restaurant in restaurants:
         print(f"Restaurant ID: {restaurant.id_restaurant}, Name: {restaurant.nom}")
@@ -922,22 +988,41 @@ restaurants = get_all_restaurants(session)
     
     # Récupérer les csv des restaurants dans le dossier Data/scrapping
     
-    scrapping_dir = os.path.join("Data", "scrapping")
+    scrapping_dir = os.path.join("Data", "data_scrapped")
     # process_csv_files(scrapping_dir, session)
     # print(get_restaurants_from_folder(scrapping_dir))
     # print(get_restaurants_with_reviews_and_users(session))
 
     # print(get_restaurants_with_reviews())
-    print(get_scrapped_restaurants())
+    # print(get_scrapped_restaurants())
     # scrapped_restaurants = get_restaurants_from_folder(scrapping_dir)
     # print(scrapped_restaurants)
     # print(update_scrapped_status_for_reviews(session, scrapped_restaurants))
     # latitude, longitude = get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France")
     # print(get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France"))
     # update_restaurant_columns("L'Étage", {"latitude": latitude, "longitude": longitude}, session)
-    # update_restaurant_columns("Kenbo", {"image": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2d/2f/d2/89/le-bouchon-des-filles.jpg"}, session)
+    url_list = {"Miraflores":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d5002878-Reviews-Miraflores-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
+                "Restaurant Rustique":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d19384388-Reviews-Restaurant_Rustique-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
+                "La Mere Brazier": "https://www.tripadvisor.fr/Restaurant_Review-g187265-d718686-Reviews-La_Mere_Brazier-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
+                      "Le Neuvieme Art":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d6852234-Reviews-Le_Neuvieme_Art-Lyon_Rhone_Auvergne_Rhone_Alpes.html"}
+    
+    #for restaurant_name, url in url_list.items():
+        
+        # update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
+    # update_restaurant_columns(restaurant_name, {"url_link": url}, session)
     # print(get_restaurant(session=session, restaurant_name="L'Étage"))
 
-   
+    # print(check_restaurants_in_db(scrapped_restaurants, session))
+    # create_restaurants_from_csv("liste_restaurants.csv", session)
+    resume_avis = "resume_avis_restaurants_1.xlsx"
+    file_path = os.path.join("Data", resume_avis)
+
+    df = pd.read_excel(file_path)
+
+    for _, row in df.iterrows():
+        # print(row['restaurant'], row['resume_avis'])
+        update_restaurant_columns(row['restaurant'], {"resume_avis": row['resume_avis']}, session)
+
+
     
     

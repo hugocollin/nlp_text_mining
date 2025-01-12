@@ -1,12 +1,16 @@
 import streamlit as st
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos
-from pages.statistiques import display_restaurant_stats
-from db.models import get_all_restaurants
 import pydeck as pdk
 import webbrowser
 import concurrent.futures
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd
+from pages.statistiques import display_restaurant_stats
+from db.models import get_all_restaurants, Chunk
+from dotenv import find_dotenv, load_dotenv
+
+# Récupération de la clé API Mistral
+load_dotenv(find_dotenv())
 
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
@@ -15,6 +19,15 @@ st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", l
 engine = create_engine('sqlite:///restaurant_reviews.db')
 Session = sessionmaker(bind=engine)
 session = Session()
+
+# Réinitialisation de la table Chunck
+if 'reset_ia' not in st.session_state:
+    try:
+        deleted = session.query(Chunk).delete()
+        session.commit()
+        st.session_state['reset_ia'] = True
+    except Exception as e:
+        session.rollback()
 
 # Récupération de tous les restaurants
 restaurants = get_all_restaurants(session)
@@ -249,11 +262,103 @@ def main():
 
     # Colonne pour le chat avec l'IA [TEMP]
     with ai_tab:
+        # Mise en page du chat avec l'IA
         header_container = st.container(border=True)
         chat_container = header_container.container(height=500)
-        if message := header_container.chat_input(placeholder="Rechercher avec l'IA ✨ [disponible ultérieurement]", key="search_restaurant_temp"):
-            chat_container.chat_message(avatar="👤", name="User").write(message)
-            chat_container.chat_message(avatar="✨", name="AI").write(f"Je ne suis actuellement pas disponible 😢")
+
+        # Vérification si l'historique de la conversation est initialisé
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        # Initialisation de la base de données de connaissances
+        bdd_chunks = instantiate_bdd()
+
+        # Initialisation du modèle d'IA
+        role_prompt="""
+        Vous êtes un assistant intelligent spécialisé dans la recommandation de restaurants Lyonnais. Votre rôle est d'aider les utilisateurs à trouver des établissements répondant à leurs préférences et besoins spécifiques. 
+
+        Fonctionnalités principales :
+        1. **Compréhension des Préférences Utilisateur** : Analysez les préférences exprimées par l'utilisateur concernant le type de cuisine, le budget, l'emplacement, les options végétariennes/vegan, et d'autres critères pertinents.
+        2. **Recommandations Personnalisées** : Proposez des listes de restaurants adaptés aux critères de l'utilisateur, en fournissant des informations telles que le nom, l'adresse, le type de cuisine, les avis clients, les prix et les heures d'ouverture.
+        3. **Gestion des Contraintes** : Tenez compte des contraintes comme les restrictions alimentaires, la distance maximale, les méthodes de réservation disponibles et les exigences spécifiques (par exemple, accès handicapés).
+        4. **Mises à Jour en Temps Réel** : Fournissez des informations actualisées sur la disponibilité des tables, les événements spéciaux, et les changements de menu.
+        5. **Interaction Naturelle** : Communiquez de manière claire et concise, en posant des questions supplémentaires si nécessaire pour affiner les recommandations.
+        6. **Respect de la Confidentialité** : Assurez-vous que toutes les interactions respectent la vie privée des utilisateurs et que les données sensibles ne sont pas divulguées.
+
+        Objectif :
+        Aider les utilisateurs à découvrir et à choisir des restaurants qui correspondent parfaitement à leurs attentes, en offrant une expérience utilisateur fluide et personnalisée.
+
+        Consignes supplémentaires :
+        - Soyez courtois et professionnel dans vos réponses.
+        - Fournissez des informations vérifiées et évitez les recommandations basées sur des données obsolètes.
+        - Adaptez votre ton en fonction des préférences exprimées par l'utilisateur.
+        """
+
+        # Création du modèle d'IA
+        llm = AugmentedRAG(
+            role_prompt=role_prompt,
+            generation_model="ministral-8b-latest",
+            bdd_chunks=bdd_chunks,
+            top_n=2,
+            max_tokens=3000,
+            temperature=0.5,
+        )
+
+        # Affichage de l'histoire de la conversation
+        for message in st.session_state.messages:
+            if message["role"] == "User":
+                with chat_container.chat_message(message["role"], avatar="👤"):
+                    st.write(message["content"])
+
+            elif message["role"] == "assistant":
+                with chat_container.chat_message(message["role"], avatar="✨"):
+                    st.markdown(message["content"])
+                    metrics = message["metrics"]
+                    st.markdown(
+                        f"📶 *Latence : {metrics['latency']:.2f} secondes* | "
+                        f"💲 *Coût : {metrics['euro_cost']:.6f} €* | "
+                        f"⚡ *Utilisation énergétique : {metrics['energy_usage']} kWh* | "
+                        f"🌡️ *Potentiel de réchauffement global : {metrics['gwp']} kgCO2eq*"
+                    )
+
+        # Text input pour le chat avec l'IA
+        if message := header_container.chat_input(placeholder="Écrivez votre message", key="search_restaurant_temp"):
+            if message.strip():
+
+                # Affichage du message de l'utilisateur
+                with chat_container.chat_message("user", avatar="👤"):
+                    st.write(message)
+
+                # Ajout du message de l'utilisateur à l'historique de la conversation
+                st.session_state.messages.append({"role": "User", "content": message})
+
+                # Récupération de la réponse de l'IA
+                response = llm(
+                    query=message,
+                    history=st.session_state.messages,
+                )
+
+                # Affichage de la réponse de l'IA
+                with chat_container.chat_message("AI", avatar="✨"):
+                    st.markdown(response["response"])
+                    st.markdown(
+                        f"📶 *Latence : {response['latency']:.2f} secondes* | "
+                        f"💲 *Coût : {response['euro_cost']:.6f} €* | "
+                        f"⚡ *Utilisation énergétique : {response['energy_usage']} kWh* | "
+                        f"🌡️ *Potentiel de réchauffement global : {response['gwp']} kgCO2eq*"
+                    )
+
+                # Ajout de la réponse de l'IA à l'historique de la conversation
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": response["response"],
+                    "metrics": {
+                        "latency": response["latency"],
+                        "euro_cost": response["euro_cost"],
+                        "energy_usage": response["energy_usage"],
+                        "gwp": response["gwp"]
+                    }
+                })
 
     # Mise en page des résultats
     results_display_col1, results_display_col2 = st.columns([3, 2])
