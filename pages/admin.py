@@ -6,7 +6,7 @@ from pages.resources.components import Navbar
 import pandas as pd
 from sqlalchemy import inspect, text 
 from sqlalchemy.types import Integer, Float
-from searchengine.trip_finder import SearchEngine
+from searchengine.trip_finder import SearchEngine, restaurant_info_extractor
 import time
 
 
@@ -513,6 +513,7 @@ def get_element_inspector_js():
     </style>
     """
 def scrape_and_embed_tripadvisor(session):
+    st.header("Affichage html des élements HTML d'un restaurant")
     # Récupérer les restaurants non scrappés
     restaurants = get_all_restaurants(session)
     # Filtrer les restaurants non scrappés
@@ -560,6 +561,43 @@ def scrape_and_embed_tripadvisor(session):
                             scrolling=True
                         )
     
+def scrape_restaurant_informations(session):
+    # Récupérer les restaurants non scrappés
+    st.header("Scraper les informations des restaurants")
+    restaurants = get_all_restaurants(session)
+    # Filtrer les restaurants non scrappés
+    non_scrapped_restaurants = [r for r in restaurants if r.scrapped == 0]
+    if not non_scrapped_restaurants:
+        st.warning("Tous les restaurants ont déjà été scrappés.")
+    else:
+        restaurant_names = {r.nom: r for r in non_scrapped_restaurants}
+        selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
+    # Get selected restaurant object
+        restaurant = restaurant_names[selected_name]
+        st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
+        
+        if st.button("Scraper le restaurant", key="scrape_info"):
+                with st.spinner("Récupération des données TripAdvisor..."):
+                    url = restaurant.url_link
+                    search = restaurant_info_extractor()
+                    search.scrape_info(url)
+                    df_avis, df_details, df_location, _ = search.to_dataframe()
+                st.write("Les données ont été scrappées avec succès.")
+                st.write("----")
+                col1,col2, col3 = st.columns(3)
+                with col1:
+                    st.write("Détails du restaurant")
+                    st.write(df_details)
+                with col2:
+                    st.write("Localisation")
+                    st.write(df_location)
+                with col3:
+                    st.write("Avis")
+                    st.write(df_avis)
+        
+                
+               
+    
 
 def main():
     # Barre de navigation
@@ -568,7 +606,8 @@ def main():
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
     scrape_and_embed_tripadvisor(session)
-
+    st.write("----")
+    scrape_restaurant_informations(session)
     # Exécuter la requête SQL personnalisée
     execute_sql_query(session)
     st.write("----")

@@ -453,12 +453,16 @@ class restaurant_info_extractor(SearchEngine):
     
     
     def to_dataframe(self):
-        if self.reviews:
-            df_reviews = pd.DataFrame(self.reviews)
+        df_reviews = pd.DataFrame(self.reviews) if self.reviews else pd.DataFrame()
+       
         if self.restaurant_info:
             df_avis = pd.DataFrame(self.restaurant_info['Notes et avis'], index=[0])
             df_details = pd.DataFrame(self.restaurant_info['Détails'], index=[0])
-            df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0])   
+            df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0]) 
+        else:
+            df_avis = pd.DataFrame()
+            df_details = pd.DataFrame()
+            df_location = pd.DataFrame()  
         return df_avis, df_details, df_location, df_reviews
     
     def to_csv(self):
