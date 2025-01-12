@@ -1,11 +1,23 @@
 import streamlit as st
 import urllib.parse
 import requests
-from pathlib import Path
 import math
 import base64
 import webbrowser
 import pydeck as pdk
+import functools
+import litellm
+import numpy as np
+import time
+import tqdm
+from db.models import Chunk, get_session, init_db
+from sqlalchemy.orm import Session, sessionmaker
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
+from typing import List, Dict, Tuple
+from pathlib import Path
+from ecologits import EcoLogits
+from litellm import ModelResponse
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -391,3 +403,195 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
 
             # Affichage de la carte
             st.pydeck_chart(deck)
+
+# Fonction pour mesurer le temps de réponse de l'IA
+def measure_latency(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        start_time = time.time()
+        result = func(self, *args, **kwargs)
+        end_time = time.time()
+        latency = end_time - start_time
+        self.last_latency = latency
+        return result
+    return wrapper
+
+# Classe pour découper le texte en chunks et ajouter les embeddings à la base de données
+class BDDChunks:
+    # Initialise une instance de BDDChunks
+    def __init__(self, embedding_model: str):
+        self.embedding_model = embedding_model
+        self.embeddings = SentenceTransformer(self.embedding_model)
+        self.session: Session = get_session(init_db())
+
+    # Fonction de découpage du texte en chunks de taille spécifiée
+    def split_text_into_chunks(self, corpus: str, chunk_size: int = 500) -> list[str]:
+        chunks = [
+            corpus[i:i + chunk_size]
+            for i in range(0, len(corpus), chunk_size)
+        ]
+        return chunks
+
+    # Fonction pour ajouter les embeddings des chunks à la base de données
+    def add_embeddings(self, list_chunks: list[str], batch_size: int = 100) -> None:
+        for i in tqdm(range(0, len(list_chunks), batch_size), desc="Ajout des embeddings"):
+            batch = list_chunks[i:i + batch_size]
+            for chunk in batch:
+                embedding = self.embeddings.encode(chunk).tolist()
+                new_chunk = Chunk(text=chunk, embedding=embedding)
+                self.session.add(new_chunk)
+            self.session.commit()
+
+    # Fonction pour exécuter le processus complet de découpage et ajout des embeddings
+    def __call__(self, corpus: str) -> None:
+        chunks = self.split_text_into_chunks(corpus=corpus)
+        self.add_embeddings(list_chunks=chunks)
+
+# Classe pour effectuer un processus RAG augmenté
+class AugmentedRAG:
+    # Initialise la classe AugmentedRAG avec les paramètres fournis
+    def __init__(
+        self,
+        generation_model: str,
+        role_prompt: str,
+        bdd_chunks,
+        max_tokens: int,
+        temperature: float,
+        top_n: int = 2,
+    ) -> None:
+        self.llm = generation_model
+        self.bdd = bdd_chunks
+        self.top_n = top_n
+        self.role_prompt = role_prompt
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.engine = init_db()
+        EcoLogits.init(providers="litellm", electricity_mix_zone="FRA")
+
+    # Fonction pour calculer la similarité cosinus entre deux vecteurs
+    def get_cosim(self, a: np.ndarray, b: np.ndarray) -> float:
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    
+    def get_top_similarity(
+        self,
+        embedding_query: np.ndarray,
+        embedding_chunks: List[np.ndarray],
+        corpus: List[str],
+    ) -> List[str]:
+        cos_sim_list = np.array(
+            [self.get_cosim(embedding_query, emb) for emb in embedding_chunks]
+        )
+        top_indices = np.argsort(cos_sim_list)[-self.top_n:][::-1]
+        return [corpus[i] for i in top_indices]
+    
+    # Fonction pour extraire l'utilisation énergétique et le GWP de la réponse du modèle
+    def _get_energy_usage(self, response: ModelResponse) -> Tuple[float, float]:
+        energy_usage = getattr(response.impacts.energy.value, "min", response.impacts.energy.value)
+        gwp = getattr(response.impacts.gwp.value, "min", response.impacts.gwp.value)
+        return energy_usage, gwp
+    
+    # Fonction pour construire un prompt pour l'IA
+    def build_prompt(
+        self, context: List[str], history: List[Dict[str, str]], query: str
+    ) -> List[Dict[str, str]]:
+        context_joined = "\n".join(context)
+        system_prompt = self.role_prompt
+        history_prompt = "\n".join(
+            [f"{msg['role'].capitalize()}: {msg['content']}" for msg in history]
+        )
+        context_prompt = f"""
+        Tu disposes de la section "Contexte" pour t'aider à répondre aux questions.
+        # Contexte: 
+        {context_joined}
+        """
+        query_prompt = f"""
+        # Question:
+        {query}
+
+        # Réponse:
+        """
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": history_prompt},
+            {"role": "system", "content": context_prompt},
+            {"role": "user", "content": query_prompt},
+        ]
+    
+    # Fonction pour générer une réponse à partir d'un prompt
+    @measure_latency
+    def _generate(self, prompt_dict: List[Dict[str, str]]) -> ModelResponse:
+        response = litellm.completion(
+            model=f"mistral/{self.llm}",
+            messages=prompt_dict,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+        )
+        return response
+    
+    # Fonction pour calculer le coût d'une requête en fonction du nombre de tokens d'entrée et de sortie
+    def _get_price_query(self, llm_name: str, input_tokens: int, output_tokens: int) -> float:
+        pricing = {
+            "ministral-8b-latest": {"input": 0.09, "output": 0.09}
+        }
+        if llm_name not in pricing:
+            raise ValueError(f"LLM {llm_name} not found in pricing database.")
+        cost_input = (input_tokens / 1_000_000) * pricing[llm_name]["input"]
+        cost_output = (output_tokens / 1_000_000) * pricing[llm_name]["output"]
+        return cost_input + cost_output
+    
+    # Fonction pour appeler le modèle LLM avec un prompt donné et retourner la réponse avec les métriques
+    def call_model(self, prompt_dict: List[Dict[str, str]]) -> Dict[str, any]:
+        chat_response: ModelResponse = self._generate(prompt_dict=prompt_dict)
+        input_tokens = chat_response.usage.prompt_tokens
+        output_tokens = chat_response.usage.completion_tokens
+        euro_cost = self._get_price_query(self.llm, input_tokens, output_tokens)
+        energy_usage, gwp = self._get_energy_usage(chat_response)
+        response_text = str(chat_response.choices[0].message.content)
+        return {
+            "response": response_text,
+            "latency": getattr(self, 'last_latency', 0),
+            "euro_cost": euro_cost,
+            "energy_usage": energy_usage,
+            "gwp": gwp
+        }
+    
+    # Fonction pour traiter une requête et retourner une réponse basée sur l'historique fourni et la base de données
+    def __call__(self, query: str, history: List[Dict[str, str]]) -> Dict[str, any]:
+        SessionLocal = sessionmaker(bind=self.engine)
+        session = SessionLocal()
+        try:
+            chunks = session.query(Chunk).all()
+            chunks_embeddings = [np.array(chunk.embedding) for chunk in chunks]
+            chunks_texts = [chunk.text for chunk in chunks]
+            query_embedding = self._get_embedding(query)
+            similarities = [self.get_cosim(query_embedding, emb) for emb in chunks_embeddings]
+            top_indices = np.argsort(similarities)[-self.top_n:][::-1]
+            relevant_chunks = [chunks_texts[i] for i in top_indices]
+            prompt_rag = self.build_prompt(
+                context=relevant_chunks,
+                history=history,
+                query=query
+            )
+            response = self.call_model(prompt_rag)
+
+            return response
+
+        finally:
+            session.close()
+    
+    # Fonction pour calculer la similarité cosinus entre deux vecteurs
+    def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
+        return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+    
+    # Fonction pour obtenir l'embedding d'un texte donné
+    def _get_embedding(self, text: str) -> np.ndarray:
+        model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+        embedding = model.encode(text)
+        return embedding
+
+# Fonction pour instancier BDDChunks
+def instantiate_bdd() -> BDDChunks:
+    bdd_chunks = BDDChunks(embedding_model="paraphrase-MiniLM-L6-v2")
+    corpus = "Votre texte à traiter ici" # [TEMP]
+    bdd_chunks(corpus=corpus)
+    return bdd_chunks

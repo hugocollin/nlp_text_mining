@@ -12,3 +12,16 @@ seaborn
 plotly
 wordcloud
 textblob
+databases
+python-dateutil
+litellm
+jiter
+pydantic
+pydantic-core
+sentence-transformers
+pydeck
+PyMuPDF
+openai
+ecologits
+numpy
+tqdm

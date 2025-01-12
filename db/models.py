@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, Date, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, Text, ForeignKey, Date, Boolean, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker, joinedload
+import uuid
 
 Base = declarative_base()
 
@@ -78,6 +79,11 @@ class User(Base):
 
     avis = relationship("Review", back_populates="user")
 
+class Chunk(Base):
+    __tablename__ = 'chunks'
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    text = Column(Text, nullable=False)
+    embedding = Column(JSON, nullable=False)
 
 def init_db(db_path="sqlite:///restaurant_reviews.db"):
     engine = create_engine(db_path)
