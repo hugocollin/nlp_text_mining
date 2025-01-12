@@ -279,10 +279,22 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
 
     if selected_restaurant:
         # Affichage de l'image du restaurant
-        st.image(selected_restaurant.image)
-
-        # Commencer la section avec l'image de fond
+        st.html(f"""
+        <style>
+        .background-section {{
+            background-image: url("{selected_restaurant.image}");
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            padding: 20px;
+            height: 300px;
+            border-radius: 10px;
+        }}
+        </style>
+        """)
         st.markdown('<div class="background-section">', unsafe_allow_html=True)
+
+        # Affichage des étoiles Michelin
         michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
         if michelin_stars:
             michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
