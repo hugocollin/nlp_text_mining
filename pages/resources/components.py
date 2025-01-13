@@ -310,7 +310,12 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
         # Affichage des étoiles Michelin
         michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
         if michelin_stars:
-            michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+            if selected_restaurant.etoiles_michelin == 1:
+                michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+            elif selected_restaurant.etoiles_michelin == 2:
+                michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
+            elif selected_restaurant.etoiles_michelin == 3:
+                michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
         else:
             michelin_stars_html = ''
         st.html(f"<h1>{selected_restaurant.nom}   {michelin_stars_html}</h1>")
