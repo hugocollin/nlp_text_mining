@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd
 from pages.statistiques import display_restaurant_stats
-from db.models import get_all_restaurants, Chunk
+from src.db.models import get_all_restaurants, Chunk
 from dotenv import find_dotenv, load_dotenv
 
 # Récupération de la clé API Mistral

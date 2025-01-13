@@ -10,7 +10,7 @@ import litellm
 import numpy as np
 import time
 import tqdm
-from db.models import Chunk, get_session, init_db
+from src.db.models import Chunk, get_session, init_db
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
