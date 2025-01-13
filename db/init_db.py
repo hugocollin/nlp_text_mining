@@ -1,9 +1,8 @@
 
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from .models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
+from models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
 import os
 import pandas as pd
 import ast
@@ -12,8 +11,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 
-from .databases import execute_query, fetch_one, create_schema, database_exists, fetch_one_as_dict, fetch_all
-from searchengine import trip_finder as tf
+from databases import execute_query, fetch_one, create_schema, database_exists, fetch_one_as_dict, fetch_all
 from geopy.geocoders import Nominatim
 import locale
 from datetime import datetime
@@ -1024,10 +1022,11 @@ restaurants = get_all_restaurants(session)
     
     # Récupérer les csv des restaurants dans le dossier Data/scrapping
     
-    scrapping_dir = os.path.join("Data", "scrapping_bis")
+    scrapping_dir = os.path.join("Data", "scrapping")
+    # restaurants = get_restaurants_from_folder(scrapping_dir)
     # process_csv_files(scrapping_dir, session, with_reviews=False)
     # print(get_restaurants_from_folder(scrapping_dir))
-    # print(get_restaurants_with_reviews_and_users(session))
+    # restaurants = get_restaurants_with_reviews_and_users(session)
 
     # print(get_restaurants_with_reviews())
     # print(get_scrapped_restaurants())
@@ -1037,14 +1036,11 @@ restaurants = get_all_restaurants(session)
     # latitude, longitude = get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France")
     # print(get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France"))
     # update_restaurant_columns("L'Étage", {"latitude": latitude, "longitude": longitude}, session)
-    url_list = {"Miraflores":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d5002878-Reviews-Miraflores-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
-                "Restaurant Rustique":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d19384388-Reviews-Restaurant_Rustique-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
-                "La Mere Brazier": "https://www.tripadvisor.fr/Restaurant_Review-g187265-d718686-Reviews-La_Mere_Brazier-Lyon_Rhone_Auvergne_Rhone_Alpes.html",
-                      "Le Neuvième Art":"https://www.tripadvisor.fr/Restaurant_Review-g187265-d6852234-Reviews-Le_Neuvieme_Art-Lyon_Rhone_Auvergne_Rhone_Alpes.html"}
-    
-    for restaurant_name, url in url_list.items():
-        
-         update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
+    restaurants = get_restaurants_with_reviews()
+    print(len(restaurants))
+    for restaurant_name in restaurants:
+        print(f"Restaurant : {restaurant_name}")
+        update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
     # update_restaurant_columns(restaurant_name, {"url_link": url}, session)
     # print(get_restaurant(session=session, restaurant_name="L'Étage"))
 
