@@ -1,4 +1,4 @@
-from NlpAnalyse import NLPAnalysis
+from analyse import NLPAnalysis
 
 def test_nlp_analysis():
     # Instanciation de la classe
