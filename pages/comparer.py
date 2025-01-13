@@ -98,7 +98,12 @@ def main():
                 st.write("**Notations :**")
                 michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
                 if michelin_stars:
-                    michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+                    if restaurant.etoiles_michelin == 1:
+                        michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+                    elif restaurant.etoiles_michelin == 2:
+                        michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
+                    elif restaurant.etoiles_michelin == 3:
+                        michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
                 else:
                     michelin_stars_html = ' Aucune'
                 st.html(f"<li><b>Étoiles Michelin :</b>{michelin_stars_html}</li>")
