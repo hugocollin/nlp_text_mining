@@ -1,28 +1,44 @@
-# nlp_text_mining
+# README : MLOps
 
-## Introduction
+## Table of contents
+- [Description](#description)
+- [Fonctionnalités principales](#fonctionnalités-principales)
+- [Structure du projet](#structure-du-projet)
+- [Installation](#installation)
+- [Utilisation](#utilisation)
+- [Contribution](#contribution)
+- [Auteurs](#auteurs)
 
-**nlp_text_mining** is a Python-based project focused on natural language processing (NLP) and text mining. It leverages various utilities and search engine integrations to analyze and extract meaningful insights from textual data.
+## Description
 
-## Project Structure
 
-- **[app.py](app.py)**: The main application script.
-- **[requirements.txt](requirements.txt)**: Lists the project dependencies.
-- **[.streamlit/config.toml](.streamlit/config.toml)**: Configuration file for Streamlit.
-- **Pages**
-  - **[pages/page1.py](pages/page1.py)**
-  - **[pages/page2.py](pages/page2.py)**
-- **Search Engine**
-  - **[search-engine/Les_Terrasses.html](search-engine/Les_Terrasses.html)**
-  - **[search-engine/tripadvisor.html](search-engine/tripadvisor.html)**
-  - **[search-engine/review_nb.ipynb](search-engine/review_nb.ipynb)**
-  - **[search-engine/Untitled-1.py](search-engine/Untitled-1.py)**
-- **Utils**
-  - **[utils/components.py](utils/components.py)**
-  - **[utils/utils_geo.py](utils/utils_geo.py)**
+
+### Fonctionnalités principales
+
+
+
+### Structure du projet
+
+```bash
+
+```
 
 ## Installation
 
-1. **Clone the repository**
-   ```sh
-   git clone https://github.com/yourusername/nlp_text_mining.git
+
+
+## Utilisation
+
+
+
+## Contribution
+
+Toutes les contributions sont les bienvenues ! Voici comment vous pouvez contribuer :
+
+1. Forkez le projet.
+2. Créez votre branche de fonctionnalité  (`git checkout -b feature/AmazingFeature`).
+3. Commitez vos changements (`git commit -m 'Add some AmazingFeature'`).
+4. Pushez sur la branche (`git push origin feature/AmazingFeature`).
+5. Ouvrez une Pull Request. 
+
+## Auteurs
