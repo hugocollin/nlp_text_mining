@@ -128,4 +128,7 @@ if __name__ == "__main__":
     nlp_analysis = NLPAnalysis()
     # Assurez-vous que les données sont chargées et vectorisées
     # nlp_analysis.load_and_vectorize_data()
+
     nlp_analysis.visualize_tokens_3d()
+    nlp_analysis.visualize_tokens_3d()
+
