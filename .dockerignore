@@ -1,0 +1,13 @@
+# Ignorer tous les répertoires __pycache__
+__pycache__/
+
+# Ignorer le répertoire testing
+testing/
+
+# Ignorer tous les fichiers compilés Python
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorer le fichier markdown
+.md

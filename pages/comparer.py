@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar, display_michelin_stars, display_stars, display_restaurant_infos, get_personal_address, tcl_api
 from pages.statistiques import display_restaurant_stats
-from db.models import get_all_restaurants
+from src.db.models import get_all_restaurants
 
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto - Comparer", page_icon="🍽️", layout="wide")

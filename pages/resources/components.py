@@ -10,7 +10,7 @@ import litellm
 import numpy as np
 import time
 import tqdm
-from db.models import Chunk, get_session, init_db
+from src.db.models import Chunk, get_session, init_db
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -327,15 +327,54 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
         # Affichage des informations de la colonne 1
         with col1:
             info_container = st.container()
-            if info_container.button(icon="📍", label=selected_restaurant.adresse):
-                lien_gm = get_google_maps_link(selected_restaurant.adresse)
-                webbrowser.open_new_tab(lien_gm)
-            if info_container.button(icon="🌐", label="Lien vers Tripadvisor"):
-                webbrowser.open_new_tab(selected_restaurant.url_link)
-            if info_container.button(icon="📧", label=selected_restaurant.email):
-                webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
-            if info_container.button(icon="📞", label=selected_restaurant.telephone):
-                webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
+            # Générer les URLs
+            lien_gm = get_google_maps_link(selected_restaurant.adresse)
+            tripadvisor_link = selected_restaurant.url_link
+            email_link = f"mailto:{selected_restaurant.email}"
+            tel_link = f"tel:{selected_restaurant.telephone}"
+
+            # Affichage des boutons pour les liens
+            info_container.markdown(f'''
+                <style>
+                    .custom-button {{
+                        display: block;
+                        padding: 6px 12px;
+                        margin-bottom: 15px;
+                        color: #31333e;
+                        border: 1px solid #d6d6d8;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        background-color: transparent;
+                        transition: background-color 0.3s;
+                    }}
+                    .custom-button:hover {{
+                        color: #FF4B4B;
+                        border-color: #FF4B4B;
+                    }}
+                    .custom-button:active {{
+                        background-color: #FF4B4B;
+                    }}
+                    @media (prefers-color-scheme: dark) {{
+                        .custom-button {{
+                            color: #fafafa;
+                            border-color: #3e4044;
+                            background-color: #14171f;
+                        }}
+                    }}
+                </style>
+                <a href="{lien_gm}" target="_blank" style="text-decoration: none;">
+                    <button class="custom-button">📍 {selected_restaurant.adresse}</button>
+                </a>
+                <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
+                    <button class="custom-button">🌐 Lien vers Tripadvisor</button>
+                </a>
+                <a href="{email_link}" target="_blank" style="text-decoration: none;">
+                    <button class="custom-button">📧 {selected_restaurant.email}</button>
+                </a>
+                <a href="{tel_link}" target="_blank" style="text-decoration: none;">
+                    <button class="custom-button">📞 {selected_restaurant.telephone}</button>
+                </a>
+            ''', unsafe_allow_html=True)
             
             info_supp_container = st.container(border=True)
             info_supp_container.write("**Informations complémentaires**")
@@ -363,8 +402,11 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
             journeys_container.write(f"🚌 {duration_public}")
             journeys_container.write(f"🚗 {duration_car}")
             if tcl_url:
-                if journeys_container.button(label="Consulter les itinéraires TCL"):
-                    webbrowser.open_new_tab(tcl_url)
+                journeys_container.markdown(f'''
+                    <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
+                        <button class="custom-button">Consulter les itinéraires TCL</button>
+                    </a>
+                ''', unsafe_allow_html=True)
             else:
                 emoji, fastest_duration = fastest_mode
                 bouton_label = f"{emoji} {fastest_duration}"

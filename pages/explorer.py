@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd
 from pages.statistiques import display_restaurant_stats
-from db.models import get_all_restaurants, Chunk
+from src.db.models import get_all_restaurants, Chunk
 from dotenv import find_dotenv, load_dotenv
 
 # Récupération de la clé API Mistral
@@ -514,8 +514,38 @@ def main():
                 bouton_label = f"{emoji} {fastest_duration}"
                 button_key = f"trajet_btn_{restaurant.id_restaurant}"
                 if tcl_url:
-                    if col5.button(bouton_label, key=button_key):
-                        webbrowser.open_new_tab(tcl_url)
+                    col5.markdown(f'''
+                        <style>
+                            .custom-button {{
+                                display: block;
+                                padding: 6px 12px;
+                                margin-bottom: 15px;
+                                color: #31333e;
+                                border: 1px solid #d6d6d8;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                background-color: transparent;
+                                transition: background-color 0.3s;
+                            }}
+                            .custom-button:hover {{
+                                color: #FF4B4B;
+                                border-color: #FF4B4B;
+                            }}
+                            .custom-button:active {{
+                                background-color: #FF4B4B;
+                            }}
+                            @media (prefers-color-scheme: dark) {{
+                                .custom-button {{
+                                    color: #fafafa;
+                                    border-color: #3e4044;
+                                    background-color: #14171f;
+                                }}
+                            }}
+                        </style>
+                        <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button">{bouton_label}</button>
+                        </a>
+                    ''', unsafe_allow_html=True)
                 else:
                     col5.button(bouton_label, key=button_key, disabled=True)
             

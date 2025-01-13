@@ -1,7 +1,6 @@
 requests
 pandas
 beautifulsoup4
-fake-useragent
 geopy
 streamlit
 SQLAlchemy
@@ -20,8 +19,6 @@ pydantic
 pydantic-core
 sentence-transformers
 pydeck
-PyMuPDF
-openai
 ecologits
 numpy
 tqdm

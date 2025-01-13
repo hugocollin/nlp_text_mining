@@ -6,8 +6,5 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Ignorer l'environnement virtuel
-.conda
-
 # Ignorer le fichier d'environnement
 .env
