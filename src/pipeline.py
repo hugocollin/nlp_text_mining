@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 from db.models import get_user_and_review_from_restaurant_id
 from nlp.pretraitement import NLPPretraitement
+from searchengine import SearchEngine
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')
 Session = sessionmaker(bind=engine)
