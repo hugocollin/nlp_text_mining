@@ -17,7 +17,6 @@ from sqlalchemy import Table, MetaData
 from sqlalchemy.dialects.sqlite import insert
 from db.init_db import fill_resume_avis_column, fill_review_cleaned_column
 
-
 class NLPPretraitement:
     def __init__(self, db_url='sqlite:///restaurant_reviews.db'):
         # Connexion à la base de données
@@ -70,8 +69,8 @@ class NLPPretraitement:
     
     def sauvegarder_donnees(self):
         try:
-            fill_resume_avis_column(self.session, self.avis_restaurants) # mettre le bon df
             fill_review_cleaned_column(self.session, self.avis_restaurants)
 
         except Exception as e:
             print(f"Erreur lors de la sauvegarde des données: {e}")
+
