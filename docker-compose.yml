@@ -11,5 +11,5 @@ services:
       STREAMLIT_SERVER_ENABLECORS: "false"
     volumes:
       - .:/app
-      - ./db:/app/db
+      - ./src/db:/app/src/db
     restart: unless-stopped

@@ -12,12 +12,7 @@ RUN pip install -r requirements.txt
 WORKDIR /app
 
 # Copie des fichiers de l'application
-COPY .env .
-COPY *.py ./
-COPY *.db ./
-COPY .streamlit/ .streamlit/
-COPY pages/ pages/
-COPY src/ src/
+COPY . .
 
 # Ouverture du port Streamlit
 EXPOSE 8501
