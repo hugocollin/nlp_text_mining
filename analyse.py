@@ -1,6 +1,13 @@
 import pandas as pd
 import numpy as np
 import re
+
+import sys 
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from db.models import get_restaurants_with_reviews_and_users
@@ -125,7 +132,8 @@ class NLPAnalysis:
 
 # Exemple d'utilisation
 if __name__ == "__main__":
-    nlp_analysis = NLPAnalysis()
-    # Assurez-vous que les données sont chargées et vectorisées
+    print("hey")
+    # nlp_analysis = NLPAnalysis()
+    # # Assurez-vous que les données sont chargées et vectorisées
     # nlp_analysis.load_and_vectorize_data()
-    nlp_analysis.visualize_tokens_3d()
+    # nlp_analysis.visualize_tokens_3d()

@@ -1,3 +1,8 @@
+
+import sys 
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from analyse import NLPAnalysis
 
 def test_nlp_analysis():

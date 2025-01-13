@@ -26,3 +26,5 @@ ecologits
 numpy
 tqdm
 rapidfuzz
+tensorflow
+umap
