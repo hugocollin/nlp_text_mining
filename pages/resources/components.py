@@ -333,13 +333,13 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
             email_link = f"mailto:{selected_restaurant.email}"
             tel_link = f"tel:{selected_restaurant.telephone}"
 
-            # Afficher les liens cliquables avec des icônes
+            # Affichage des boutons pour les liens
             info_container.markdown(f'''
                 <style>
                     .custom-button {{
                         display: block;
-                        padding: 8px 12px;
-                        margin-bottom: 5px;
+                        padding: 6px 12px;
+                        margin-bottom: 15px;
                         color: #31333e;
                         border: 1px solid #d6d6d8;
                         border-radius: 8px;
@@ -358,6 +358,7 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
                         .custom-button {{
                             color: #fafafa;
                             border-color: #3e4044;
+                            background-color: #14171f;
                         }}
                     }}
                 </style>
@@ -401,8 +402,11 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
             journeys_container.write(f"🚌 {duration_public}")
             journeys_container.write(f"🚗 {duration_car}")
             if tcl_url:
-                if journeys_container.button(label="Consulter les itinéraires TCL"):
-                    webbrowser.open_new_tab(tcl_url)
+                journeys_container.markdown(f'''
+                    <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
+                        <button class="custom-button">Consulter les itinéraires TCL</button>
+                    </a>
+                ''', unsafe_allow_html=True)
             else:
                 emoji, fastest_duration = fastest_mode
                 bouton_label = f"{emoji} {fastest_duration}"

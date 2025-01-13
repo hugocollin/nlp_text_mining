@@ -514,8 +514,38 @@ def main():
                 bouton_label = f"{emoji} {fastest_duration}"
                 button_key = f"trajet_btn_{restaurant.id_restaurant}"
                 if tcl_url:
-                    if col5.button(bouton_label, key=button_key):
-                        webbrowser.open_new_tab(tcl_url)
+                    col5.markdown(f'''
+                        <style>
+                            .custom-button {{
+                                display: block;
+                                padding: 6px 12px;
+                                margin-bottom: 15px;
+                                color: #31333e;
+                                border: 1px solid #d6d6d8;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                background-color: transparent;
+                                transition: background-color 0.3s;
+                            }}
+                            .custom-button:hover {{
+                                color: #FF4B4B;
+                                border-color: #FF4B4B;
+                            }}
+                            .custom-button:active {{
+                                background-color: #FF4B4B;
+                            }}
+                            @media (prefers-color-scheme: dark) {{
+                                .custom-button {{
+                                    color: #fafafa;
+                                    border-color: #3e4044;
+                                    background-color: #14171f;
+                                }}
+                            }}
+                        </style>
+                        <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button">{bouton_label}</button>
+                        </a>
+                    ''', unsafe_allow_html=True)
                 else:
                     col5.button(bouton_label, key=button_key, disabled=True)
             
