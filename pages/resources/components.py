@@ -334,21 +334,31 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
             tel_link = f"tel:{selected_restaurant.telephone}"
 
             # Afficher les liens cliquables avec des icônes
-            info_container.html(f'''
+            info_container.markdown(f'''
                 <style>
                     .custom-button {{
                         display: block;
                         padding: 8px 12px;
                         margin-bottom: 5px;
-                        border: 1px solid #ccc;
+                        color: #31333e;
+                        border: 1px solid #d6d6d8;
                         border-radius: 8px;
                         cursor: pointer;
-                        background-color: white;
-                        color: black;
+                        background-color: transparent;
                         transition: background-color 0.3s;
                     }}
                     .custom-button:hover {{
-                        background-color: #f0f0f0;
+                        color: #FF4B4B;
+                        border-color: #FF4B4B;
+                    }}
+                    .custom-button:active {{
+                        background-color: #FF4B4B;
+                    }}
+                    @media (prefers-color-scheme: dark) {{
+                        .custom-button {{
+                            color: #fafafa;
+                            border-color: #3e4044;
+                        }}
                     }}
                 </style>
                 <a href="{lien_gm}" target="_blank" style="text-decoration: none;">
@@ -363,7 +373,7 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
                 <a href="{tel_link}" target="_blank" style="text-decoration: none;">
                     <button class="custom-button">📞 {selected_restaurant.telephone}</button>
                 </a>
-            ''')
+            ''', unsafe_allow_html=True)
             
             info_supp_container = st.container(border=True)
             info_supp_container.write("**Informations complémentaires**")
