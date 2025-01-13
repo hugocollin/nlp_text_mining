@@ -13,6 +13,10 @@ from sklearn.metrics import accuracy_score
 from transformers import pipeline
 from concurrent.futures import ThreadPoolExecutor
 from wordcloud import WordCloud
+import umap
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn.cluster import KMeans
 
 class NLPAnalysis:
     def __init__(self, db_path='sqlite:///restaurant_reviews.db'):
@@ -95,3 +99,33 @@ class NLPAnalysis:
         wordcloud = WordCloud(width=800, height=400, background_color='white').generate(tous_avis)
         return wordcloud
 
+    def visualize_tokens_3d(self, num_clusters=5):
+        # Assurez-vous que les données sont vectorisées
+        if self.data.empty:
+            raise ValueError("Data is not loaded or vectorized")
+
+        # Utiliser UMAP pour réduire la dimensionnalité à 3D
+        reducer = umap.UMAP(n_components=3)
+        embeddings = reducer.fit_transform(self.data)
+
+        # Utiliser KMeans pour le clustering
+        kmeans = KMeans(n_clusters=num_clusters)
+        clusters = kmeans.fit_predict(embeddings)
+
+        # Visualiser les résultats en 3D
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        scatter = ax.scatter(embeddings[:, 0], embeddings[:, 1], embeddings[:, 2], c=clusters, cmap='viridis')
+
+        # Ajouter une légende
+        legend1 = ax.legend(*scatter.legend_elements(), title="Clusters")
+        ax.add_artist(legend1)
+
+        plt.show()
+
+# Exemple d'utilisation
+if __name__ == "__main__":
+    nlp_analysis = NLPAnalysis()
+    # Assurez-vous que les données sont chargées et vectorisées
+    # nlp_analysis.load_and_vectorize_data()
+    nlp_analysis.visualize_tokens_3d()

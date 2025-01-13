@@ -7,11 +7,15 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 from db.models import get_restaurants_with_reviews_and_users
 from sqlalchemy import Table, MetaData
 from sqlalchemy.dialects.sqlite import insert
 from db.init_db import fill_resume_avis_column, fill_review_cleaned_column
-
 
 class NLPPretraitement:
     def __init__(self, db_url='sqlite:///restaurant_reviews.db'):
@@ -65,8 +69,8 @@ class NLPPretraitement:
     
     def sauvegarder_donnees(self):
         try:
-            fill_resume_avis_column(self.session, self.avis_restaurants) # mettre le bon df
             fill_review_cleaned_column(self.session, self.avis_restaurants)
 
         except Exception as e:
             print(f"Erreur lors de la sauvegarde des données: {e}")
+

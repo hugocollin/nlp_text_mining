@@ -1,4 +1,4 @@
-from NlpAnalyse import NLPAnalysis
+from analyse import NLPAnalysis
 
 def test_nlp_analysis():
     # Instanciation de la classe
@@ -26,3 +26,4 @@ def test_nlp_analysis():
 # Exécution du test
 if __name__ == "__main__":
     test_nlp_analysis()
+    
