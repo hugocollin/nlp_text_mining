@@ -1,4 +1,4 @@
-# README : MLOps
+# README : NLP Text Mining
 
 ## Table of contents
 - [Description](#description)
