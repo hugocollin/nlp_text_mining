@@ -28,3 +28,4 @@ tqdm
 rapidfuzz
 tensorflow
 umap
+tf-keras
