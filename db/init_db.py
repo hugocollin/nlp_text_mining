@@ -1,5 +1,9 @@
-from models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
+
 import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from .models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
 import os
 import pandas as pd
 import ast
@@ -7,9 +11,8 @@ from sqlalchemy import update, select, exists, create_engine, text, MetaData, Co
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from databases import execute_query, fetch_one, create_schema, database_exists, fetch_one_as_dict, fetch_all
+from .databases import execute_query, fetch_one, create_schema, database_exists, fetch_one_as_dict, fetch_all
 from searchengine import trip_finder as tf
 from geopy.geocoders import Nominatim
 import locale

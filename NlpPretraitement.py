@@ -7,6 +7,11 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 from db.models import get_restaurants_with_reviews_and_users
 from sqlalchemy import Table, MetaData
 from sqlalchemy.dialects.sqlite import insert
