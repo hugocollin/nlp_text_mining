@@ -16,9 +16,8 @@ COPY .env .
 COPY *.py ./
 COPY *.db ./
 COPY .streamlit/ .streamlit/
-COPY db/ db/
 COPY pages/ pages/
-COPY searchengine/ searchengine/
+COPY src/ src/
 
 # Ouverture du port Streamlit
 EXPOSE 8501
