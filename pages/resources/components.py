@@ -327,15 +327,43 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
         # Affichage des informations de la colonne 1
         with col1:
             info_container = st.container()
-            if info_container.button(icon="📍", label=selected_restaurant.adresse):
-                lien_gm = get_google_maps_link(selected_restaurant.adresse)
-                webbrowser.open_new_tab(lien_gm)
-            if info_container.button(icon="🌐", label="Lien vers Tripadvisor"):
-                webbrowser.open_new_tab(selected_restaurant.url_link)
-            if info_container.button(icon="📧", label=selected_restaurant.email):
-                webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
-            if info_container.button(icon="📞", label=selected_restaurant.telephone):
-                webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
+            # Générer les URLs
+            lien_gm = get_google_maps_link(selected_restaurant.adresse)
+            tripadvisor_link = selected_restaurant.url_link
+            email_link = f"mailto:{selected_restaurant.email}"
+            tel_link = f"tel:{selected_restaurant.telephone}"
+
+            # Afficher les liens cliquables avec des icônes
+            info_container.html(f'''
+                <style>
+                    .custom-button {{
+                        display: block;
+                        padding: 8px 12px;
+                        margin-bottom: 5px;
+                        border: 1px solid #ccc;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        background-color: white;
+                        color: black;
+                        transition: background-color 0.3s;
+                    }}
+                    .custom-button:hover {{
+                        background-color: #f0f0f0;
+                    }}
+                </style>
+                <a href="{lien_gm}" target="_blank" style="text-decoration: none;">
+                    <button class="custom-button">📍 {selected_restaurant.adresse}</button>
+                </a>
+                <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
+                    <button class="custom-button">🌐 Lien vers Tripadvisor</button>
+                </a>
+                <a href="{email_link}" target="_blank" style="text-decoration: none;">
+                    <button class="custom-button">📧 {selected_restaurant.email}</button>
+                </a>
+                <a href="{tel_link}" target="_blank" style="text-decoration: none;">
+                    <button class="custom-button">📞 {selected_restaurant.telephone}</button>
+                </a>
+            ''')
             
             info_supp_container = st.container(border=True)
             info_supp_container.write("**Informations complémentaires**")
