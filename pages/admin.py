@@ -1,12 +1,12 @@
 import streamlit as st
-from db.models import  get_all_restaurants
+from src.db.models import  get_all_restaurants
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar
 import pandas as pd
 from sqlalchemy import inspect, text 
 from sqlalchemy.types import Integer, Float
-from searchengine.trip_finder import SearchEngine, restaurant_info_extractor
+from src.searchengine.trip_finder import SearchEngine, restaurant_info_extractor
 import time
 
 

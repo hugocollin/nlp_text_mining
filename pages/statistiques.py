@@ -1,5 +1,5 @@
 import streamlit as st
-from db.models import get_user_and_review_from_restaurant_id , get_all_restaurants
+from src.db.models import get_user_and_review_from_restaurant_id , get_all_restaurants
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import display_stars
