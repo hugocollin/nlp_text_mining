@@ -1,8 +1,12 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import sys 
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from db.models import get_user_and_review_from_restaurant_id
-from NlpPretraitement import NLPPretraitement
+from pretraitement import NLPPretraitement
 # Connexion à la base de données
 engine = create_engine('sqlite:///restaurant_reviews.db')
 Session = sessionmaker(bind=engine)
