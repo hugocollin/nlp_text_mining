@@ -55,4 +55,27 @@ def fetch_one(query, params=None):
     with closing(get_connection()) as conn:
         with closing(conn.cursor()) as cursor:
             cursor.execute(query, params)
-            return cursor.fetchone()
+            return cursor.fetchone()        
+
+
+def get_table_columns(table_name):
+    """Récupère les noms des colonnes d'une table dans la base de données"""    
+    with closing(get_connection()) as conn:
+        with closing(conn.cursor()) as cursor:
+            # Utilisation de PRAGMA table_info pour obtenir les colonnes
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            columns_info = cursor.fetchall()
+            # La deuxième colonne contient les noms des colonnes
+            return [col[1] for col in columns_info]
+        
+
+def fetch_one_as_dict(query, params=None, table_name=None):
+    """
+    Récupère une seule ligne d'une requête SELECT et la retourne sous forme de dictionnaire.
+    """
+    params = params or []
+    result = fetch_one(query, params)
+    if result and table_name:
+        columns = get_table_columns(table_name)
+        return dict(zip(columns, result))
+    return None

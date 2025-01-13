@@ -1,12 +1,23 @@
 import streamlit as st
-from geopy.geocoders import Nominatim
 import urllib.parse
 import requests
-from pathlib import Path
-import concurrent.futures
 import math
-import numpy
 import base64
+import webbrowser
+import pydeck as pdk
+import functools
+import litellm
+import numpy as np
+import time
+import tqdm
+from db.models import Chunk, get_session, init_db
+from sqlalchemy.orm import Session, sessionmaker
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
+from typing import List, Dict, Tuple
+from pathlib import Path
+from ecologits import EcoLogits
+from litellm import ModelResponse
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -14,6 +25,7 @@ def Navbar():
         st.page_link('app.py', label='Accueil', icon='🏠')
         st.page_link('pages/explorer.py', label='Explorer', icon='🔍')
         st.page_link('pages/comparer.py', label='Comparer', icon='🆚')
+        st.page_link('pages/admin.py', label='Admin', icon='🔒')
 
 # Fonction pour calculer la distance entre deux points
 def haversine(lat1, lon1, lat2, lon2):
@@ -39,56 +51,17 @@ def haversine(lat1, lon1, lat2, lon2):
     return distance
 
 # Fonction pour enregistrer l'adresse personnelle
-def get_personnal_address():
-    return st.session_state.get('personal_address')
-
-# Fonction pour obtenir les coordonnées d'une adresse
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_coordinates(address):
-    geolocator = Nominatim(user_agent="sise_o_resto", timeout=15)
-    current_address = address
-    while True:
-        location = geolocator.geocode(f"{current_address}, Rhône, France")
-        if location:
-            return location.latitude, location.longitude
-        # Nettoyage de l'adresse si la géolocalisation a échoué
-        if ',' in current_address:
-            before_comma, after_comma = current_address.split(',', 1)
-            before_words = before_comma.strip().split(' ')
-            if len(before_words) > 1:
-                before_words = before_words[:-1]
-                new_before = ' '.join(before_words)
-                current_address = f"{new_before}, {after_comma.strip()}"
-            else:
-                current_address = after_comma.strip()
-        else:
-            break
-    return None, None
-
-# Fonction pour récupérer les coordonnées des restaurants
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_restaurant_coordinates(restaurants):
-    coordinates = []
-
-    # Récupération des coordonnées géographiques de chaque restaurant
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_info = {executor.submit(get_coordinates, addr): name for name, addr in restaurants}
-        for future in concurrent.futures.as_completed(future_to_info):
-            name = future_to_info[future]
-            lat, lon = future.result()
-            if lat and lon:
-                coordinates.append({
-                    'name': name,
-                    'lat': lat,
-                    'lon': lon
-                })
-    return coordinates
+def get_personal_address():
+    personal_address = st.session_state.get('personal_address')
+    personal_latitude = st.session_state.get('personal_latitude')
+    personal_longitude = st.session_state.get('personal_longitude')
+    return personal_address, personal_latitude, personal_longitude
 
 # Fonction pour filtrer les restaurants par rayon
-def filter_restaurants_by_radius(restaurants, center_lat, center_lon, radius):
+def filter_restaurants_by_radius(restaurants, personal_latitude, personal_longitude, radius):
     filtered = []
     for restaurant in restaurants:
-        distance = haversine(center_lat, center_lon, restaurant['lat'], restaurant['lon'])
+        distance = haversine(personal_latitude, personal_longitude, restaurant["latitude"], restaurant["longitude"])
         if distance <= radius:
             filtered.append(restaurant)
     return filtered
@@ -172,19 +145,28 @@ def display_stars(rating):
                 stars.append("")
     return stars
 
+# Fonction pour ajouter un restaurant au comparateur
+def add_to_comparator(restaurant):
+    comparator = st.session_state['comparator']
+    if restaurant.id_restaurant not in comparator:
+        if len(comparator) < 3:
+            comparator.append(restaurant.id_restaurant)
+            st.session_state['comparator'] = comparator
+            st.toast(f"Le restaurant {restaurant.nom} a été ajouté au comparateur", icon="🆚")
+        else:
+            st.toast("Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre", icon="ℹ️")
+    else:
+        st.toast(f"Le restaurant {restaurant.nom} est déjà dans le comparateur", icon="ℹ️")
+
 # Fonction pour obtenir les informations de trajet depuis le site TCL
 @st.cache_data(ttl=300, show_spinner=False)
-def tcl_api(personal_address, restaurant_address):
+def tcl_api(personal_address, personal_latitude, personal_longitude, restaurant_latitude, restaurant_longitude):
     
     if personal_address:
-        # Récupération des coordonnées de l'adresse personnelle et du restaurant
-        dep_lat, dep_lon = get_coordinates(personal_address)
-        arr_lat, arr_lon = get_coordinates(restaurant_address)
-        
         # Si les coordonnées sont valides
-        if dep_lat and dep_lon and arr_lat and arr_lon:
-            from_coord = f"{dep_lon};{dep_lat}"
-            to_coord = f"{arr_lon};{arr_lat}"
+        if personal_latitude and personal_longitude and restaurant_latitude and restaurant_longitude:
+            from_coord = f"{personal_longitude};{personal_latitude}"
+            to_coord = f"{restaurant_longitude};{restaurant_latitude}"
             encoded_from = urllib.parse.quote(from_coord)
             encoded_to = urllib.parse.quote(to_coord)
             
@@ -212,7 +194,7 @@ def tcl_api(personal_address, restaurant_address):
             try:
                 response = requests.get(tcl_api_url, headers=headers, timeout=10)
             except requests.RequestException:
-                st.toast("❌ Erreur lors de la récupération des données de transport.")
+                st.toast("Erreur lors de la récupération des données de transport.", icon="❌")
                 return None, "Trajet indisponible", "Trajet indisponible", "Trajet indisponible", ("❌", "Trajet indisponible")
 
             duration_public = "Trajet indisponible"
@@ -298,21 +280,323 @@ def tcl_api(personal_address, restaurant_address):
 
     return None, "Trajet indisponible", "Trajet indisponible", "Trajet indisponible", ("❌", "Trajet indisponible")
 
-# Fonction pour ajouter un restaurant au comparateur
-def add_to_comparator(restaurant):
-    comparator = st.session_state['comparator']
-    if restaurant.id_restaurant not in comparator:
-        if len(comparator) < 3:
-            comparator.append(restaurant.id_restaurant)
-            st.session_state['comparator'] = comparator
-            st.toast(f"🆚 {restaurant.nom} ajouté au comparateur!")
-        else:
-            st.toast("⚠️ Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre")
-    else:
-        st.toast(f"ℹ️ {restaurant.nom} est déjà dans le comparateur.")
-
-
 # Fonction de traitement des restaurants
-def process_restaurant(personal_address, restaurant):
-    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, restaurant.adresse)
+def process_restaurant(personal_address, personal_latitude, personal_longitude, restaurant):
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
     return (restaurant, tcl_url, fastest_mode)
+
+# Récupération des informations du restaurant sélectionné
+def display_restaurant_infos(personal_address, personal_latitude, personal_longitude):
+    selected_restaurant = st.session_state.get('selected_restaurant')
+    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, selected_restaurant.latitude, selected_restaurant.longitude)
+
+    if selected_restaurant:
+        # Affichage de l'image du restaurant
+        st.html(f"""
+        <style>
+        .background-section {{
+            background-image: url("{selected_restaurant.image}");
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            padding: 20px;
+            height: 300px;
+            border-radius: 10px;
+        }}
+        </style>
+        """)
+        st.markdown('<div class="background-section">', unsafe_allow_html=True)
+
+        # Affichage des étoiles Michelin
+        michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+        if michelin_stars:
+            if selected_restaurant.etoiles_michelin == 1:
+                michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+            elif selected_restaurant.etoiles_michelin == 2:
+                michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
+            elif selected_restaurant.etoiles_michelin == 3:
+                michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
+        else:
+            michelin_stars_html = ''
+        st.html(f"<h1>{selected_restaurant.nom}   {michelin_stars_html}</h1>")
+        
+        # Mise en page des informations
+        container = st.container()
+        col1, col2 = container.columns([0.64, 0.36])
+
+        # Affichage des informations de la colonne 1
+        with col1:
+            info_container = st.container()
+            if info_container.button(icon="📍", label=selected_restaurant.adresse):
+                lien_gm = get_google_maps_link(selected_restaurant.adresse)
+                webbrowser.open_new_tab(lien_gm)
+            if info_container.button(icon="🌐", label="Lien vers Tripadvisor"):
+                webbrowser.open_new_tab(selected_restaurant.url_link)
+            if info_container.button(icon="📧", label=selected_restaurant.email):
+                webbrowser.open_new_tab(f"mailto:{selected_restaurant.email}")
+            if info_container.button(icon="📞", label=selected_restaurant.telephone):
+                webbrowser.open_new_tab(f"tel:{selected_restaurant.telephone}")
+            
+            info_supp_container = st.container(border=True)
+            info_supp_container.write("**Informations complémentaires**")
+            info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+            info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+
+        # Affichage des informations de la colonne 2
+        with col2:
+            score_container = st.container(border=True)
+            
+            # Affichage des notations
+            score_container.write("**Notations**")
+            stars = display_stars(selected_restaurant.note_globale)
+            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+            score_container.html(f"<b>Globale : </b>{stars_html}")
+            score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
+            score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
+            score_container.write(f"**Service :** {selected_restaurant.service_note}")
+            score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
+            
+            # Affichage des temps de trajet
+            journeys_container = st.container(border=True)
+            journeys_container.write("**Temps de trajet**")
+            journeys_container.write(f"🚲 {duration_soft}")
+            journeys_container.write(f"🚌 {duration_public}")
+            journeys_container.write(f"🚗 {duration_car}")
+            if tcl_url:
+                if journeys_container.button(label="Consulter les itinéraires TCL"):
+                    webbrowser.open_new_tab(tcl_url)
+            else:
+                emoji, fastest_duration = fastest_mode
+                bouton_label = f"{emoji} {fastest_duration}"
+                journeys_container.button(label=bouton_label, disabled=True)
+            
+            # Définition de la vue de la carte
+            view = pdk.ViewState(
+                latitude=selected_restaurant.latitude,
+                longitude=selected_restaurant.longitude,
+                zoom=13,
+                pitch=0
+            )
+
+            # Définition de la couche de la carte
+            layer = pdk.Layer(
+                'ScatterplotLayer',
+                data=[{'position': [selected_restaurant.longitude, selected_restaurant.latitude]}],
+                get_position='position',
+                get_color='[255, 0, 0]',
+                get_radius=25,
+                pickable=True,
+                auto_highlight=True
+            )
+
+            # Paramètres de l'infos-bulle
+            tooltip = {
+                "html": f"<b>{selected_restaurant.nom}</b>",
+                "style": {
+                    "backgroundColor": "white",
+                    "color": "black"
+                }
+            }
+
+            # Définition du rendu PyDeck
+            deck = pdk.Deck(
+                layers=layer,
+                initial_view_state=view,
+                tooltip=tooltip,
+                map_style='mapbox://styles/mapbox/light-v11'
+            )
+
+            # Affichage de la carte
+            st.pydeck_chart(deck)
+
+# Fonction pour mesurer le temps de réponse de l'IA
+def measure_latency(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        start_time = time.time()
+        result = func(self, *args, **kwargs)
+        end_time = time.time()
+        latency = end_time - start_time
+        self.last_latency = latency
+        return result
+    return wrapper
+
+# Classe pour découper le texte en chunks et ajouter les embeddings à la base de données
+class BDDChunks:
+    # Initialise une instance de BDDChunks
+    def __init__(self, embedding_model: str):
+        self.embedding_model = embedding_model
+        self.embeddings = SentenceTransformer(self.embedding_model)
+        self.session: Session = get_session(init_db())
+
+    # Fonction de découpage du texte en chunks de taille spécifiée
+    def split_text_into_chunks(self, corpus: str, chunk_size: int = 500) -> list[str]:
+        chunks = [
+            corpus[i:i + chunk_size]
+            for i in range(0, len(corpus), chunk_size)
+        ]
+        return chunks
+
+    # Fonction pour ajouter les embeddings des chunks à la base de données
+    def add_embeddings(self, list_chunks: list[str], batch_size: int = 100) -> None:
+        for i in tqdm(range(0, len(list_chunks), batch_size), desc="Ajout des embeddings"):
+            batch = list_chunks[i:i + batch_size]
+            for chunk in batch:
+                embedding = self.embeddings.encode(chunk).tolist()
+                new_chunk = Chunk(text=chunk, embedding=embedding)
+                self.session.add(new_chunk)
+            self.session.commit()
+
+    # Fonction pour exécuter le processus complet de découpage et ajout des embeddings
+    def __call__(self, corpus: str) -> None:
+        chunks = self.split_text_into_chunks(corpus=corpus)
+        self.add_embeddings(list_chunks=chunks)
+
+# Classe pour effectuer un processus RAG augmenté
+class AugmentedRAG:
+    # Initialise la classe AugmentedRAG avec les paramètres fournis
+    def __init__(
+        self,
+        generation_model: str,
+        role_prompt: str,
+        bdd_chunks,
+        max_tokens: int,
+        temperature: float,
+        top_n: int = 2,
+    ) -> None:
+        self.llm = generation_model
+        self.bdd = bdd_chunks
+        self.top_n = top_n
+        self.role_prompt = role_prompt
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.engine = init_db()
+        EcoLogits.init(providers="litellm", electricity_mix_zone="FRA")
+
+    # Fonction pour calculer la similarité cosinus entre deux vecteurs
+    def get_cosim(self, a: np.ndarray, b: np.ndarray) -> float:
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    
+    def get_top_similarity(
+        self,
+        embedding_query: np.ndarray,
+        embedding_chunks: List[np.ndarray],
+        corpus: List[str],
+    ) -> List[str]:
+        cos_sim_list = np.array(
+            [self.get_cosim(embedding_query, emb) for emb in embedding_chunks]
+        )
+        top_indices = np.argsort(cos_sim_list)[-self.top_n:][::-1]
+        return [corpus[i] for i in top_indices]
+    
+    # Fonction pour extraire l'utilisation énergétique et le GWP de la réponse du modèle
+    def _get_energy_usage(self, response: ModelResponse) -> Tuple[float, float]:
+        energy_usage = getattr(response.impacts.energy.value, "min", response.impacts.energy.value)
+        gwp = getattr(response.impacts.gwp.value, "min", response.impacts.gwp.value)
+        return energy_usage, gwp
+    
+    # Fonction pour construire un prompt pour l'IA
+    def build_prompt(
+        self, context: List[str], history: List[Dict[str, str]], query: str
+    ) -> List[Dict[str, str]]:
+        context_joined = "\n".join(context)
+        system_prompt = self.role_prompt
+        history_prompt = "\n".join(
+            [f"{msg['role'].capitalize()}: {msg['content']}" for msg in history]
+        )
+        context_prompt = f"""
+        Tu disposes de la section "Contexte" pour t'aider à répondre aux questions.
+        # Contexte: 
+        {context_joined}
+        """
+        query_prompt = f"""
+        # Question:
+        {query}
+
+        # Réponse:
+        """
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": history_prompt},
+            {"role": "system", "content": context_prompt},
+            {"role": "user", "content": query_prompt},
+        ]
+    
+    # Fonction pour générer une réponse à partir d'un prompt
+    @measure_latency
+    def _generate(self, prompt_dict: List[Dict[str, str]]) -> ModelResponse:
+        response = litellm.completion(
+            model=f"mistral/{self.llm}",
+            messages=prompt_dict,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+        )
+        return response
+    
+    # Fonction pour calculer le coût d'une requête en fonction du nombre de tokens d'entrée et de sortie
+    def _get_price_query(self, llm_name: str, input_tokens: int, output_tokens: int) -> float:
+        pricing = {
+            "ministral-8b-latest": {"input": 0.09, "output": 0.09}
+        }
+        if llm_name not in pricing:
+            raise ValueError(f"LLM {llm_name} not found in pricing database.")
+        cost_input = (input_tokens / 1_000_000) * pricing[llm_name]["input"]
+        cost_output = (output_tokens / 1_000_000) * pricing[llm_name]["output"]
+        return cost_input + cost_output
+    
+    # Fonction pour appeler le modèle LLM avec un prompt donné et retourner la réponse avec les métriques
+    def call_model(self, prompt_dict: List[Dict[str, str]]) -> Dict[str, any]:
+        chat_response: ModelResponse = self._generate(prompt_dict=prompt_dict)
+        input_tokens = chat_response.usage.prompt_tokens
+        output_tokens = chat_response.usage.completion_tokens
+        euro_cost = self._get_price_query(self.llm, input_tokens, output_tokens)
+        energy_usage, gwp = self._get_energy_usage(chat_response)
+        response_text = str(chat_response.choices[0].message.content)
+        return {
+            "response": response_text,
+            "latency": getattr(self, 'last_latency', 0),
+            "euro_cost": euro_cost,
+            "energy_usage": energy_usage,
+            "gwp": gwp
+        }
+    
+    # Fonction pour traiter une requête et retourner une réponse basée sur l'historique fourni et la base de données
+    def __call__(self, query: str, history: List[Dict[str, str]]) -> Dict[str, any]:
+        SessionLocal = sessionmaker(bind=self.engine)
+        session = SessionLocal()
+        try:
+            chunks = session.query(Chunk).all()
+            chunks_embeddings = [np.array(chunk.embedding) for chunk in chunks]
+            chunks_texts = [chunk.text for chunk in chunks]
+            query_embedding = self._get_embedding(query)
+            similarities = [self.get_cosim(query_embedding, emb) for emb in chunks_embeddings]
+            top_indices = np.argsort(similarities)[-self.top_n:][::-1]
+            relevant_chunks = [chunks_texts[i] for i in top_indices]
+            prompt_rag = self.build_prompt(
+                context=relevant_chunks,
+                history=history,
+                query=query
+            )
+            response = self.call_model(prompt_rag)
+
+            return response
+
+        finally:
+            session.close()
+    
+    # Fonction pour calculer la similarité cosinus entre deux vecteurs
+    def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
+        return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+    
+    # Fonction pour obtenir l'embedding d'un texte donné
+    def _get_embedding(self, text: str) -> np.ndarray:
+        model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+        embedding = model.encode(text)
+        return embedding
+
+# Fonction pour instancier BDDChunks
+def instantiate_bdd() -> BDDChunks:
+    bdd_chunks = BDDChunks(embedding_model="paraphrase-MiniLM-L6-v2")
+    corpus = "Votre texte à traiter ici" # [TEMP]
+    bdd_chunks(corpus=corpus)
+    return bdd_chunks

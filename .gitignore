@@ -1,4 +1,13 @@
+# Ignorer tous les répertoires __pycache__
+__pycache__/
 
-searchengine/__pycache__/trip_finder.cpython-313.pyc
-utils/__pycache__/components.cpython-313.pyc
+# Ignorer tous les fichiers compilés Python
 *.pyc
+*.pyo
+*.pyd
+
+# Ignorer l'environnement virtuel
+.conda
+
+# Ignorer le fichier d'environnement
+.env
