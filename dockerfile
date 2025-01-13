@@ -11,8 +11,14 @@ RUN pip install -r requirements.txt
 # Définition du répertoire de travail dans le conteneur
 WORKDIR /app
 
-# Copie du reste du code de l'application dans le conteneur
-COPY . .
+# Copie des fichiers de l'application
+COPY .env .
+COPY *.py ./
+COPY *.db ./
+COPY .streamlit/ .streamlit/
+COPY db/ db/
+COPY pages/ pages/
+COPY searchengine/ searchengine/
 
 # Ouverture du port Streamlit
 EXPOSE 8501
