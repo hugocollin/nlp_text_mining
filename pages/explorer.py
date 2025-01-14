@@ -1,6 +1,5 @@
 import streamlit as st
 import pydeck as pdk
-import webbrowser
 import concurrent.futures
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -19,15 +18,6 @@ st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", l
 engine = create_engine('sqlite:///restaurant_reviews.db')
 Session = sessionmaker(bind=engine)
 session = Session()
-
-# Réinitialisation de la table Chunck
-if 'reset_ia' not in st.session_state:
-    try:
-        deleted = session.query(Chunk).delete()
-        session.commit()
-        st.session_state['reset_ia'] = True
-    except Exception as e:
-        session.rollback()
 
 # Récupération de tous les restaurants
 restaurants = get_all_restaurants(session)
@@ -260,7 +250,7 @@ def main():
                 key="filter_meals"
             )
 
-    # Colonne pour le chat avec l'IA [TEMP]
+    # Tab pour le chat avec l'IA [TEMP]
     with ai_tab:
         # Mise en page du chat avec l'IA
         header_container = st.container(border=True)
@@ -270,39 +260,28 @@ def main():
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # Initialisation de la base de données de connaissances
-        bdd_chunks = instantiate_bdd()
-
         # Initialisation du modèle d'IA
         role_prompt="""
-        Vous êtes un assistant intelligent spécialisé dans la recommandation de restaurants Lyonnais. Votre rôle est d'aider les utilisateurs à trouver des établissements répondant à leurs préférences et besoins spécifiques. 
+        Vous êtes un assistant intelligent spécialisé dans la recommandation de restaurants Lyonnais. Utilisez uniquement les données disponibles sur le site pour fournir des recommandations précises et pertinentes. Votre rôle est d'aider les utilisateurs à trouver des établissements répondant à leurs préférences et besoins spécifiques.
 
         Fonctionnalités principales :
         1. **Compréhension des Préférences Utilisateur** : Analysez les préférences exprimées par l'utilisateur concernant le type de cuisine, le budget, l'emplacement, les options végétariennes/vegan, et d'autres critères pertinents.
-        2. **Recommandations Personnalisées** : Proposez des listes de restaurants adaptés aux critères de l'utilisateur, en fournissant des informations telles que le nom, l'adresse, le type de cuisine, les avis clients, les prix et les heures d'ouverture.
+        2. **Recommandations Personnalisées** : Proposez des listes de restaurants adaptés aux critères de l'utilisateur, en fournissant des informations telles que le nom, l'adresse, le type de cuisine, les avis clients, les prix et les heures d'ouverture basées sur les données disponibles.
         3. **Gestion des Contraintes** : Tenez compte des contraintes comme les restrictions alimentaires, la distance maximale, les méthodes de réservation disponibles et les exigences spécifiques (par exemple, accès handicapés).
-        4. **Mises à Jour en Temps Réel** : Fournissez des informations actualisées sur la disponibilité des tables, les événements spéciaux, et les changements de menu.
+        4. **Mises à Jour en Temps Réel** : Fournissez des informations actualisées sur la disponibilité des tables, les événements spéciaux, et les changements de menu en fonction des données du site.
         5. **Interaction Naturelle** : Communiquez de manière claire et concise, en posant des questions supplémentaires si nécessaire pour affiner les recommandations.
         6. **Respect de la Confidentialité** : Assurez-vous que toutes les interactions respectent la vie privée des utilisateurs et que les données sensibles ne sont pas divulguées.
+        7. **Recherche Flexible** : Si l'utilisateur fournit une partie du nom d'un restaurant, essayez de trouver le restaurant le plus pertinent dans la base de données qui correspond à cette partie du nom.
 
         Objectif :
-        Aider les utilisateurs à découvrir et à choisir des restaurants qui correspondent parfaitement à leurs attentes, en offrant une expérience utilisateur fluide et personnalisée.
+        Aider les utilisateurs à découvrir et à choisir des restaurants qui correspondent parfaitement à leurs attentes, en offrant une expérience utilisateur fluide et personnalisée basée sur les informations disponibles sur le site.
 
         Consignes supplémentaires :
         - Soyez courtois et professionnel dans vos réponses.
         - Fournissez des informations vérifiées et évitez les recommandations basées sur des données obsolètes.
         - Adaptez votre ton en fonction des préférences exprimées par l'utilisateur.
+        - Si un des champs de restaurant est vide, None, etc... dans la base de données, indiquez que l'information n'est pas disponible et proposez de vérifier sur internet si nécessaire, en précisant la source des informations.
         """
-
-        # Création du modèle d'IA
-        llm = AugmentedRAG(
-            role_prompt=role_prompt,
-            generation_model="ministral-8b-latest",
-            bdd_chunks=bdd_chunks,
-            top_n=2,
-            max_tokens=3000,
-            temperature=0.5,
-        )
 
         # Affichage de l'histoire de la conversation
         for message in st.session_state.messages:
@@ -331,6 +310,22 @@ def main():
 
                 # Ajout du message de l'utilisateur à l'historique de la conversation
                 st.session_state.messages.append({"role": "User", "content": message})
+
+                # Initialisation des connaissances de l'IA si nécessaire
+                if 'bdd_chunks' not in st.session_state:
+                    st.session_state['bdd_chunks'] = instantiate_bdd()
+
+                if 'llm' not in st.session_state:
+                    st.session_state['llm'] = AugmentedRAG(
+                        role_prompt=role_prompt,
+                        generation_model="mistral-large-latest",
+                        bdd_chunks=st.session_state['bdd_chunks'],
+                        top_n=3,
+                        max_tokens=3000,
+                        temperature=0.3,
+                    )
+
+                llm = st.session_state['llm']
 
                 # Récupération de la réponse de l'IA
                 response = llm(

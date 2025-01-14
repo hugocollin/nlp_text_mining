@@ -3,14 +3,13 @@ import urllib.parse
 import requests
 import math
 import base64
-import webbrowser
 import pydeck as pdk
 import functools
 import litellm
 import numpy as np
 import time
 import tqdm
-from src.db.models import Chunk, get_session, init_db
+from src.db.models import Chunk, get_session, init_db, get_all_restaurants
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -18,6 +17,7 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 from ecologits import EcoLogits
 from litellm import ModelResponse
+from sqlalchemy import create_engine
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -578,7 +578,7 @@ class AugmentedRAG:
     # Fonction pour calculer le coût d'une requête en fonction du nombre de tokens d'entrée et de sortie
     def _get_price_query(self, llm_name: str, input_tokens: int, output_tokens: int) -> float:
         pricing = {
-            "ministral-8b-latest": {"input": 0.09, "output": 0.09}
+            "mistral-large-latest": {"input": 1.95, "output": 5.85}
         }
         if llm_name not in pricing:
             raise ValueError(f"LLM {llm_name} not found in pricing database.")
@@ -635,10 +635,60 @@ class AugmentedRAG:
         model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
         embedding = model.encode(text)
         return embedding
-
+    
 # Fonction pour instancier BDDChunks
 def instantiate_bdd() -> BDDChunks:
+    st.toast("Démarrage de l'IA en cours...", icon="✨")
+
+    # Instanciation de la classe BDDChunks
     bdd_chunks = BDDChunks(embedding_model="paraphrase-MiniLM-L6-v2")
-    corpus = "Votre texte à traiter ici" # [TEMP]
-    bdd_chunks(corpus=corpus)
+
+    # Connexion à la base de données
+    engine = create_engine('sqlite:///restaurant_reviews.db')
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
+
+    try:
+        # Supprimer les chunks existants pour éviter les doublons ou erreurs de type
+        session.query(Chunk).delete()
+        session.commit()
+
+        # Récupération de tous les restaurants
+        restaurants = get_all_restaurants(session)
+
+        # Filtrage pour exclure les restaurants scrappés
+        scrapped_restaurants = [restaurant for restaurant in restaurants if restaurant.scrapped]
+
+        corpus = []
+
+        for restaurant in scrapped_restaurants:
+            restaurant_info = (
+                f"[ID du restaurant : {restaurant.id_restaurant} | \n"
+                f"Nom du restaurant : {restaurant.nom} | \n"
+                f"Adresse du restaurant : {restaurant.adresse} | \n"
+                f"Lien TripAdvisor du restaurant : {restaurant.url_link} | \n"
+                f"Email du restaurant : {restaurant.email} | \n"
+                f"Téléphone du restaurant : {restaurant.telephone} | \n"
+                f"Type de cuisine : {restaurant.cuisines} | \n"
+                f"Type de repas : {restaurant.repas} | \n"
+                f"Étoiles Michelin : {restaurant.etoiles_michelin} | \n"
+                f"Note globale : {restaurant.note_globale} | \n"
+                f"Note de cuisine : {restaurant.cuisine_note} | \n"
+                f"Note de service : {restaurant.service_note} | \n"
+                f"Note de qualité prix : {restaurant.qualite_prix_note} | \n"
+                f"Note d'ambiance : {restaurant.ambiance_note}] "
+            )
+            corpus.append(restaurant_info)
+
+        # Combiner tous les segments de texte en une seule chaîne
+        corpus_combined = "\n".join(corpus)
+
+        # Ajouter les embeddings en utilisant la classe BDDChunks
+        bdd_chunks(corpus=corpus_combined)
+
+    finally:
+        session.close()
+
+    st.toast("IA prête à être utilisée !", icon="✨")
+
     return bdd_chunks
