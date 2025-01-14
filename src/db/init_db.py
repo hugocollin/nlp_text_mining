@@ -1,9 +1,8 @@
 
 import sys
 import os
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from .models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
-import os
 import pandas as pd
 import ast
 from sqlalchemy import update, select, exists, create_engine, text, MetaData, Column, String, Integer, Float, Boolean
@@ -803,7 +802,7 @@ def fill_review_cleaned_column(df, session):
     Remplit la colonne `review_cleaned` dans la base de données à partir d'un DataFrame.
 
     Args:
-        df (pd.DataFrame): DataFrame contenant `nom` (restaurant), `user_profile`, `review` et `title`.
+        df (pd.DataFrame): DataFrame contenant `nom` (restaurant), `user_profile`, `review_cleaned`, `title`, `sentiment`, et `sentiment_rating`.
         session: La session SQLAlchemy pour interagir avec la base de données.
     """
     for _, row in df.iterrows():
@@ -814,14 +813,17 @@ def fill_review_cleaned_column(df, session):
         # Mettre à jour la base de données
         try:
             # Rechercher l'enregistrement correspondant dans la base
-            review_entry = session.query(Review).join(Restaurant).filter(
-                Restaurant.nom == restaurant_name,
-                Review.user_profile == user_profile,
-                Review.title_review == title
-            ).first()
-            
+            review_entry = session.query(Review).\
+                join(Restaurant, Review.id_restaurant == Restaurant.id_restaurant).\
+                join(User, Review.id_user == User.id_user).\
+                filter(
+                    Restaurant.nom == restaurant_name,
+                    User.user_profile == user_profile,
+                    Review.title_review == title
+                ).first()
+
             if review_entry:
-                # Mettre à jour la colonne `review_cleaned`
+                # Mettre à jour les colonnes `review_cleaned`, `sentiment`, et `sentiment_rating`
                 review_entry.review_cleaned = row['review_cleaned']
                 review_entry.sentiment = int(row['sentiment'])
                 review_entry.sentiment_rating = row['sentiment_rating']
@@ -831,6 +833,7 @@ def fill_review_cleaned_column(df, session):
             else:
                 print(f"Aucun avis trouvé pour {restaurant_name}, {user_profile}.")
         except Exception as e:
+            session.rollback()  # Annuler la transaction en cas d'erreur
             print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
 
 
@@ -1040,7 +1043,7 @@ restaurants = get_all_restaurants(session)
     print(len(restaurants))
     for restaurant_name in restaurants:
         print(f"Restaurant : {restaurant_name}")
-        update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
+        # update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
     # update_restaurant_columns(restaurant_name, {"url_link": url}, session)
     # print(get_restaurant(session=session, restaurant_name="L'Étage"))
 

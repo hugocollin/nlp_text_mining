@@ -32,6 +32,8 @@ def display_restaurant_stats(restaurant):
         background-repeat: no-repeat;
         background-position: center;
         padding: 20px;
+        height: 300px;
+        border-radius: 10px;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -58,7 +60,7 @@ def display_restaurant_stats(restaurant):
     
     # Modification des largeurs des colonnes
     
-    col1, col2 = st.columns(2)  # 2 colonnes
+    tab1, tab2 = st.tabs(["Avis", "Contributions"])  # 2 colonnes
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("""
     <style>
@@ -76,8 +78,8 @@ def display_restaurant_stats(restaurant):
     
     </style>
     """, unsafe_allow_html=True)
-    with col1:
-        st.markdown("<h2 style='text-align: center;'>Avis</h2>", unsafe_allow_html=True)
+    with tab1:
+        # st.markdown("<h2 style='text-align: center;'>Avis</h2>", unsafe_allow_html=True)
         with st.container(height=900):
             for i, r in enumerate(review[:st.session_state['display_count']]):
                 # Initialize session state for this review if not exists
@@ -118,38 +120,48 @@ def display_restaurant_stats(restaurant):
                 if st.button("Charger plus d'avis"):
                     st.session_state['display_count'] += 5
                     st.rerun()
-    with col2:
+    with tab2:
         # affiche le leaderboard des utilisateurs avec le plus d'avis pour ce restaurant
-        st.header("Top contributeurs")
-        user_reviews_count = {}
-        for user, _ in review:
-            user_reviews_count[user.user_profile] = user_reviews_count.get(user.user_profile, 0) + 1
-        top_users = sorted(user_reviews_count.items(), key=lambda x: x[1], reverse=True)
-        for user, count in top_users[:5]:
-            st.write(f"{user} ({count} avis)")
+        col1, col2 = st.columns([2, 4], border=True)
+        col3, col4 = st.columns([2, 3], border=True)
+        with col1:
+            st.header("🏆 Top contributeurs")
+            user_reviews_count = {}
+            for user, _ in review:
+                user_reviews_count[user.user_profile] = user_reviews_count.get(user.user_profile, 0) + 1
+            # Trier les utilisateurs par nombre d'avis
+            top_users = sorted(user_reviews_count.items(), key=lambda x: x[1], reverse=True)
+            
+            # Affichage stylisé des contributeurs
+            for rank, (user, count) in enumerate(top_users[:5], start=1):
+                medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else ""
+                st.markdown(f"{medal} {user} — {count} avis")
             
         # affiche le nombre d'avis par note
-        st.header("Répartition des notes")
-        rating_counts = {}
-        for _, r in review:
-            rating_counts[r.rating] = rating_counts.get(r.rating, 0) + 1
-        for rating, count in rating_counts.items():
-            st.write(f"{rating} étoiles: {count} avis")
-        # graphique bar chart horizontale
-        st.bar_chart(rating_counts)
+        with col2:
+            st.header("Répartition des notes")
+            rating_counts = {}
+            for _, r in review:
+                rating_counts[r.rating] = rating_counts.get(r.rating, 0) + 1
+            #for rating, count in rating_counts.items():
+                # st.write(f"{rating} étoiles: {count} avis")
+            # graphique bar chart horizontale
+            st.bar_chart(rating_counts)
+        with col3:    
+            # affiche le nombre d'avis par type de visite
+            st.header("Répartition des types de visite")
+            type_visit_counts = {}
+            for _, r in review:
+                type_visit_counts[r.type_visit] = type_visit_counts.get(r.type_visit, 0) + 1
+            #for type_visit, count in type_visit_counts.items():
+            #    st.write(f"{type_visit}: {count} avis")
+            st.bar_chart(type_visit_counts)
             
-        # affiche le nombre d'avis par type de visite
-        st.header("Répartition des types de visite")
-        type_visit_counts = {}
-        for _, r in review:
-            type_visit_counts[r.type_visit] = type_visit_counts.get(r.type_visit, 0) + 1
-        for type_visit, count in type_visit_counts.items():
-            st.write(f"{type_visit}: {count} avis")
-            
-        # affiche le nombre d'avis par mois et fait un graphique
-        st.header("Répartition des avis par mois")
-        month_counts = {}
-        for _, r in review:
-            month = r.date_review.strftime("%Y-%m")
-            month_counts[month] = month_counts.get(month, 0) + 1
-        st.bar_chart(month_counts)
+        with col4:
+            # affiche le nombre d'avis par mois et fait un graphique
+            st.header("Répartition des avis par mois")
+            month_counts = {}
+            for _, r in review:
+                month = r.date_review.strftime("%Y-%m")
+                month_counts[month] = month_counts.get(month, 0) + 1
+            st.bar_chart(month_counts)

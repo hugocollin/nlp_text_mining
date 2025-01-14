@@ -1,3 +1,8 @@
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
 import pandas as pd
 import re
 import nltk
@@ -7,9 +12,6 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import os
-import sys
-
 
 from db.models import get_restaurants_with_reviews_and_users
 from sqlalchemy import Table, MetaData
