@@ -9,7 +9,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from db.models import get_restaurants_with_reviews_and_users
-from db.init_db import fill_sentiment_column
+from db.init_db import fill_sentiment_column, fill_resume_avis_column
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.text import Tokenizer
@@ -136,6 +136,14 @@ class NLPAnalysis:
         print("Sauvegarder sentiment...")
         try:
             fill_sentiment_column(self.avis_restaurants, self.session)
+
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde des données: {e}")
+
+    def sauvegarder_resume(self, resumes):
+        print("Sauvegarder résumés...")
+        try:
+            fill_resume_avis_column(resumes, self.session)
 
         except Exception as e:
             print(f"Erreur lors de la sauvegarde des données: {e}")

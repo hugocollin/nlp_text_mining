@@ -23,6 +23,8 @@ def test_nlp_analysis():
     # wordcloud = nlp_analysis.generate_wordcloud()
     print("Nuage de mots généré avec succès.")
     # nlp_analysis.sauvegarder_donnees()
+    nlp_analysis.sauvegarder_resume(summaries)
+    nlp_analysis.sauvegarder_donnees()
 
 
 # Exécution du test
