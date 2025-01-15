@@ -3,7 +3,6 @@ from src.db.models import get_user_and_review_from_restaurant_id , get_all_resta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import display_stars
-import pandas as pd
 
 # Réinitialisation de popup de vérification de l'adresse renseignée
 if 'address_toast_shown' in st.session_state:

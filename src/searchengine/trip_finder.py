@@ -73,8 +73,9 @@ class SearchEngine:
 
         }
         self.get_session()
-        response = self.session.get(url, headers=headers, timeout=(3.05, 27))
+        response = self.session.get(url, headers=headers, timeout=(6, 36))
         print(response.headers)
+        time.sleep(1)
         if response.status_code == 200:
             self.soup = BeautifulSoup(response.content, 'html.parser')
             return None

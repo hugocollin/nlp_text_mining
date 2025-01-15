@@ -3,9 +3,9 @@ import pydeck as pdk
 import concurrent.futures
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text
 from pages.statistiques import display_restaurant_stats
-from src.db.models import get_all_restaurants, Chunk
+from src.db.models import get_all_restaurants
 from dotenv import find_dotenv, load_dotenv
 
 # Récupération de la clé API Mistral
@@ -335,7 +335,7 @@ def main():
 
                 # Affichage de la réponse de l'IA
                 with chat_container.chat_message("AI", avatar="✨"):
-                    st.markdown(response["response"])
+                    st.write_stream(stream_text(response["response"]))
                     st.markdown(
                         f"📶 *Latence : {response['latency']:.2f} secondes* | "
                         f"💲 *Coût : {response['euro_cost']:.6f} €* | "
@@ -360,122 +360,132 @@ def main():
     
     # Affichage des résultats
     with results_display_col1:
+        
+        # Parallélisation du traitement des restaurants
+        with st.spinner("Chargement des restaurants..."):
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # Map des restaurants scrappés aux futurs
+                futures = {
+                    executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant): restaurant
+                    for restaurant in restaurants
+                    if restaurant.scrapped
+                }
+                # Collecte des résultats dans l'ordre des restaurants
+                results = []
+                for restaurant in restaurants:
+                    if restaurant.scrapped:
+                        future = next(f for f, r in futures.items() if r == restaurant)
+                        try:
+                            result = future.result()
+                            results.append(result)
+                        except Exception as e:
+                            st.error(f"Erreur lors du traitement du restaurant {restaurant.nom}: {e}")
+
+        # Filtrage des résultats en fonction des filtres
+        filtered_results = []
+        for result in results:
+            restaurant, tcl_url, fastest_mode = result
+
+            # Filtrage par étoiles Michelin
+            if selected_michelin_stars:
+                if not (restaurant.etoiles_michelin >= selected_michelin_stars):
+                    continue
+            
+            # Filtrage par note globale
+            if not (global_rating[global_rating_selected] <= restaurant.note_globale):
+                continue
+            
+            # Filtrage par note qualité-prix
+            if quality_price > 0:
+                if restaurant.qualite_prix_note is None or restaurant.qualite_prix_note < quality_price:
+                    continue
+
+            # Filtrage par note cuisine
+            if cuisine_note > 0:
+                if restaurant.cuisine_note is None or restaurant.cuisine_note < cuisine_note:
+                    continue
+
+            # Filtrage par note service
+            if service_note > 0:
+                if restaurant.service_note is None or restaurant.service_note < service_note:
+                    continue
+
+            # Filtrage par note ambiance
+            if ambiance_note > 0:
+                if restaurant.ambiance_note is None or restaurant.ambiance_note < ambiance_note:
+                    continue
+            
+            # Filtrage par temps de trajet
+            if tcl_url:
+                duration_str = fastest_mode[1]
+                if 'h' in duration_str:
+                    parts = duration_str.split('h')
+                    hours = int(parts[0])
+                    minutes = int(parts[1].replace('min', '')) if parts[1] else 0
+                    duration = hours * 60 + minutes
+                else:
+                    duration = int(duration_str.replace('min', ''))
+                if not (duration <= time_travel):
+                    continue
+            
+            # Filtrage par cuisine
+            if selected_cuisines:
+                restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
+                if not any(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
+                    continue
+            
+            # Filtrage par type de repas
+            if selected_meals:
+                restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
+                if not any(meal in restaurant_meals for meal in selected_meals):
+                    continue
+            filtered_results.append(result)
+
+        # Extraction des restaurants filtrés pour la carte
+        filtered_restaurants = [
+            (
+                result[0].nom,
+                result[0].latitude,
+                result[0].longitude
+            )
+            for result in filtered_results
+            if result[0] is not None
+        ]
+
+        # Récupération des coordonnées des restaurants pour la carte
+        map_data = []
+        for restaurant in filtered_restaurants:
+            nom, lat, lon = restaurant
+            map_data.append({
+                'name': nom,
+                'latitude': lat,
+                'longitude': lon
+            })
+
+        # Filtrage des restaurants par rayon
+        if personal_address:
+            map_data = filter_restaurants_by_radius(
+                map_data,
+                personal_latitude,
+                personal_longitude,
+                radius
+            )
+            # Obtention des noms des restaurants filtrés
+            filtered_names = [restaurant['name'] for restaurant in map_data]
+            # Filtrage des résultats en fonction des noms filtrés
+            filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
+
+        # Affichage du nombre de restaurants trouvés
+        if not filtered_results:
+            st.info("ℹ️ Aucun restaurant trouvé, essayez de modifier vos critères de recherche.")
+        elif (filtered_results and len(filtered_results) == 1):
+            st.info("ℹ️ 1 restaurant trouvé")
+        else:
+            st.info(f"ℹ️ {len(filtered_results)} restaurants trouvés")
+        
         container = st.container(height=1000, border=False)
 
         with container:
-            # Parallélisation du traitement des restaurants
-            with st.spinner("Chargement des restaurants..."):
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    # Map des restaurants scrappés aux futurs
-                    futures = {
-                        executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant): restaurant
-                        for restaurant in restaurants
-                        if restaurant.scrapped
-                    }
-                    # Collecte des résultats dans l'ordre des restaurants
-                    results = []
-                    for restaurant in restaurants:
-                        if restaurant.scrapped:
-                            future = next(f for f, r in futures.items() if r == restaurant)
-                            try:
-                                result = future.result()
-                                results.append(result)
-                            except Exception as e:
-                                st.error(f"Erreur lors du traitement du restaurant {restaurant.nom}: {e}")
-
-            # Filtrage des résultats en fonction des filtres
-            filtered_results = []
-            for result in results:
-                restaurant, tcl_url, fastest_mode = result
-
-                # Filtrage par étoiles Michelin
-                if selected_michelin_stars:
-                    if not (restaurant.etoiles_michelin >= selected_michelin_stars):
-                        continue
-                
-                # Filtrage par note globale
-                if not (global_rating[global_rating_selected] <= restaurant.note_globale):
-                    continue
-                
-                # Filtrage par note qualité-prix
-                if quality_price > 0:
-                    if restaurant.qualite_prix_note is None or restaurant.qualite_prix_note < quality_price:
-                        continue
-
-                # Filtrage par note cuisine
-                if cuisine_note > 0:
-                    if restaurant.cuisine_note is None or restaurant.cuisine_note < cuisine_note:
-                        continue
-
-                # Filtrage par note service
-                if service_note > 0:
-                    if restaurant.service_note is None or restaurant.service_note < service_note:
-                        continue
-
-                # Filtrage par note ambiance
-                if ambiance_note > 0:
-                    if restaurant.ambiance_note is None or restaurant.ambiance_note < ambiance_note:
-                        continue
-                
-                # Filtrage par temps de trajet
-                if tcl_url:
-                    duration_str = fastest_mode[1]
-                    if 'h' in duration_str:
-                        parts = duration_str.split('h')
-                        hours = int(parts[0])
-                        minutes = int(parts[1].replace('min', '')) if parts[1] else 0
-                        duration = hours * 60 + minutes
-                    else:
-                        duration = int(duration_str.replace('min', ''))
-                    if not (duration <= time_travel):
-                        continue
-                
-                # Filtrage par cuisine
-                if selected_cuisines:
-                    restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
-                    if not any(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
-                        continue
-                
-                # Filtrage par type de repas
-                if selected_meals:
-                    restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
-                    if not any(meal in restaurant_meals for meal in selected_meals):
-                        continue
-                filtered_results.append(result)
-
-            # Extraction des restaurants filtrés pour la carte
-            filtered_restaurants = [
-                (
-                    result[0].nom,
-                    result[0].latitude,
-                    result[0].longitude
-                )
-                for result in filtered_results
-                if result[0] is not None
-            ]
-
-            # Récupération des coordonnées des restaurants pour la carte
-            map_data = []
-            for restaurant in filtered_restaurants:
-                nom, lat, lon = restaurant
-                map_data.append({
-                    'name': nom,
-                    'latitude': lat,
-                    'longitude': lon
-                })
-
-            # Filtrage des restaurants par rayon
-            if personal_address:
-                map_data = filter_restaurants_by_radius(
-                    map_data,
-                    personal_latitude,
-                    personal_longitude,
-                    radius
-                )
-                # Obtention des noms des restaurants filtrés
-                filtered_names = [restaurant['name'] for restaurant in map_data]
-                # Filtrage des résultats en fonction des noms filtrés
-                filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
 
             # Affichage uniquement des restaurants filtrés
             for result in filtered_results:
@@ -546,10 +556,6 @@ def main():
                         ''', unsafe_allow_html=True)
                     else:
                         col5.button(bouton_label, key=button_key, disabled=True)
-                
-            # Affichage si aucun restaurant n'est trouvé
-            if not filtered_results:
-                st.info("ℹ️ Aucun restaurant trouvé, essayez de modifier vos critères de recherche.")
     
     # Affichage de la carte
     with results_display_col2:

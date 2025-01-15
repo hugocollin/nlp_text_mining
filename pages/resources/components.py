@@ -158,6 +158,12 @@ def add_to_comparator(restaurant):
     else:
         st.toast(f"Le restaurant {restaurant.nom} est déjà dans le comparateur", icon="ℹ️")
 
+# Fonction pour afficher le texte progressivement
+def stream_text(text):
+    for word in text.split(" "):
+        yield word + " "
+        time.sleep(0.03)
+
 # Fonction pour obtenir les informations de trajet depuis le site TCL
 @st.cache_data(ttl=300, show_spinner=False)
 def tcl_api(personal_address, personal_latitude, personal_longitude, restaurant_latitude, restaurant_longitude):
@@ -663,20 +669,20 @@ def instantiate_bdd() -> BDDChunks:
 
         for restaurant in scrapped_restaurants:
             restaurant_info = (
-                f"[ID du restaurant : {restaurant.id_restaurant} | \n"
                 f"Nom du restaurant : {restaurant.nom} | \n"
-                f"Adresse du restaurant : {restaurant.adresse} | \n"
-                f"Lien TripAdvisor du restaurant : {restaurant.url_link} | \n"
-                f"Email du restaurant : {restaurant.email} | \n"
-                f"Téléphone du restaurant : {restaurant.telephone} | \n"
-                f"Type de cuisine : {restaurant.cuisines} | \n"
-                f"Type de repas : {restaurant.repas} | \n"
-                f"Étoiles Michelin : {restaurant.etoiles_michelin} | \n"
-                f"Note globale : {restaurant.note_globale} | \n"
-                f"Note de cuisine : {restaurant.cuisine_note} | \n"
-                f"Note de service : {restaurant.service_note} | \n"
-                f"Note de qualité prix : {restaurant.qualite_prix_note} | \n"
-                f"Note d'ambiance : {restaurant.ambiance_note}] "
+                f"ID du restaurant {restaurant.nom} : {restaurant.id_restaurant} | \n"
+                f"Adresse du restaurant {restaurant.nom} : {restaurant.adresse} | \n"
+                f"Lien TripAdvisor du restaurant {restaurant.nom} : {restaurant.url_link} | \n"
+                f"Email du restaurant {restaurant.nom} : {restaurant.email} | \n"
+                f"Téléphone du restaurant {restaurant.nom} : {restaurant.telephone} | \n"
+                f"Type de cuisine du restaurant {restaurant.nom} : {restaurant.cuisines} | \n"
+                f"Type de repas du restaurant {restaurant.nom} : {restaurant.repas} | \n"
+                f"Étoiles Michelin du restaurant {restaurant.nom} : {restaurant.etoiles_michelin} | \n"
+                f"Note globale du restaurant {restaurant.nom} : {restaurant.note_globale} | \n"
+                f"Note de cuisine du restaurant {restaurant.nom} : {restaurant.cuisine_note} | \n"
+                f"Note de service du restaurant {restaurant.nom} : {restaurant.service_note} | \n"
+                f"Note de qualité prix du restaurant {restaurant.nom} : {restaurant.qualite_prix_note} | \n"
+                f"Note d'ambiance du restaurant {restaurant.nom} : {restaurant.ambiance_note} | \n"
             )
             corpus.append(restaurant_info)
 
