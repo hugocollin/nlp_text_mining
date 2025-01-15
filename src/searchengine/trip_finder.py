@@ -57,11 +57,9 @@ class SearchEngine:
     
     def run(self, url):
         # Fetch the URL and return the soup object
-        random_request_id = "".join(
-        random.choice(string.ascii_lowercase + string.digits) for i in range(180)
-    )
+  
         headers = {
-            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/109.0", # AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
             'Accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/avif, image/webp, image/apng, image/*,*/*;q=0.8',
             'Accept-Language': 'fr-FR,fr;q=0.9',
             'Connection': 'keep-alive',
@@ -73,11 +71,16 @@ class SearchEngine:
 
         }
         self.get_session()
+        self.session.headers.update(headers)
         response = self.session.get(url, headers=headers, timeout=(6, 36))
-        print(response.headers)
+        # print(response.headers)
+        print(self.session.headers)
+        
         time.sleep(1)
         if response.status_code == 200:
             self.soup = BeautifulSoup(response.content, 'html.parser')
+            with open('soup.html', 'w', encoding='utf-8') as f:
+                f.write(str(self.soup))
             return None
         elif response.status_code == 404:
             print("404 Not Found")
@@ -330,12 +333,12 @@ class restaurant_info_extractor(SearchEngine):
             address_tag = location_section.find('a', href=True)
             address = address_tag.text.strip() if address_tag else 'N/A'
             # get href attribute of the <a> tag
-            href = address_tag['href'] if address_tag else None
+            google_map = address_tag['href'] if address_tag else None
             # extract latitude and longitude from the href attribute
             def extract_lat_lon(href):
                 match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', href)
                 return match.groups() if match else ('N/A', 'N/A')
-            lat, lon = extract_lat_lon(href)
+            lat, lon = extract_lat_lon(google_map)
             
             email_tag = soup.find('a', href=lambda href: href and href.startswith('mailto:'))
             email = email_tag['href'].split(':')[1] if email_tag else 'N/A'
@@ -354,6 +357,7 @@ class restaurant_info_extractor(SearchEngine):
             'Détails': details,
             'Emplacement et coordonnées': {
                 'ADRESSE': address,
+                'GOOGLE MAP': google_map,
                 'LATITUDE': lat,
                 'LONGITUDE': lon,
                 'EMAIL': email,
