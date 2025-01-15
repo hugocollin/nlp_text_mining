@@ -47,4 +47,14 @@ CREATE TABLE fact_reviews (
     FOREIGN KEY (id_user) REFERENCES dim_users(id_user)
 );
 
+ALTER TABLE fact_reviews 
+ADD COLUMN review_cleaned TEXT;
 
+ALTER TABLE fact_reviews 
+ADD COLUMN sentiment INTEGER;
+
+ALTER TABLE fact_reviews 
+ADD COLUMN sentiment_rating TEXT;
+
+ALTER TABLE dim_restaurants 
+ADD COLUMN resume_avis TEXT;
