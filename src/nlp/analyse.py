@@ -9,6 +9,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from db.models import get_restaurants_with_reviews_and_users
+from db.init_db import fill_sentiment_column, fill_resume_avis_column
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.text import Tokenizer
@@ -39,6 +40,9 @@ class NLPAnalysis:
         for restaurant in raw_data:
             for review in restaurant['reviews']:
                 data.append({
+                    'restaurant_id': review['restaurant_id'],
+                    'user_id': review['user_id'],
+                    'review_id': review['review_id'],
                     'restaurant': restaurant['restaurant'],
                     'restaurant_address': restaurant['restaurant_address'],
                     'title': review['title'],
@@ -128,6 +132,23 @@ class NLPAnalysis:
 
         plt.show()
 
+    def sauvegarder_donnees(self):
+        print("Sauvegarder sentiment...")
+        try:
+            fill_sentiment_column(self.avis_restaurants, self.session)
+
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde des données: {e}")
+
+    def sauvegarder_resume(self, resumes):
+        print("Sauvegarder résumés...")
+        try:
+            fill_resume_avis_column(resumes, self.session)
+
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde des données: {e}")
+
+        
 # Exemple d'utilisation
 if __name__ == "__main__":
     print("hey")

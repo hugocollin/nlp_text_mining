@@ -9,7 +9,7 @@ def test_nlp_analysis():
 
     # Vérification du DataFrame
     print("Aperçu des données :")
-    print(nlp_analysis.data.head())
+    print(nlp_analysis.data.head().to_csv("apercu_data.csv"))
 
     # Entraînement du modèle LSTM
     nlp_analysis.train_lstm_model()
@@ -20,8 +20,12 @@ def test_nlp_analysis():
     print(summaries.head())
 
     # Génération du nuage de mots
-    wordcloud = nlp_analysis.generate_wordcloud()
+    # wordcloud = nlp_analysis.generate_wordcloud()
     print("Nuage de mots généré avec succès.")
+    # nlp_analysis.sauvegarder_donnees()
+    nlp_analysis.sauvegarder_resume(summaries)
+    nlp_analysis.sauvegarder_donnees()
+
 
 # Exécution du test
 if __name__ == "__main__":
