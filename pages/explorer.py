@@ -1,12 +1,11 @@
 import streamlit as st
 import pydeck as pdk
-import webbrowser
 import concurrent.futures
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text
 from pages.statistiques import display_restaurant_stats
-from src.db.models import get_all_restaurants, Chunk
+from src.db.models import get_all_restaurants
 from dotenv import find_dotenv, load_dotenv
 
 # Récupération de la clé API Mistral
@@ -19,15 +18,6 @@ st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", l
 engine = create_engine('sqlite:///restaurant_reviews.db')
 Session = sessionmaker(bind=engine)
 session = Session()
-
-# Réinitialisation de la table Chunck
-if 'reset_ia' not in st.session_state:
-    try:
-        deleted = session.query(Chunk).delete()
-        session.commit()
-        st.session_state['reset_ia'] = True
-    except Exception as e:
-        session.rollback()
 
 # Récupération de tous les restaurants
 restaurants = get_all_restaurants(session)
@@ -260,7 +250,7 @@ def main():
                 key="filter_meals"
             )
 
-    # Colonne pour le chat avec l'IA [TEMP]
+    # Tab pour le chat avec l'IA [TEMP]
     with ai_tab:
         # Mise en page du chat avec l'IA
         header_container = st.container(border=True)
@@ -270,39 +260,28 @@ def main():
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # Initialisation de la base de données de connaissances
-        bdd_chunks = instantiate_bdd()
-
         # Initialisation du modèle d'IA
         role_prompt="""
-        Vous êtes un assistant intelligent spécialisé dans la recommandation de restaurants Lyonnais. Votre rôle est d'aider les utilisateurs à trouver des établissements répondant à leurs préférences et besoins spécifiques. 
+        Vous êtes un assistant intelligent spécialisé dans la recommandation de restaurants Lyonnais. Utilisez uniquement les données disponibles sur le site pour fournir des recommandations précises et pertinentes. Votre rôle est d'aider les utilisateurs à trouver des établissements répondant à leurs préférences et besoins spécifiques.
 
         Fonctionnalités principales :
         1. **Compréhension des Préférences Utilisateur** : Analysez les préférences exprimées par l'utilisateur concernant le type de cuisine, le budget, l'emplacement, les options végétariennes/vegan, et d'autres critères pertinents.
-        2. **Recommandations Personnalisées** : Proposez des listes de restaurants adaptés aux critères de l'utilisateur, en fournissant des informations telles que le nom, l'adresse, le type de cuisine, les avis clients, les prix et les heures d'ouverture.
+        2. **Recommandations Personnalisées** : Proposez des listes de restaurants adaptés aux critères de l'utilisateur, en fournissant des informations telles que le nom, l'adresse, le type de cuisine, les avis clients, les prix et les heures d'ouverture basées sur les données disponibles.
         3. **Gestion des Contraintes** : Tenez compte des contraintes comme les restrictions alimentaires, la distance maximale, les méthodes de réservation disponibles et les exigences spécifiques (par exemple, accès handicapés).
-        4. **Mises à Jour en Temps Réel** : Fournissez des informations actualisées sur la disponibilité des tables, les événements spéciaux, et les changements de menu.
+        4. **Mises à Jour en Temps Réel** : Fournissez des informations actualisées sur la disponibilité des tables, les événements spéciaux, et les changements de menu en fonction des données du site.
         5. **Interaction Naturelle** : Communiquez de manière claire et concise, en posant des questions supplémentaires si nécessaire pour affiner les recommandations.
         6. **Respect de la Confidentialité** : Assurez-vous que toutes les interactions respectent la vie privée des utilisateurs et que les données sensibles ne sont pas divulguées.
+        7. **Recherche Flexible** : Si l'utilisateur fournit une partie du nom d'un restaurant, essayez de trouver le restaurant le plus pertinent dans la base de données qui correspond à cette partie du nom.
 
         Objectif :
-        Aider les utilisateurs à découvrir et à choisir des restaurants qui correspondent parfaitement à leurs attentes, en offrant une expérience utilisateur fluide et personnalisée.
+        Aider les utilisateurs à découvrir et à choisir des restaurants qui correspondent parfaitement à leurs attentes, en offrant une expérience utilisateur fluide et personnalisée basée sur les informations disponibles sur le site.
 
         Consignes supplémentaires :
         - Soyez courtois et professionnel dans vos réponses.
         - Fournissez des informations vérifiées et évitez les recommandations basées sur des données obsolètes.
         - Adaptez votre ton en fonction des préférences exprimées par l'utilisateur.
+        - Si un des champs de restaurant est vide, None, etc... dans la base de données, indiquez que l'information n'est pas disponible et proposez de vérifier sur internet si nécessaire, en précisant la source des informations.
         """
-
-        # Création du modèle d'IA
-        llm = AugmentedRAG(
-            role_prompt=role_prompt,
-            generation_model="ministral-8b-latest",
-            bdd_chunks=bdd_chunks,
-            top_n=2,
-            max_tokens=3000,
-            temperature=0.5,
-        )
 
         # Affichage de l'histoire de la conversation
         for message in st.session_state.messages:
@@ -332,6 +311,22 @@ def main():
                 # Ajout du message de l'utilisateur à l'historique de la conversation
                 st.session_state.messages.append({"role": "User", "content": message})
 
+                # Initialisation des connaissances de l'IA si nécessaire
+                if 'bdd_chunks' not in st.session_state:
+                    st.session_state['bdd_chunks'] = instantiate_bdd()
+
+                if 'llm' not in st.session_state:
+                    st.session_state['llm'] = AugmentedRAG(
+                        role_prompt=role_prompt,
+                        generation_model="mistral-large-latest",
+                        bdd_chunks=st.session_state['bdd_chunks'],
+                        top_n=3,
+                        max_tokens=3000,
+                        temperature=0.3,
+                    )
+
+                llm = st.session_state['llm']
+
                 # Récupération de la réponse de l'IA
                 response = llm(
                     query=message,
@@ -340,7 +335,7 @@ def main():
 
                 # Affichage de la réponse de l'IA
                 with chat_container.chat_message("AI", avatar="✨"):
-                    st.markdown(response["response"])
+                    st.write_stream(stream_text(response["response"]))
                     st.markdown(
                         f"📶 *Latence : {response['latency']:.2f} secondes* | "
                         f"💲 *Coût : {response['euro_cost']:.6f} €* | "
@@ -365,6 +360,7 @@ def main():
     
     # Affichage des résultats
     with results_display_col1:
+        
         # Parallélisation du traitement des restaurants
         with st.spinner("Chargement des restaurants..."):
             with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -479,79 +475,87 @@ def main():
             # Filtrage des résultats en fonction des noms filtrés
             filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
 
-        # Affichage uniquement des restaurants filtrés
-        for result in filtered_results:
-            restaurant, tcl_url, fastest_mode = result
-            container = st.container(border=True)
-            col1, col2, col3, col4, col5 = container.columns([3.5, 1, 1, 1, 2.5])
-            
-            # Affichage des informations du restaurant
-            with col1:
-                col1.write(restaurant.nom)
-                stars = display_stars(restaurant.note_globale)
-                col1.image(stars, width=20)
-
-            # Affichage du bouton d'information
-            with col2:
-                if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
-                    st.session_state['selected_restaurant'] = restaurant
-                    restaurant_info_dialog()
-            
-            # Affichage du bouton de statistiques
-            with col3:
-                if col3.button("📊", key=f"stats_btn_{restaurant.id_restaurant}"):
-                    st.session_state['selected_stats_restaurant'] = restaurant
-                    st.rerun()
-
-            # Affichage du bouton de comparaison
-            with col4:
-                if col4.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
-                    add_to_comparator(restaurant)
-            
-            # Affichage du bouton de trajet
-            with col5:
-                emoji, fastest_duration = fastest_mode
-                bouton_label = f"{emoji} {fastest_duration}"
-                button_key = f"trajet_btn_{restaurant.id_restaurant}"
-                if tcl_url:
-                    col5.markdown(f'''
-                        <style>
-                            .custom-button {{
-                                display: block;
-                                padding: 6px 12px;
-                                margin-bottom: 15px;
-                                color: #31333e;
-                                border: 1px solid #d6d6d8;
-                                border-radius: 8px;
-                                cursor: pointer;
-                                background-color: transparent;
-                                transition: background-color 0.3s;
-                            }}
-                            .custom-button:hover {{
-                                color: #FF4B4B;
-                                border-color: #FF4B4B;
-                            }}
-                            .custom-button:active {{
-                                background-color: #FF4B4B;
-                            }}
-                            @media (prefers-color-scheme: dark) {{
-                                .custom-button {{
-                                    color: #fafafa;
-                                    border-color: #3e4044;
-                                    background-color: #14171f;
-                                }}
-                            }}
-                        </style>
-                        <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
-                            <button class="custom-button">{bouton_label}</button>
-                        </a>
-                    ''', unsafe_allow_html=True)
-                else:
-                    col5.button(bouton_label, key=button_key, disabled=True)
-            
-        # Affichage si aucun restaurant n'est trouvé
+        # Affichage du nombre de restaurants trouvés
         if not filtered_results:
             st.info("ℹ️ Aucun restaurant trouvé, essayez de modifier vos critères de recherche.")
+        elif (filtered_results and len(filtered_results) == 1):
+            st.info("ℹ️ 1 restaurant trouvé")
+        else:
+            st.info(f"ℹ️ {len(filtered_results)} restaurants trouvés")
+        
+        container = st.container(height=1000, border=False)
+
+        with container:
+
+            # Affichage uniquement des restaurants filtrés
+            for result in filtered_results:
+                restaurant, tcl_url, fastest_mode = result
+                container = st.container(border=True)
+                col1, col2, col3, col4, col5 = container.columns([3.5, 1, 1, 1, 2.5])
+                
+                # Affichage des informations du restaurant
+                with col1:
+                    col1.write(restaurant.nom)
+                    stars = display_stars(restaurant.note_globale)
+                    col1.image(stars, width=20)
+
+                # Affichage du bouton d'information
+                with col2:
+                    if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
+                        st.session_state['selected_restaurant'] = restaurant
+                        restaurant_info_dialog()
+                
+                # Affichage du bouton de statistiques
+                with col3:
+                    if col3.button("📊", key=f"stats_btn_{restaurant.id_restaurant}"):
+                        st.session_state['selected_stats_restaurant'] = restaurant
+                        st.rerun()
+
+                # Affichage du bouton de comparaison
+                with col4:
+                    if col4.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
+                        add_to_comparator(restaurant)
+                
+                # Affichage du bouton de trajet
+                with col5:
+                    emoji, fastest_duration = fastest_mode
+                    bouton_label = f"{emoji} {fastest_duration}"
+                    button_key = f"trajet_btn_{restaurant.id_restaurant}"
+                    if tcl_url:
+                        col5.markdown(f'''
+                            <style>
+                                .custom-button {{
+                                    display: block;
+                                    padding: 6px 12px;
+                                    margin-bottom: 15px;
+                                    color: #31333e;
+                                    border: 1px solid #d6d6d8;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    background-color: transparent;
+                                    transition: background-color 0.3s;
+                                }}
+                                .custom-button:hover {{
+                                    color: #FF4B4B;
+                                    border-color: #FF4B4B;
+                                }}
+                                .custom-button:active {{
+                                    background-color: #FF4B4B;
+                                }}
+                                @media (prefers-color-scheme: dark) {{
+                                    .custom-button {{
+                                        color: #fafafa;
+                                        border-color: #3e4044;
+                                        background-color: #14171f;
+                                    }}
+                                }}
+                            </style>
+                            <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
+                                <button class="custom-button">{bouton_label}</button>
+                            </a>
+                        ''', unsafe_allow_html=True)
+                    else:
+                        col5.button(bouton_label, key=button_key, disabled=True)
     
     # Affichage de la carte
     with results_display_col2:

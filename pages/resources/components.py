@@ -3,14 +3,13 @@ import urllib.parse
 import requests
 import math
 import base64
-import webbrowser
 import pydeck as pdk
 import functools
 import litellm
 import numpy as np
 import time
 import tqdm
-from src.db.models import Chunk, get_session, init_db
+from src.db.models import Chunk, get_session, init_db, get_all_restaurants
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -18,6 +17,7 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 from ecologits import EcoLogits
 from litellm import ModelResponse
+from sqlalchemy import create_engine
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -157,6 +157,12 @@ def add_to_comparator(restaurant):
             st.toast("Le comparateur est plein, veuillez retirer un restaurant avant d'en ajouter un autre", icon="ℹ️")
     else:
         st.toast(f"Le restaurant {restaurant.nom} est déjà dans le comparateur", icon="ℹ️")
+
+# Fonction pour afficher le texte progressivement
+def stream_text(text):
+    for word in text.split(" "):
+        yield word + " "
+        time.sleep(0.03)
 
 # Fonction pour obtenir les informations de trajet depuis le site TCL
 @st.cache_data(ttl=300, show_spinner=False)
@@ -578,7 +584,7 @@ class AugmentedRAG:
     # Fonction pour calculer le coût d'une requête en fonction du nombre de tokens d'entrée et de sortie
     def _get_price_query(self, llm_name: str, input_tokens: int, output_tokens: int) -> float:
         pricing = {
-            "ministral-8b-latest": {"input": 0.09, "output": 0.09}
+            "mistral-large-latest": {"input": 1.95, "output": 5.85}
         }
         if llm_name not in pricing:
             raise ValueError(f"LLM {llm_name} not found in pricing database.")
@@ -635,10 +641,60 @@ class AugmentedRAG:
         model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
         embedding = model.encode(text)
         return embedding
-
+    
 # Fonction pour instancier BDDChunks
 def instantiate_bdd() -> BDDChunks:
+    st.toast("Démarrage de l'IA en cours...", icon="✨")
+
+    # Instanciation de la classe BDDChunks
     bdd_chunks = BDDChunks(embedding_model="paraphrase-MiniLM-L6-v2")
-    corpus = "Votre texte à traiter ici" # [TEMP]
-    bdd_chunks(corpus=corpus)
+
+    # Connexion à la base de données
+    engine = create_engine('sqlite:///restaurant_reviews.db')
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
+
+    try:
+        # Supprimer les chunks existants pour éviter les doublons ou erreurs de type
+        session.query(Chunk).delete()
+        session.commit()
+
+        # Récupération de tous les restaurants
+        restaurants = get_all_restaurants(session)
+
+        # Filtrage pour exclure les restaurants scrappés
+        scrapped_restaurants = [restaurant for restaurant in restaurants if restaurant.scrapped]
+
+        corpus = []
+
+        for restaurant in scrapped_restaurants:
+            restaurant_info = (
+                f"Nom du restaurant : {restaurant.nom} | \n"
+                f"ID du restaurant {restaurant.nom} : {restaurant.id_restaurant} | \n"
+                f"Adresse du restaurant {restaurant.nom} : {restaurant.adresse} | \n"
+                f"Lien TripAdvisor du restaurant {restaurant.nom} : {restaurant.url_link} | \n"
+                f"Email du restaurant {restaurant.nom} : {restaurant.email} | \n"
+                f"Téléphone du restaurant {restaurant.nom} : {restaurant.telephone} | \n"
+                f"Type de cuisine du restaurant {restaurant.nom} : {restaurant.cuisines} | \n"
+                f"Type de repas du restaurant {restaurant.nom} : {restaurant.repas} | \n"
+                f"Étoiles Michelin du restaurant {restaurant.nom} : {restaurant.etoiles_michelin} | \n"
+                f"Note globale du restaurant {restaurant.nom} : {restaurant.note_globale} | \n"
+                f"Note de cuisine du restaurant {restaurant.nom} : {restaurant.cuisine_note} | \n"
+                f"Note de service du restaurant {restaurant.nom} : {restaurant.service_note} | \n"
+                f"Note de qualité prix du restaurant {restaurant.nom} : {restaurant.qualite_prix_note} | \n"
+                f"Note d'ambiance du restaurant {restaurant.nom} : {restaurant.ambiance_note} | \n"
+            )
+            corpus.append(restaurant_info)
+
+        # Combiner tous les segments de texte en une seule chaîne
+        corpus_combined = "\n".join(corpus)
+
+        # Ajouter les embeddings en utilisant la classe BDDChunks
+        bdd_chunks(corpus=corpus_combined)
+
+    finally:
+        session.close()
+
+    st.toast("IA prête à être utilisée !", icon="✨")
+
     return bdd_chunks
