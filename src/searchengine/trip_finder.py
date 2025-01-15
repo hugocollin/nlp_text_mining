@@ -7,7 +7,6 @@ import numpy as np
 import random
 import string
 
-
 class SearchEngine:
     
     '''
@@ -59,7 +58,7 @@ class SearchEngine:
         # Fetch the URL and return the soup object
   
         headers = {
-            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/109.0", # AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+            'User-Agent': "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/109.0",
             'Accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/avif, image/webp, image/apng, image/*,*/*;q=0.8',
             'Accept-Language': 'fr-FR,fr;q=0.9',
             'Connection': 'keep-alive',
@@ -70,6 +69,7 @@ class SearchEngine:
             "DNT": "1",  # Do Not Track
 
         }
+        
         self.get_session()
         self.session.headers.update(headers)
         response = self.session.get(url, headers=headers, timeout=(6, 36))
