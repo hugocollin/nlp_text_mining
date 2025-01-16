@@ -452,7 +452,7 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                 info_container.markdown(f'''
                     <style>
                         .custom-button {{
-                            display: block;
+                            display: inline-block;
                             padding: 6px 12px;
                             margin-bottom: 15px;
                             color: #31333e;
@@ -486,18 +486,26 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                             }}
                         }}
                     </style>
-                    <a href="{gm_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button" {disabled_adresse}>{gm}</button>
-                    </a>
-                    <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button" {disabled_tripadvisor}>{tripadvisor}</button>
-                    </a>
-                    <a href="{email_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button" {disabled_email}>{email}</button>
-                    </a>
-                    <a href="{tel_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button" {disabled_tel}>{tel}</button>
-                    </a>
+                    <div>
+                        <a href="{gm_link}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button" {disabled_adresse}>{gm}</button>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button" {disabled_tripadvisor}>{tripadvisor}</button>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{email_link}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button" {disabled_email}>{email}</button>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{tel_link}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button" {disabled_tel}>{tel}</button>
+                        </a>
+                    </div>
                 ''', unsafe_allow_html=True)
 
                 # Affichage des horaires d'ouverture
