@@ -70,19 +70,6 @@ def filter_restaurants_by_radius(restaurants, personal_latitude, personal_longit
             filtered.append(restaurant)
     return filtered
 
-# Fonction pour obtenir le lien Google Maps d'une adresse
-def get_google_maps_link(address):
-    # Mise en forme de l'adresse
-    parts = address.split(',')
-    if len(parts) > 1 and parts[-1].strip().lower() == 'france':
-        address = ','.join(parts[:-1])
-
-    # Encodage de l'adresse
-    encoded_address = urllib.parse.quote_plus(address)
-    google_maps_url = f"https://www.google.com/maps/place/{encoded_address}"
-
-    return google_maps_url
-
 # Fonction pour convertir une image en chaîne base64
 def image_to_base64(image_path):
     with open(image_path, "rb") as img_file:
@@ -437,7 +424,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                 # Préparation des boutons
                 if selected_restaurant.adresse:
                     gm = f"📍 {selected_restaurant.adresse}"
-                    gm_link = get_google_maps_link(selected_restaurant.adresse)
+                    gm_link = selected_restaurant.google_map
                     disabled_adresse = ''
                 else:
                     gm = "📍 Non disponible"
