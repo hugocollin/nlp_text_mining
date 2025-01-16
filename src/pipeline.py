@@ -36,9 +36,6 @@ class Transistor:
             print("BDD: ", self.bdd)
         return ""
     
-    def get_user_and_review_from_restaurant_id(self, restaurant_id):
-        return get_user_and_review_from_restaurant_id(self.session, restaurant_id)
-    
     def insert_user(self, user):
         return insert_user(self.session, user)
     
@@ -56,9 +53,6 @@ class Transistor:
     
     def get_restaurants_with_reviews_and_users(self):
         return self.nlp_analysis.get_restaurants_with_reviews_and_users()
-    
-    def get_user_and_review_from_restaurant_id(self, restaurant_id):
-        return get_user_and_review_from_restaurant_id(self.session, restaurant_id)
     
     def insert_user(self, user):
         return insert_user(self.session, user)
@@ -202,7 +196,7 @@ class Transistor:
     
     def get_user_and_review_from_restaurant_id(self, restaurant_id):
         """Redirect to models.get_user_and_review_from_restaurant_id"""
-        return get_user_and_review_from_restaurant_id(restaurant_id, self.session)
+        return get_user_and_review_from_restaurant_id( self.session, restaurant_id)
     
     def get_restaurants_with_reviews_and_users(self):
         """Redirect to models.get_restaurants_with_reviews_and_users"""
