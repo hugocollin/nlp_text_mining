@@ -9,6 +9,7 @@ import litellm
 import numpy as np
 import time
 import tqdm
+import datetime
 from src.db.models import Chunk, get_session, init_db, get_all_restaurants, get_user_and_review_from_restaurant_id
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
@@ -144,6 +145,78 @@ def display_stars(rating):
             else:
                 stars.append("")
     return stars
+
+# Fonction pour obtenir le temps actuel
+def get_datetime():
+    # Récupération de la date actuelle
+    current_datetime = datetime.datetime.now()
+
+    # Récupération du jour actuel
+    current_day = current_datetime.strftime('%A')
+
+    # Traduction du jour en français
+    fr_days = {
+        'Monday': 'Lundi',
+        'Tuesday': 'Mardi',
+        'Wednesday': 'Mercredi',
+        'Thursday': 'Jeudi',
+        'Friday': 'Vendredi',
+        'Saturday': 'Samedi',
+        'Sunday': 'Dimanche'
+    }
+    current_day = fr_days.get(current_day, None)
+
+    return current_datetime, current_day
+
+# Fonction pour construire les horaires d'ouverture d'un restaurant
+def construct_horaires(horaires_str):
+    fr_days = {
+        'Monday': 'Lundi',
+        'Tuesday': 'Mardi',
+        'Wednesday': 'Mercredi',
+        'Thursday': 'Jeudi',
+        'Friday': 'Vendredi',
+        'Saturday': 'Samedi',
+        'Sunday': 'Dimanche'
+    }
+
+    # Création d'un dictionnaire pour stocker les horaires
+    horaires_dict = {jour: [] for jour in fr_days.values()}
+    jours = horaires_str.split(";")
+    jours = [jour.strip() for jour in jours if jour.strip()]
+
+    # Parcours des jours
+    for jour in jours:
+        jour_nom, plages = jour.split(": ")
+
+        # Si le restaurant est fermé
+        if plages.lower() == "fermé":
+            horaires_dict[jour_nom] = []
+            continue
+        plages = plages.split(", ")
+
+        # Parcours des plages horaires
+        for plage in plages:
+            start_str, end_str = plage.split("-")
+            start_time = datetime.datetime.strptime(start_str, '%H:%M').time()
+            end_time = datetime.datetime.strptime(end_str, '%H:%M').time()
+            
+            # Gestion des horaires de nuit
+            if end_time <= start_time:
+                horaires_dict[jour_nom].append((start_time, datetime.time(23, 59)))
+                
+                index = list(fr_days.values()).index(jour_nom)
+                jour_suivant = list(fr_days.values())[(index + 1) % 7]
+                
+                horaires_dict[jour_suivant].append((datetime.time(0, 0), end_time))
+            else:
+                horaires_dict[jour_nom].append((start_time, end_time))
+    
+    # Tri des horaires par ordre croissant
+    for jour in horaires_dict:
+        horaires_dict[jour].sort(key=lambda x: x[0])
+    
+    return horaires_dict
 
 # Fonction pour ajouter un restaurant au comparateur
 def add_to_comparator(restaurant):
@@ -391,7 +464,56 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                 # Affichage des horaires d'ouverture
                 horaires_container = st.container(border=True)
                 horaires_container.write("**Horaires d'ouverture**")
-                horaires_container.write("*Informations disponibles ultérieurement*")
+
+                horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: Fermé; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
+
+                current_datetime, current_day = get_datetime()
+                horaires_dict = construct_horaires(horaires)
+                
+                if not horaires:
+                    horaires_container.info("Les horaires d'ouverture ne sont pas disponibles", icon="ℹ️")
+                else:
+                    plages_du_jour = horaires_dict.get(current_day, [])
+                    if not plages_du_jour:
+                        horaires_container.error("Fermé")
+                    else:
+                        ouvert = False
+                        current_time = current_datetime.time()
+                        for start, end in plages_du_jour:
+                            if start <= end:
+                                if start <= current_time <= end:
+                                    ouvert = True
+                                    break
+                            else:
+                                if current_time >= start or current_time <= end:
+                                    ouvert = True
+                                    break
+                        if ouvert:
+                            horaires_container.success("Ouvert")
+                        else:
+                            horaires_container.error("Fermé")
+
+                    # Transformation des horaires en dictionnaire
+                    horaires_dict = {}
+                    parties = horaires.split(";")
+                    for partie in parties:
+                        if partie.strip():
+                            jour, heures = partie.split(": ")
+                            horaires_dict[jour] = heures
+                    
+                    # Affichage des horaires d'ouverture
+                    for jour in [" Lundi", " Mardi", " Mercredi", " Jeudi", " Vendredi", " Samedi", "Dimanche"]:
+                        if jour in horaires_dict:
+                            heures = horaires_dict[jour]
+                            if heures == "Fermé":
+                                horaires_container.write(f"- {jour} : Fermé")
+                            else:
+                                debut, fin = heures.split("-")
+                                debut = debut.replace(":", "h")
+                                fin = fin.replace(":", "h")
+                                horaires_container.write(f"- {jour} : {debut} - {fin}")
+                
+                horaires_container.write("*Horaires factices, les horaires réelles seront disponibles ultérieurement.*")
 
                 # Affichage du résumé du restaurant
                 resume_container = st.container(border=True)

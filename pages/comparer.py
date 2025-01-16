@@ -112,7 +112,7 @@ def main():
                 st.write(f"- 🚗 {duration_car}")
             else:
                 # Message si aucun restaurant n'est sélectionné
-                st.info("ℹ️ Sélectionnez un restaurant depuis la page 🔍 Explorer en cliquant sur le bouton 🆚, afin de l'ajouter au comparateur.")
+                st.info("Sélectionnez un restaurant depuis la page 🔍 Explorer en cliquant sur le bouton 🆚, afin de l'ajouter au comparateur.", icon="ℹ️")
 
 if __name__ == '__main__':
     main()

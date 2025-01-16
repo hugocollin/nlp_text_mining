@@ -3,7 +3,7 @@ import pydeck as pdk
 import concurrent.futures
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, get_personal_address
 from src.db.models import get_all_restaurants
 from dotenv import find_dotenv, load_dotenv
 
@@ -368,11 +368,8 @@ def main():
                 for restaurant in restaurants:
                     if restaurant.scrapped:
                         future = next(f for f, r in futures.items() if r == restaurant)
-                        try:
-                            result = future.result()
-                            results.append(result)
-                        except Exception as e:
-                            st.error(f"Erreur lors du traitement du restaurant {restaurant.nom}: {e}")
+                        result = future.result()
+                        results.append(result)
 
         # Filtrage des résultats en fonction des filtres
         filtered_results = []
@@ -470,11 +467,11 @@ def main():
 
         # Affichage du nombre de restaurants trouvés
         if not filtered_results:
-            st.info("ℹ️ Aucun restaurant trouvé, essayez de modifier vos critères de recherche.")
+            st.info("Aucun restaurant trouvé, essayez de modifier vos critères de recherche", icon="ℹ️")
         elif (filtered_results and len(filtered_results) == 1):
-            st.info("ℹ️ 1 restaurant trouvé")
+            st.info("1 restaurant trouvé", icon="ℹ️")
         else:
-            st.info(f"ℹ️ {len(filtered_results)} restaurants trouvés")
+            st.info(f"{len(filtered_results)} restaurants trouvés", icon="ℹ️")
         
         container = st.container(height=1000, border=False)
 
@@ -484,7 +481,7 @@ def main():
             for result in filtered_results:
                 restaurant, tcl_url, fastest_mode = result
                 container = st.container(border=True)
-                col1, col2, col3, col4 = container.columns([3.5, 1, 1, 2.5])
+                col1, col2, col3, col4, col5 = container.columns([3.5, 1.7, 1, 1, 2.5])
                 
                 # Affichage des informations du restaurant
                 with col1:
@@ -492,24 +489,53 @@ def main():
                     stars = display_stars(restaurant.note_globale)
                     col1.image(stars, width=20)
 
-                # Affichage du bouton d'information
                 with col2:
-                    if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
+                    horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: 11:30-23:00; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
+
+                    current_datetime, current_day = get_datetime()
+                    horaires_dict = construct_horaires(horaires)
+                    
+                    if not horaires:
+                        col2.error("Indisponible")
+                    else:
+                        plages_du_jour = horaires_dict.get(current_day, [])
+                        if not plages_du_jour:
+                            col2.error("Fermé")
+                        else:
+                            ouvert = False
+                            current_time = current_datetime.time()
+                            for start, end in plages_du_jour:
+                                if start <= end:
+                                    if start <= current_time <= end:
+                                        ouvert = True
+                                        break
+                                else:
+                                    if current_time >= start or current_time <= end:
+                                        ouvert = True
+                                        break
+                            if ouvert:
+                                col2.success("Ouvert")
+                            else:
+                                col2.error("Fermé")
+
+                # Affichage du bouton d'information
+                with col3:
+                    if col3.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
                         st.session_state['selected_restaurant'] = restaurant
                         restaurant_info_dialog()
 
                 # Affichage du bouton de comparaison
-                with col3:
-                    if col3.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
+                with col4:
+                    if col4.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
                         add_to_comparator(restaurant)
                 
                 # Affichage du bouton de trajet
-                with col4:
+                with col5:
                     emoji, fastest_duration = fastest_mode
                     bouton_label = f"{emoji} {fastest_duration}"
                     button_key = f"trajet_btn_{restaurant.id_restaurant}"
                     if tcl_url:
-                        col4.markdown(f'''
+                        col5.markdown(f'''
                             <style>
                                 .custom-button {{
                                     display: block;
@@ -542,7 +568,7 @@ def main():
                             </a>
                         ''', unsafe_allow_html=True)
                     else:
-                        col4.button(bouton_label, key=button_key, disabled=True)
+                        col5.button(bouton_label, key=button_key, disabled=True)
     
     # Affichage de la carte
     with results_display_col2:

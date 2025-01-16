@@ -82,12 +82,12 @@ def add_personal_address_dialog():
     if empty_address:
         st.session_state['address_search_done'] = False
         st.session_state['found_location'] = None
-        st.warning("L'adresse ne peut pas être vide.", icon="⚠️") 
+        st.warning("L'adresse ne peut pas être vide", icon="⚠️") 
     
     if address_geo_failed:
         st.session_state['address_search_done'] = False
         st.session_state['found_location'] = None
-        st.warning("L'adresse renseignée n'est pas valide.", icon="⚠️")
+        st.warning("L'adresse renseignée n'est pas valide", icon="⚠️")
         
     
     # Affichage de la carte et du bouton d'enregistrement si la recherche est réussie
