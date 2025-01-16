@@ -1,33 +1,28 @@
 import streamlit as st
 import pydeck as pdk
 import concurrent.futures
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api
-from src.db.models import get_all_restaurants
+
 from dotenv import find_dotenv, load_dotenv
+from src.pipeline import Transistor
+
 
 # Récupération de la clé API Mistral
 load_dotenv(find_dotenv())
 
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
+transistor = Transistor()
 
-# Connexion à la base de données
+# Récupération des données des restaurants
 @st.cache_resource
-def get_db_session():
-    engine = create_engine('sqlite:///restaurant_reviews.db')
-    Session = sessionmaker(bind=engine)
-    return Session()
+def get_session_and_restaurants():
+    session = transistor.session
+    restaurants = transistor.get_all_restaurants()
+    return session, restaurants
 
-session = get_db_session()
-
-# Récupération de tous les restaurants
-@st.cache_data
-def fetch_restaurants(_session):
-    return get_all_restaurants(_session)
-
-restaurants = fetch_restaurants(session)
+session, restaurants = get_session_and_restaurants()
 
 # Récupération de l'adresse personnelle
 personal_address, personal_latitude, personal_longitude = get_personal_address()
@@ -54,7 +49,7 @@ def add_restaurant_dialog():
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("ℹ️ Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    display_restaurant_infos(session, personal_address, personal_latitude, personal_longitude)
+    display_restaurant_infos( personal_address, personal_latitude, personal_longitude)
 
 def main():
     # Barre de navigation
@@ -479,6 +474,9 @@ def main():
 
             with container:
 
+                # Récupération du temps actuel
+                current_datetime, current_day = get_datetime()
+
                 # Affichage uniquement des restaurants filtrés
                 for result in filtered_results:
                     restaurant, tcl_url, fastest_mode = result
@@ -500,6 +498,7 @@ def main():
                         if not horaires:
                             col2.error("Indisponible")
                         else:
+                            horaires_dict = construct_horaires(horaires)
                             plages_du_jour = horaires_dict.get(current_day, [])
                             if not plages_du_jour:
                                 col2.error("Fermé")

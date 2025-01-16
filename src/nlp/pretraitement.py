@@ -11,10 +11,10 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from db.models import get_restaurants_with_reviews_and_users
+from src.db.models import get_restaurants_with_reviews_and_users
 from sqlalchemy import Table, MetaData
 from sqlalchemy.dialects.sqlite import insert
-from db.init_db import fill_resume_avis_column, fill_review_cleaned_column
+from src.db.init_db import fill_resume_avis_column, fill_review_cleaned_column
 
 class NLPPretraitement:
     def __init__(self, db_url='sqlite:///restaurant_reviews.db'):

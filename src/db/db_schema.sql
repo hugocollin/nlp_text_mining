@@ -58,3 +58,15 @@ ADD COLUMN sentiment_rating TEXT;
 
 ALTER TABLE dim_restaurants 
 ADD COLUMN resume_avis TEXT;
+
+ALTER TABLE dim_restaurants 
+ADD COLUMN fonctionnalite TEXT;
+
+ALTER TABLE dim_restaurants 
+ADD COLUMN google_map TEXT;
+
+ALTER TABLE dim_restaurants 
+ADD COLUMN horaires TEXT;
+
+ALTER TABLE dim_restaurants 
+ADD COLUMN rank INTEGER;

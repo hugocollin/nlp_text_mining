@@ -10,7 +10,8 @@ import numpy as np
 import time
 import tqdm
 import datetime
-from src.db.models import Chunk, get_session, init_db, get_all_restaurants, get_user_and_review_from_restaurant_id
+import locale
+from src.db.models import Chunk, get_session, init_db
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -18,7 +19,10 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 from ecologits import EcoLogits
 from litellm import ModelResponse
-from sqlalchemy import create_engine
+from src.pipeline import Transistor
+
+# Instanciation d'un transistor
+transistor = Transistor()
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -145,8 +149,27 @@ def display_stars(rating):
                 stars.append("")
     return stars
 
+# Fonction pour obtenir le prix moyen d'un restaurant
+def get_price_symbol(prix_min, prix_max):
+    if prix_min and prix_max:
+        prix_avg = (prix_min + prix_max) / 2
+
+        if prix_avg < 20:
+            return ':material/euro_symbol:'
+        elif prix_avg < 30:
+            return ':material/euro_symbol::material/euro_symbol:'
+        elif prix_avg < 50:
+            return ':material/euro_symbol::material/euro_symbol::material/euro_symbol:'
+        else:
+            return ':material/euro_symbol::material/euro_symbol::material/euro_symbol::material/euro_symbol:'
+    else:
+        return 'Non disponible'
+
 # Fonction pour obtenir le temps actuel
 def get_datetime():
+    # Définition de la timezone
+    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+    
     # Récupération de la date actuelle
     current_datetime = datetime.datetime.now()
 
@@ -155,28 +178,28 @@ def get_datetime():
 
     # Traduction du jour en français
     fr_days = {
-        'Monday': 'Lundi',
-        'Tuesday': 'Mardi',
-        'Wednesday': 'Mercredi',
-        'Thursday': 'Jeudi',
-        'Friday': 'Vendredi',
-        'Saturday': 'Samedi',
-        'Sunday': 'Dimanche'
+        'lundi': 'Lundi',
+        'mardi': 'Mardi',
+        'mercredi': 'Mercredi',
+        'jeudi': 'Jeudi',
+        'vendredi': 'Vendredi',
+        'samedi': 'Samedi',
+        'dimanche': 'Dimanche'
     }
     current_day = fr_days.get(current_day, None)
-
+    
     return current_datetime, current_day
 
 # Fonction pour construire les horaires d'ouverture d'un restaurant
 def construct_horaires(horaires_str):
     fr_days = {
-        'Monday': 'Lundi',
-        'Tuesday': 'Mardi',
-        'Wednesday': 'Mercredi',
-        'Thursday': 'Jeudi',
-        'Friday': 'Vendredi',
-        'Saturday': 'Samedi',
-        'Sunday': 'Dimanche'
+        'lundi': 'Lundi',
+        'mardi': 'Mardi',
+        'mercredi': 'Mercredi',
+        'jeudi': 'Jeudi',
+        'vendredi': 'Vendredi',
+        'samedi': 'Samedi',
+        'dimanche': 'Dimanche'
     }
 
     # Création d'un dictionnaire pour stocker les horaires
@@ -364,7 +387,7 @@ def process_restaurant(personal_address, personal_latitude, personal_longitude, 
     return (restaurant, tcl_url, fastest_mode)
 
 # Récupération des informations du restaurant sélectionné
-def display_restaurant_infos(session, personal_address, personal_latitude, personal_longitude):
+def display_restaurant_infos( personal_address, personal_latitude, personal_longitude):
     # Récupération de restaurant sélectionné
     selected_restaurant = st.session_state.get('selected_restaurant')
 
@@ -411,17 +434,48 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
             # Affichage des informations de la colonne 1
             with col1:
                 info_container = st.container()
-                # Générer les URLs
-                lien_gm = get_google_maps_link(selected_restaurant.adresse)
-                tripadvisor_link = selected_restaurant.url_link
-                email_link = f"mailto:{selected_restaurant.email}"
-                tel_link = f"tel:{selected_restaurant.telephone}"
+                # Préparation des boutons
+                if selected_restaurant.adresse:
+                    gm = f"📍 {selected_restaurant.adresse}"
+                    gm_link = get_google_maps_link(selected_restaurant.adresse)
+                    disabled_adresse = ''
+                else:
+                    gm = "📍 Non disponible"
+                    gm_link = "None"
+                    disabled_adresse = 'disabled'
+
+                if selected_restaurant.url_link:
+                    tripadvisor = "🌐 Lien vers Tripadvisor"
+                    tripadvisor_link = selected_restaurant.url_link
+                    disabled_tripadvisor = ''
+                else:
+                    tripadvisor = "🌐 Non disponible"
+                    tripadvisor_link = "None"
+                    disabled_tripadvisor = 'disabled'
+
+                if selected_restaurant.email:
+                    email = f"📧 {selected_restaurant.email}"
+                    email_link = f"mailto:{selected_restaurant.email}"
+                    disabled_email = ''
+                else:
+                    email = "📧 Non disponible"
+                    email_link = "None"
+                    disabled_email = 'disabled'
+
+                if selected_restaurant.telephone:
+                    tel = f"📞 {selected_restaurant.telephone}"
+                    tel_link = f"tel:{selected_restaurant.telephone}"
+                    disabled_tel = ''
+                else:
+                    tel = "📞 Non disponible"
+                    tel_link = "None"
+                    disabled_tel = 'disabled'
 
                 # Affichage des boutons pour les liens
                 info_container.markdown(f'''
                     <style>
                         .custom-button {{
-                            display: block;
+                            display: inline-block;
                             padding: 6px 12px;
                             margin-bottom: 15px;
                             color: #31333e;
@@ -438,26 +492,43 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                         .custom-button:active {{
                             background-color: #FF4B4B;
                         }}
+                        .custom-button[disabled] {{
+                            color: #adadb2;
+                            cursor: not-allowed;
+                        }}
                         @media (prefers-color-scheme: dark) {{
                             .custom-button {{
                                 color: #fafafa;
                                 border-color: #3e4044;
                                 background-color: #14171f;
                             }}
+                            .custom-button[disabled] {{
+                                color: #6d6e71;
+                                border-color: #3e4044;
+                                background-color: transparent;
+                            }}
                         }}
                     </style>
-                    <a href="{lien_gm}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">📍 {selected_restaurant.adresse}</button>
-                    </a>
-                    <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">🌐 Lien vers Tripadvisor</button>
-                    </a>
-                    <a href="{email_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">📧 {selected_restaurant.email}</button>
-                    </a>
-                    <a href="{tel_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">📞 {selected_restaurant.telephone}</button>
-                    </a>
+                    <div>
+                        <a href="{gm_link}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button" {disabled_adresse}>{gm}</button>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button" {disabled_tripadvisor}>{tripadvisor}</button>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{email_link}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button" {disabled_email}>{email}</button>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{tel_link}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button" {disabled_tel}>{tel}</button>
+                        </a>
+                    </div>
                 ''', unsafe_allow_html=True)
 
                 # Affichage des horaires d'ouverture
@@ -522,22 +593,44 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                 # Affichage des informations complémentaires
                 info_supp_container = st.container(border=True)
                 info_supp_container.write("**Informations complémentaires**")
-                info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
-                info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+                if selected_restaurant.cuisines:
+                    info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+                else:
+                    info_supp_container.write("**Cuisine :** Non disponible")
+                if selected_restaurant.repas:
+                    info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+                else:
+                    info_supp_container.write("**Repas :** Non disponible")
 
             # Affichage des informations de la colonne 2
             with col2:
-                score_container = st.container(border=True)
+                # Affichage de la fourchette de prix
+                prix_container = st.container(border=True)
+                prix_symbol = get_price_symbol(selected_restaurant.prix_min, selected_restaurant.prix_max)
+                prix_container.write(f"**Prix :** {prix_symbol}")
                 
                 # Affichage des notations
+                score_container = st.container(border=True)
                 score_container.write("**Notations**")
                 stars = display_stars(selected_restaurant.note_globale)
                 stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
                 score_container.html(f"<b>Globale : </b>{stars_html}")
-                score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
-                score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
-                score_container.write(f"**Service :** {selected_restaurant.service_note}")
-                score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
+                if selected_restaurant.qualite_prix_note:
+                    score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
+                else:
+                    score_container.write("**Qualité Prix :** Non disponible")
+                if selected_restaurant.cuisine_note:
+                    score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
+                else:
+                    score_container.write("**Cuisine :** Non disponible")
+                if selected_restaurant.service_note:
+                    score_container.write(f"**Service :** {selected_restaurant.service_note}")
+                else:
+                    score_container.write("**Service :** Non disponible")
+                if selected_restaurant.ambiance_note:
+                    score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
+                else:
+                    score_container.write("**Ambiance :** Non disponible")
                 
                 # Affichage des temps de trajet
                 journeys_container = st.container(border=True)
@@ -601,7 +694,7 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                 st.session_state['display_count'] = 10
 
             # Récupération des avis
-            review = get_user_and_review_from_restaurant_id(session, selected_restaurant.id_restaurant)
+            review = transistor.get_user_and_review_from_restaurant_id( selected_restaurant.id_restaurant)
 
             # Mise en page des informations
             col1, col2 = st.columns(2)
@@ -889,10 +982,8 @@ def instantiate_bdd() -> BDDChunks:
     # Instanciation de la classe BDDChunks
     bdd_chunks = BDDChunks(embedding_model="paraphrase-MiniLM-L6-v2")
 
-    # Connexion à la base de données
-    engine = create_engine('sqlite:///restaurant_reviews.db')
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
+
+    session = transistor.session
 
     try:
         # Supprimer les chunks existants pour éviter les doublons ou erreurs de type
@@ -900,7 +991,7 @@ def instantiate_bdd() -> BDDChunks:
         session.commit()
 
         # Récupération de tous les restaurants
-        restaurants = get_all_restaurants(session)
+        restaurants = transistor.get_all_restaurants()
 
         # Filtrage pour exclure les restaurants scrappés
         scrapped_restaurants = [restaurant for restaurant in restaurants if restaurant.scrapped]
