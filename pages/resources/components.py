@@ -489,20 +489,35 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
             with col1:
                 with st.container(height=1000, border=False):
                     for i, r in enumerate(review[:st.session_state['display_count']]):
-                        # Affichage du nom de l'utilisateur
                         comment_container = st.container(border=True)
-                        comment_container.write(f"**👤 {r[0].user_name}**")
-                        comment_container.write(f"📅 *{r[1].date_review}*")
-                        stars = display_stars(r[1].rating)
-                        stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
-                        comment_container.html(stars_html)
+                        comment_col1, comment_col2 = comment_container.columns([0.6, 0.4])
+                        with comment_col1:
+                            st.write(f"**👤 {r[0].user_name}**")
+                            stars = display_stars(r[1].rating)
+                            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                            st.html(stars_html)
+
+                        with comment_col2:
+                            st.write(f"📅 ***{r[1].date_review}***")
+                            visit_mapping = {
+                                "none": "",
+                                "No information": "",
+                                "business": "💼 Travail",
+                                "couples": "❤️ Couple",
+                                "family": "👨‍👩‍👧‍👦 Famille",
+                                "friends": "👫 Amis",
+                                "solo": "🧍 Seul"
+                            }
+                            st.write(f"{visit_mapping.get(r[1].type_visit, r[1].type_visit)}")
+                        
+                        comment_container.write(f"**{r[1].title_review}**")
                         comment_container.write(r[1].review_text)
                 
                     # Bouton pour charger plus de reviews
                     if st.session_state['display_count'] < len(review):
-                        if st.button("Charger plus d'avis"):
-                            st.session_state['display_count'] += 5
-                            st.rerun()
+                        if st.button("🔄️ Charger plus d'avis"):
+                            st.session_state['display_count'] += 10
+                            st.rerun(scope="fragment")
             
             with col2:
                 # Affichage du nombre d'avis

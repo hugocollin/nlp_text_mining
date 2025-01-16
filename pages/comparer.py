@@ -45,7 +45,7 @@ def main():
     reinit_cmp_btn_col1, reinit_cmp_btn_col2 = st.columns([2, 1])
     
     # Bouton pour réinitialiser le comparateur
-    if reinit_cmp_btn_col2.button("🔄 Réinitialiser le comparateur", disabled=comparator_empty):
+    if reinit_cmp_btn_col2.button("♻️ Réinitialiser le comparateur", disabled=comparator_empty):
         st.session_state['comparator'] = []
         st.rerun()
 
