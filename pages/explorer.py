@@ -3,7 +3,7 @@ import pydeck as pdk
 import concurrent.futures
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, get_personal_address, display_michelin_stars, tcl_api
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api
 from src.db.models import get_all_restaurants
 from dotenv import find_dotenv, load_dotenv
 
@@ -74,7 +74,7 @@ def main():
     st.title('🔍 Explorer')
 
     # Mise en page du bouton d'ajout de restaurant
-    add_restaurant_btn_col1, add_restaurant_btn_col2 = st.columns([3, 1])
+    _add_restaurant_btn_col1, add_restaurant_btn_col2 = st.columns([3, 1])
 
     # Bouton pour ajouter un restaurant
     with add_restaurant_btn_col2:
@@ -656,7 +656,7 @@ def main():
         comparator_empty = len(st.session_state['comparator']) == 0
         
         # Mise en page du bouton pour réinitialiser le comparateur
-        reinit_cmp_btn_col1, reinit_cmp_btn_col2 = st.columns([2, 1])
+        _reinit_cmp_btn_col1, reinit_cmp_btn_col2 = st.columns([2, 1])
         
         # Bouton pour réinitialiser le comparateur
         if reinit_cmp_btn_col2.button("♻️ Réinitialiser le comparateur", disabled=comparator_empty):
@@ -698,6 +698,7 @@ def main():
 
                     st.write("**Notations :**")
                     michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
+                    michelin_stars_html = ' Aucune'
                     if michelin_stars:
                         if restaurant.etoiles_michelin == 1:
                             michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
@@ -705,8 +706,6 @@ def main():
                             michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
                         elif restaurant.etoiles_michelin == 3:
                             michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
-                    else:
-                        michelin_stars_html = ' Aucune'
                     st.html(f"<li><b>Étoiles Michelin :</b>{michelin_stars_html}</li>")
                     stars = display_stars(restaurant.note_globale)
                     stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
