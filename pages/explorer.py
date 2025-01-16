@@ -14,12 +14,20 @@ load_dotenv(find_dotenv())
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
 
 # Connexion à la base de données
-engine = create_engine('sqlite:///restaurant_reviews.db')
-Session = sessionmaker(bind=engine)
-session = Session()
+@st.cache_resource
+def get_db_session():
+    engine = create_engine('sqlite:///restaurant_reviews.db')
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+session = get_db_session()
 
 # Récupération de tous les restaurants
-restaurants = get_all_restaurants(session)
+@st.cache_data
+def fetch_restaurants(_session):
+    return get_all_restaurants(_session)
+
+restaurants = fetch_restaurants(session)
 
 # Récupération de l'adresse personnelle
 personal_address, personal_latitude, personal_longitude = get_personal_address()
@@ -361,20 +369,9 @@ def main():
             
             # Parallélisation du traitement des restaurants
             with st.spinner("Chargement des restaurants..."):
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    # Map des restaurants scrappés aux futurs
-                    futures = {
-                        executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant): restaurant
-                        for restaurant in restaurants
-                        if restaurant.scrapped
-                    }
-                    # Collecte des résultats dans l'ordre des restaurants
-                    results = []
-                    for restaurant in restaurants:
-                        if restaurant.scrapped:
-                            future = next(f for f, r in futures.items() if r == restaurant)
-                            result = future.result()
-                            results.append(result)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = {executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant): restaurant for restaurant in restaurants if restaurant.scrapped}
+                    results = [future.result() for future in concurrent.futures.as_completed(futures)]
 
             # Filtrage des résultats en fonction des filtres
             filtered_results = []
@@ -579,7 +576,7 @@ def main():
         with results_display_col2:
             with st.spinner("Chargement de la carte..."):
                 # Mise en forme du radius et de la couleur du domicile
-                if radius == 1000000:
+                if (radius == 1000000):
                     radius = 25
                     color = '[0, 0, 255]'
                 else:
