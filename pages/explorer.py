@@ -48,7 +48,7 @@ def add_restaurant_dialog():
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("ℹ️ Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    display_restaurant_infos(session, personal_address, personal_latitude, personal_longitude)
+    display_restaurant_infos( personal_address, personal_latitude, personal_longitude)
 
 def main():
     # Barre de navigation
