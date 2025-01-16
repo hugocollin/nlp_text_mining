@@ -489,16 +489,15 @@ def main():
                         stars = display_stars(restaurant.note_globale)
                         col1.image(stars, width=20)
 
+                    # Affichage du statut du restaurant
                     with col2:
-                        horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: 11:30-23:00; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
-
                         current_datetime, current_day = get_datetime()
-                        horaires_dict = construct_horaires(horaires)
+                        horaires_dict = construct_horaires(restaurant.horaires)
                         
-                        if not horaires:
+                        if not restaurant.horaires:
                             col2.error("Indisponible")
                         else:
-                            horaires_dict = construct_horaires(horaires)
+                            horaires_dict = construct_horaires(restaurant.horaires)
                             plages_du_jour = horaires_dict.get(current_day, [])
                             if not plages_du_jour:
                                 col2.error("Fermé")
@@ -696,12 +695,10 @@ def main():
                     st.header(restaurant.nom)
 
                     # Affichage des horaires d'ouverture
-                    horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: Fermé; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
-
                     current_datetime, current_day = get_datetime()
-                    horaires_dict = construct_horaires(horaires)
+                    horaires_dict = construct_horaires(restaurant.horaires)
                     
-                    if not horaires:
+                    if not restaurant.horaires:
                         st.info("Les horaires d'ouverture ne sont pas disponibles", icon="ℹ️")
                     else:
                         plages_du_jour = horaires_dict.get(current_day, [])
