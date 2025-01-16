@@ -8,6 +8,7 @@ import ast
 from sqlalchemy import update, select, exists, create_engine, text, MetaData, Column, String, Integer, Float, Boolean
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
+import re
 
 
 from src.db.databases import execute_query, fetch_one, create_schema, database_exists, fetch_one_as_dict, fetch_all
@@ -245,64 +246,6 @@ def process_restaurant_csv(file_name):
     )
         
 
-
-def get_coordinates(address):
-
-    geolocator = Nominatim(user_agent="sise_o_resto", timeout=15)
-    attempts = 0  # Compteur pour limiter les tentatives
-    segments = [seg.strip() for seg in address.split(',')]
-
-    if len(segments) < 2:
-        print("Adresse invalide : il faut au moins un segment principal et un code postal.")
-        return None, None
-
-    first_segment = segments[0]  # Adresse principale
-    last_segment = segments[-1]  # Code postal ou ville
-    middle_segments = segments[1:-1]  # Autres segments intermédiaires (s'il y en a)
-
-    # Essayer en priorité : premier segment + code postal
-    current_address = f"{first_segment}, {last_segment}"
-    print(f"Tentative initiale avec : {current_address}")
-
-    while attempts < 10:  # Limiter à 5 tentatives au maximum
-        try:
-            # Essayer de géocoder l'adresse actuelle
-            location = geolocator.geocode(f"{current_address}, Rhône, France")
-            if location:
-                print(f"Adresse trouvée : {location.address}")
-                return location.latitude, location.longitude
-
-            # Si la géolocalisation échoue, nettoyer l'adresse
-            print("Géolocalisation échouée. Nettoyage ou passage au segment suivant...")
-
-            # Si on est encore sur le premier segment, enlever un mot
-            if first_segment:
-                first_segment_words = first_segment.split()
-                if len(first_segment_words) > 1:
-                    first_segment = ' '.join(first_segment_words[:-1])  # Retirer le dernier mot
-                    current_address = f"{first_segment}, {last_segment}"
-                    print(f"Nouvelle tentative avec : {current_address}")
-                else:
-                    first_segment = None  # On a épuisé les mots du premier segment
-
-            # Sinon, tester les segments intermédiaires
-            elif middle_segments:
-                next_segment = middle_segments.pop(0)  # Prendre le premier segment intermédiaire
-                current_address = f"{next_segment}, {last_segment}"
-                print(f"Tentative avec un segment intermédiaire : {current_address}")
-            else:
-                print("Plus d'adresses à tester.")
-                break  # Sortir de la boucle si plus de tentatives possibles
-        except Exception as e:
-            print(f"Erreur lors de la géolocalisation : {e}")
-            break  # Arrêter en cas d'erreur inattendue
-        finally:
-            attempts += 1
-
-    print("Coordonnées introuvables après plusieurs tentatives.")
-    return None, None
-
-
 def update_restaurant_coordinates(engine):
     """
     Met à jour les colonnes latitude et longitude dans la table dim_restaurants.
@@ -335,127 +278,48 @@ def update_restaurant_coordinates(engine):
 
 
 def update_restaurant(
-    name,
-    adresse=None,
-    url=None,
-    email=None,
-    telephone=None,
-    cuisines=None,
-    note_globale=None,
-    cuisine_note=None,
-    service_note=None,
-    qualite_prix_note=None,
-    ambiance_note=None,
-    prix_min=None,
-    prix_max=None,
-    etoiles_michelin=None,
-    repas=None,
-    image=None,
-    scrapped=False,
-    latitude=None,
-    longitude=None
+    id,
+    **kwargs
 ):
     """
-    Met à jour uniquement les champs vides d'un restaurant dans la table dim_restaurants.
+    Met à jour les champs spécifiés pour un restaurant dans la table dim_restaurants.
+
+    Args:
+        name (str): Nom du restaurant à mettre à jour.
+        kwargs: Paires clé-valeur des colonnes à mettre à jour.
+                Par exemple: adresse="Nouvelle Adresse", note_globale=4.5, etc.
     """
     # Vérifier si le restaurant existe dans la base
-
-    existing_restaurant = fetch_one_as_dict("SELECT * FROM dim_restaurants WHERE nom = ?", [name], table_name="dim_restaurants")
-
+    existing_restaurant = fetch_one_as_dict("SELECT * FROM dim_restaurants WHERE id_restaurant = ?", [id], table_name="dim_restaurants")
 
     if not existing_restaurant:
-        raise ValueError(f"Restaurant {name} non trouvé dans la base de données.")
+        raise ValueError(f"Restaurant {id} non trouvé dans la base de données.")
 
-    # convertir existing_restaurant en dict
-
-    # Construire la requête de mise à jour de manière dynamique
+    # Construire la requête de mise à jour dynamiquement
     update_query = "UPDATE dim_restaurants SET "
     update_fields = []
     params = []
 
-    # print(f"Restaurant {name} trouvé dans la base de données., image : {image}")
+    # Ajouter uniquement les colonnes fournies en kwargs
+    for column, value in kwargs.items():
+        update_fields.append(f"{column} = ?")
+        params.append(value)
 
-    # Vérifier chaque champ et mettre à jour uniquement s'il est vide ou NULL
-    # print(f"Vérification des champs à mettre à jour pour le restaurant {existing_restaurant}...")
-    if adresse is not None and not existing_restaurant["adresse"]:
-        update_fields.append("adresse = ?")
-        params.append(adresse)  
-    if url is not None and not existing_restaurant["url_link"]:
-        update_fields.append("url_link = ?")
-        params.append(url)
-    if email is not None and not existing_restaurant["email"]:
-        update_fields.append("email = ?")
-        params.append(email)
-    if telephone is not None and not existing_restaurant["telephone"]:
-        update_fields.append("telephone = ?")
-        params.append(telephone)
-    if cuisines is not None and not existing_restaurant["cuisines"]:
-        update_fields.append("cuisines = ?")
-        params.append(cuisines)
-    if note_globale is not None and existing_restaurant["note_globale"] is None:
-        update_fields.append("note_globale = ?")
-        params.append(note_globale)
-    if cuisine_note is not None and existing_restaurant["cuisine_note"] is None:
-        update_fields.append("cuisine_note = ?")
-        params.append(cuisine_note)
-    if service_note is not None and existing_restaurant["service_note"] is None:
-        update_fields.append("service_note = ?")
-        params.append(service_note)
-    if qualite_prix_note is not None and existing_restaurant["qualite_prix_note"] is None:
-        update_fields.append("qualite_prix_note = ?")
-        params.append(qualite_prix_note)
-    if ambiance_note is not None and existing_restaurant["ambiance_note"] is None:
-        update_fields.append("ambiance_note = ?")
-        params.append(ambiance_note)
-    if prix_min is not None and existing_restaurant["prix_min"] is None:
-        if isinstance(prix_min, str):
-            prix_min = float(prix_min.replace(',', '.').replace('€', '').strip())
-        update_fields.append("prix_min = ?")
-        params.append(prix_min)
-    if prix_max is not None and existing_restaurant["prix_max"] is None:
-        if isinstance(prix_max, str):
-            prix_max = float(prix_max.replace(',', '.').replace('€', '').strip())
-        update_fields.append("prix_max = ?")
-        params.append(prix_max)
-    if etoiles_michelin is not None and existing_restaurant["etoiles_michelin"] is None:
-        update_fields.append("etoiles_michelin = ?")
-        params.append(etoiles_michelin)
-    if repas is not None and not existing_restaurant["repas"]:
-        update_fields.append("repas = ?")
-        params.append(repas)
-    if scrapped is not None and existing_restaurant["scrapped"] is None:
-        print(f"Restaurant {name} scrappé : {scrapped}")
-        update_fields.append("scrapped = ?")
-        params.append(scrapped)
-    if image is not None and not existing_restaurant["image"]:
-        print(f"Image trouvée pour le restaurant {name} : {image}")
-        update_fields.append("image = ?")
-        params.append(image)
-    if latitude is not None and not existing_restaurant["latitude"]:
-        update_fields.append("latitude = ?")
-        params.append(latitude)
-
-    if longitude is not None and not existing_restaurant["longitude"]:
-        update_fields.append("longitude = ?")
-        params.append(longitude)
-
-    # Si aucun champ n'est à mettre à jour, lever une exception
+    # Si aucun champ n'est fourni, ne pas exécuter la requête
     if not update_fields:
-        print(f"Aucune mise à jour nécessaire pour le restaurant {name}.")
-        return
+        raise ValueError("Aucune colonne spécifiée pour la mise à jour.")
 
     # Ajouter les champs à la requête
     update_query += ", ".join(update_fields)
-    update_query += " WHERE nom = ?"
-    params.append(name)
+    update_query += " WHERE id_restaurant = ?"
+    params.append(id)
 
     # Exécuter la requête
     execute_query(update_query, params=params)
-    print(f"Restaurant {name} mis à jour avec succès.")
+    print(f"Restaurant '{id}' mis à jour avec succès avec les champs : {kwargs}.")
 
 
-
-def update_restaurant_data(restaurant_name, restaurant_data):
+def update_restaurant_data(restaurant_id, restaurant_data):
     try:
         # Vérifiez que restaurant_data est un dictionnaire
         if not isinstance(restaurant_data, dict):
@@ -494,14 +358,14 @@ def update_restaurant_data(restaurant_name, restaurant_data):
         elif not isinstance(etoiles_michelin, int):
             etoiles_michelin = None
 
+        rank = restaurant_data.get('Détails', {}).get('RANK', None)
+        if rank is not None:
+            rank = int(rank)
+
         # Mise à jour des données
         update_restaurant(
             
-            restaurant_name,
-            adresse=restaurant_data.get('Emplacement et coordonnées', {}).get('ADRESSE', ''),
-            url=restaurant_data.get('Emplacement et coordonnées', {}).get('URL', ''),
-            email=restaurant_data.get('Emplacement et coordonnées', {}).get('EMAIL', ''),
-            telephone=restaurant_data.get('Emplacement et coordonnées', {}).get('TELEPHONE', ''),
+            id=restaurant_id,
             cuisines=cuisines,
             note_globale=note_globale,
             cuisine_note=cuisine_note,
@@ -511,19 +375,24 @@ def update_restaurant_data(restaurant_name, restaurant_data):
             prix_min=prix_min,
             prix_max=prix_max,
             etoiles_michelin=etoiles_michelin,
-            repas=details.get('REPAS', ''),
-            image=details.get('IMAGE', ''),
-            scrapped=True,
+            repas=details.get('REPAS', None),
             latitude=restaurant_data.get('Emplacement et coordonnées', {}).get('LATITUDE', None),
             longitude=restaurant_data.get('Emplacement et coordonnées', {}).get('LONGITUDE', None),
+            google_map=restaurant_data.get('Emplacement et coordonnées', {}).get('GOOGLE MAP', None),
+            rank = rank,
+            horaires = restaurant_data.get('Détails', {}).get('HORAIRES', ''),
+            fonctionnalite = restaurant_data.get('Détails', {}).get('FONCTIONNALITE', ''),
+            image = restaurant_data.get('Détails', {}).get('IMAGE', None),
         )
 
-        print(f"Mise à jour réussie pour {restaurant_name}.")
+        print(f"Mise à jour réussie pour {restaurant_id}.")
 
     except Exception as e:
-        print(f"Erreur lors de la mise à jour du restaurant {restaurant_name} : {e}")
+        print(f"Erreur lors de la mise à jour du restaurant {restaurant_id} : {e}")
 
-def insert_restaurant_reviews(restaurant, reviews):
+
+#### Pour insérer des review pour un restaurant
+def insert_restaurant_reviews(restaurant_id, reviews):
     # Insérer les avis pour le restaurant
     try:
         for review in reviews:
@@ -537,9 +406,10 @@ def insert_restaurant_reviews(restaurant, reviews):
                 "rating": review['rating'],
                 "type_visit": review['type_visit']
             }
-            insert_review(review_data, restaurant.id_restaurant)
+            insert_review(review_data, restaurant_id)
+            update_restaurant_columns(restaurant_id, {"scrapped": True}, session)
     except Exception as e:
-        print(f"Erreur lors de l'insertion des avis pour le restaurant {restaurant.nom} : {e}")
+        print(f"Erreur lors de l'insertion des avis pour le restaurant {restaurant_id} : {e}")
 
 
 def get_restaurants_from_folder(scrapping_dir):
@@ -610,10 +480,10 @@ def process_csv_files(scrapping_dir, session, with_reviews=True):
             print(f"Insertion des avis pour {restaurant_name}...")
             insert_restaurant_reviews(restaurant, reviews)
             # print(f"Avis insérés pour {reviews}.")
+            update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
         else:
             print(f"Warning #### : Aucun avis trouvé pour {restaurant_name}.")
-        
-        update_restaurant_columns(restaurant_name, {"scrapped": False}, session)
+            update_restaurant_columns(restaurant_name, {"scrapped": False}, session)
     
 
     session.commit()
@@ -696,12 +566,12 @@ def update_scrapped_status_for_reviews(session, restaurant_names):
         print(f"Erreur : {e}")
 
 
-def update_restaurant_columns(restaurant_name, updates, session):
+def update_restaurant_columns(restaurant_id, updates, session):
     """
     Met à jour des colonnes spécifiques dans la table dim_restaurants pour un restaurant donné.
     
     Args:
-        restaurant_name (str): Le nom du restaurant à mettre à jour.
+        restaurant_id (int): L'id du restaurant à mettre à jour.
         updates (dict): Un dictionnaire contenant les colonnes à mettre à jour comme clés et leurs nouvelles valeurs.
         session (Session): La session SQLAlchemy à utiliser.
     
@@ -714,13 +584,13 @@ def update_restaurant_columns(restaurant_name, updates, session):
 
     try:
         # Construire la requête d'update avec SQLAlchemy
-        session.query(Restaurant).filter_by(nom=restaurant_name).update(updates)
+        session.query(Restaurant).filter_by(id_restaurant=restaurant_id).update(updates)
         session.commit()
-        print(f"Restaurant '{restaurant_name}' mis à jour avec succès.")
+        print(f"Restaurant '{restaurant_id}' mis à jour avec succès.")
         return True
     except Exception as e:
         session.rollback()  # Annuler les changements en cas d'erreur
-        print(f"Erreur lors de la mise à jour du restaurant '{restaurant_name}': {e}")
+        print(f"Erreur lors de la mise à jour du restaurant '{restaurant_id}': {e}")
         return False
     
 
@@ -783,7 +653,7 @@ def add_columns_to_table(engine, table_name, columns):
         for column_name, column_type in columns.items():
             try:
                 # Vérifier si la colonne existe déjà
-                result = connection.execute(f"PRAGMA table_info({table_name});").fetchall()
+                result = connection.execute(text(f"PRAGMA table_info({table_name});")).fetchall()
                 existing_columns = [row[1] for row in result]
                 if column_name in existing_columns:
                     print(f"La colonne '{column_name}' existe déjà dans la table '{table_name}'.")
@@ -791,9 +661,9 @@ def add_columns_to_table(engine, table_name, columns):
 
                 # Ajouter la nouvelle colonne
                 alter_stmt = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
-                connection.execute(alter_stmt)
+                connection.execute(text(alter_stmt))
                 print(f"Colonne '{column_name}' ajoutée à la table '{table_name}'.")
-            except OperationalError as e:
+            except Exception as e:
                 print(f"Erreur lors de l'ajout de la colonne '{column_name}' : {e}")
 
 
@@ -875,9 +745,6 @@ def fill_sentiment_column(df, session):
             session.rollback()  # Annuler la transaction en cas d'erreur
             print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
 
-
-
-
 def fill_resume_avis_column(df, session):
     """
     Remplit la colonne `resume_avis` dans la table des restaurants à partir d'un DataFrame.
@@ -907,8 +774,6 @@ def fill_resume_avis_column(df, session):
         except Exception as e:
             print(f"Erreur lors de la mise à jour pour {restaurant_name} : {e}")
 
-
-
 def check_restaurants_in_db(resto_list, session):
     """
     Vérifie quels restaurants dans une liste sont présents ou absents dans la base de données.
@@ -931,8 +796,6 @@ def check_restaurants_in_db(resto_list, session):
     absent = [resto for resto in resto_list if resto not in db_restaurant_names]
     
     return {'present': present, 'absent': absent}
-
-
 
 def create_restaurants_from_csv(csv_path, session):
     #data_dir = os.path.join("Data", csv_path)  # Chemin vers le dossier 'data'
@@ -968,6 +831,123 @@ def create_restaurants_from_csv(csv_path, session):
     
     except Exception as e:
         print(f"Erreur lors du traitement : {e}")
+
+
+
+def process_restaurant_data(avis_df, location_df, details_df, restaurant_id):
+    """
+    Met à jour les données d'un restaurant dans la base de données à partir des DataFrames avis, location et details.
+
+    Args:
+        avis_df (pd.DataFrame): DataFrame contenant les avis du restaurant.
+        location_df (pd.DataFrame): DataFrame contenant l'emplacement et les coordonnées du restaurant.
+        details_df (pd.DataFrame): DataFrame contenant les détails du restaurant.
+        restaurant_id (int): ID du restaurant à mettre à jour.
+        session (SQLAlchemy session): Session pour interagir avec la base de données.
+
+    Returns:
+        None
+    """
+    try:
+        # Convertir les données des DataFrames en dictionnaires
+        avis_data = avis_df.to_dict(orient='records')[0]  # On suppose qu'il y a une seule ligne
+        location_data = location_df.to_dict(orient='records')[0]
+        details_data = details_df.to_dict(orient='records')[0]
+
+        # Préparer les données consolidées pour la mise à jour
+        restaurant_data = {
+            'Détails': details_data,
+            'Emplacement et coordonnées': location_data,
+            'Notes et avis': avis_data,
+        }
+
+        print("#######################################")
+        print(restaurant_data)
+
+        # Mettre à jour les données du restaurant en appelant une fonction dédiée
+        update_restaurant_data(restaurant_id, restaurant_data)
+
+        print(f"Mise à jour réussie pour le restaurant avec ID {restaurant_id}.")
+    
+    except Exception as e:
+        print(f"Erreur lors du traitement des données du restaurant avec ID {restaurant_id} : {e}")
+
+
+
+def get_restaurant_ids(folder_path):
+    """
+    Récupère tous les IDs de restaurants à partir des noms de fichiers dans un dossier.
+
+    Args:
+        folder_path (str): Chemin du dossier contenant les fichiers CSV.
+
+    Returns:
+        list: Une liste d'IDs uniques des restaurants.
+    """
+    # Liste de tous les fichiers CSV
+    all_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
+    
+    # Extraire les IDs des noms de fichiers
+    restaurant_ids = set()
+    for file_name in all_files:
+        match = re.search(r'_(\d+)\.csv$', file_name)
+        if match:
+            restaurant_ids.add(int(match.group(1)))  # Ajouter l'ID extrait
+    
+    return sorted(restaurant_ids)
+
+
+def load_files_for_restaurant(folder_path, restaurant_id):
+    """
+    Charge les fichiers associés à un restaurant en DataFrames.
+
+    Args:
+        folder_path (str): Chemin du dossier contenant les fichiers CSV.
+        restaurant_id (int): ID du restaurant.
+
+    Returns:
+        dict: Un dictionnaire contenant les DataFrames des fichiers associés (avis, location, details).
+    """
+    data = {}
+    file_types = ["avis", "location", "details"]
+    
+    for file_type in file_types:
+        file_name = f"{file_type}_{restaurant_id}.csv"
+        file_path = os.path.join(folder_path, file_name)
+        
+        if os.path.exists(file_path):
+            # Charger le fichier CSV dans un DataFrame
+            df = pd.read_csv(file_path)
+            data[file_type] = df
+            # print(f"Chargé : {data}")
+        else:
+            print(f"Fichier manquant : {file_name}")
+    
+    return data
+
+
+def process_all_restaurants(folder_path):
+    """
+    Récupère tous les IDs des restaurants, charge leurs fichiers et les traite.
+
+    Args:
+        folder_path (str): Chemin du dossier contenant les fichiers CSV.
+        process_restaurant_data (function): Fonction à appeler pour traiter les données d'un restaurant.
+    """
+    # Étape 1: Récupérer tous les IDs des restaurants
+    restaurant_ids = get_restaurant_ids(folder_path)
+    print(f"IDs des restaurants trouvés : {restaurant_ids}")
+
+    # Étape 2: Parcourir chaque ID et charger les fichiers associés
+    for restaurant_id in restaurant_ids:
+        print(f"Traitement des fichiers pour le restaurant ID : {restaurant_id}")
+        data = load_files_for_restaurant(folder_path, restaurant_id)
+        
+        if "avis" in data or "location" in data or "details" in data:
+            # Étape 3: Envoyer les DataFrames à la fonction de traitement
+            process_restaurant_data(data.get("avis"), data.get("location"), data.get("details"), restaurant_id)
+        else:
+            print(f"Aucun fichier valide trouvé pour le restaurant ID {restaurant_id}.")
 
 
 
@@ -1013,7 +993,19 @@ restaurants = get_all_restaurants(session)
 
     with engine.connect() as connection:
         connection.execute(
-            text("ALTER TABLE dim_restaurants ADD COLUMN scrapped BOOLEAN DEFAULT 0")
+            text("ALTER TABLE dim_restaurants ADD COLUMN google_map TEXT")
+        )
+    with engine.connect() as connection:
+        connection.execute(
+            text("ALTER TABLE dim_restaurants ADD COLUMN fonctionnalite TEXT")
+        )
+    with engine.connect() as connection:
+        connection.execute(
+            text("ALTER TABLE dim_restaurants ADD COLUMN horaires TEXT")
+        )
+    with engine.connect() as connection:
+        connection.execute(
+            text("ALTER TABLE dim_restaurants ADD COLUMN rank INTEGER")
         )"""
     
     
@@ -1066,7 +1058,7 @@ restaurants = get_all_restaurants(session)
     
     # Récupérer les csv des restaurants dans le dossier Data/scrapping
     
-    scrapping_dir = os.path.join("Data", "scrapping")
+    scrapping_dir = os.path.join("src", "data")
     # restaurants = get_restaurants_from_folder(scrapping_dir)
     # process_csv_files(scrapping_dir, session, with_reviews=False)
     # print(get_restaurants_from_folder(scrapping_dir))
@@ -1080,10 +1072,9 @@ restaurants = get_all_restaurants(session)
     # latitude, longitude = get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France")
     # print(get_coordinates("4 Place des Terreaux Entrée à gauche du Tabac, sonner et pousser fort, 2ème étage, 69001 Lyon France"))
     # update_restaurant_columns("L'Étage", {"latitude": latitude, "longitude": longitude}, session)
-    restaurants = get_restaurants_with_reviews()
-    print(len(restaurants))
-    for restaurant_name in restaurants:
-        print(f"Restaurant : {restaurant_name}")
+    # restaurants = get_restaurants_with_reviews()
+    # print(len(restaurants))
+    
         # update_restaurant_columns(restaurant_name, {"scrapped": True}, session)
     # update_restaurant_columns(restaurant_name, {"url_link": url}, session)
     # print(get_restaurant(session=session, restaurant_name="L'Étage"))
@@ -1101,33 +1092,7 @@ restaurants = get_all_restaurants(session)
 
     """
 
-    # Exemple de données
-    """data = {
-        "restaurant": ["Le Bouchon des Filles", "Le Bouchon des Filles", "Le Bouchon des Filles"],
-        "title": ["Très belle soirée", "Sans plus", "Bon et joyeux"],
-        "user_profile": ["SetC77", "marieno_lleb739", "Vymsbmm"],
-        "date_review": ["2024-12-16", "2024-11-23", "2024-11-14"],
-        "rating": [5.0, 3.0, 5.0],
-        "type_visit": ["amis", "amis", "amis"],
-        "num_contributions": [67, 96, 225],
-        "review": [
-            "Trop bon moment!! Accueil, plats, ambiance tout simplement parfaite.",
-            "Les serveurs et serveuses sont sympas. Mais l'onglet n'est tendre...",
-            "Une excellente soirée dans ce petit restaurant peu écart..."
-        ],
-        "review_cleaned": [
-            "trop bon moment accueil plat ambiance tout parfaite",
-            "serveurs serveuses sympas onglet nest tendre",
-            "excellente soirée petit restaurant peu écart"
-        ],
-        "sentiment": ['1', '0',  '1'],  # Exemple de sentiments (1 = positif, 0 = négatif)
-        "sentiment_rating": ['Positif', 'Negatif', 'Positif']  # Score de sentiment
-    }
-
-    # Création du DataFrame
-    df = pd.DataFrame(data)
-
-    fill_review_cleaned_column(df, session)"""
+    # process_all_restaurants(scrapping_dir)
 
 
 
