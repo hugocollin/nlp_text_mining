@@ -13,8 +13,12 @@ if 'address_toast_shown' in st.session_state:
 # Fonction pour afficher le popup de paramétrage de l'adresse personnelle
 @st.dialog("Paramétrer l'adresse personnelle", width="large")
 def add_personal_address_dialog():
+
+    # Affichage du message de confidentialité
+    st.info("Pour des raisons de confidentialité, votre adresse personnelle n'est pas stockée et sera supprimée dès que vous fermerez l'application.", icon="🔒")
+
     # Récupération des informations de l'adresse personnelle
-    personal_address, personal_latitude, personal_longitude = get_personal_address()
+    personal_address, _personal_latitude, _personal_longitude = get_personal_address()
 
     # Initialisation des variables
     if 'address_search_done' not in st.session_state:
@@ -151,7 +155,7 @@ def main():
     st.title("Bienvenue sur SISE Ô Resto !")
 
     # Mise en page du bouton pour ajouter l'adresse personnelle
-    add_restaurant_btn_col1, add_restaurant_btn_col2 = st.columns([2, 1])
+    _add_restaurant_btn_col1, add_restaurant_btn_col2 = st.columns([2, 1])
 
     # Bouton pour ajouter l'adresse personnelle
     with add_restaurant_btn_col2:
