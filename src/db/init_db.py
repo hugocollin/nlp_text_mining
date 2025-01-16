@@ -1,7 +1,8 @@
 
 import sys
 import os
-from models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.db.models import init_db, get_session, Restaurant, Review, User, get_all_restaurants, get_restaurants_with_reviews_and_users
 import pandas as pd
 import ast
 from sqlalchemy import update, select, exists, create_engine, text, MetaData, Column, String, Integer, Float, Boolean
@@ -9,7 +10,8 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 import re
 
-from databases import execute_query, fetch_one, create_schema, database_exists, fetch_one_as_dict, fetch_all
+
+from src.db.databases import execute_query, fetch_one, create_schema, database_exists, fetch_one_as_dict, fetch_all
 from geopy.geocoders import Nominatim
 import locale
 from datetime import datetime
