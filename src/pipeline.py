@@ -1,7 +1,7 @@
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src.db.models import  get_all_restaurants , get_user_and_review_from_restaurant_id , get_restaurants_with_reviews_and_users
 
-from src.db.init_db import insert_user , insert_restaurant , insert_review , parse_french_date, parse_to_dict , process_restaurant_csv , update_restaurant , update_restaurant_data , insert_restaurant_reviews ,get_restaurants_from_folder , process_csv_files , get_restaurants_with_reviews , update_scrapped_status_for_reviews , update_restaurant_columns , get_restaurant , add_columns_to_table , fill_review_cleaned_column , fill_sentiment_column , fill_resume_avis_column , check_restaurants_in_db , create_restaurants_from_csv
+from src.db.init_db import insert_user , insert_restaurant , insert_review , parse_french_date, parse_to_dict , process_restaurant_csv , update_restaurant , update_restaurant_data , insert_restaurant_reviews ,get_restaurants_from_folder , process_csv_files , get_restaurants_with_reviews , update_scrapped_status_for_reviews , update_restaurant_columns , get_restaurant , add_columns_to_table , fill_review_cleaned_column , fill_sentiment_column , fill_resume_avis_column , check_restaurants_in_db , create_restaurants_from_csv , process_restaurant_data 
 
 from src.nlp.analyse import NLPAnalysis
 from src.nlp.pretraitement import NLPPretraitement
@@ -135,9 +135,9 @@ class Transistor:
         """Redirect to init_db.update_restaurant_data"""
         return update_restaurant_data(restaurant_name, restaurant_data)
 
-    def insert_restaurant_reviews(self, restaurant, reviews):
+    def insert_restaurant_reviews(self, restaurant_id, reviews):
         """Redirect to init_db.insert_restaurant_reviews"""
-        return insert_restaurant_reviews(restaurant, reviews)
+        return insert_restaurant_reviews(restaurant_id, reviews)
 
     def get_restaurants_from_folder(self, scrapping_dir):
         """Redirect to init_db.get_restaurants_from_folder"""
@@ -186,6 +186,10 @@ class Transistor:
     def create_restaurants_from_csv(self, csv_path):
         """Redirect to init_db.create_restaurants_from_csv"""
         return create_restaurants_from_csv(csv_path, self.session)
+    
+    def process_restaurant_data(self, avis_df, location_df, details_df, restaurant_id):
+        """Redirect to init_db.process_restaurant_data"""
+        return process_restaurant_data(avis_df, location_df, details_df, restaurant_id)
     
 ########################## MODELS.py #########################
 
@@ -239,7 +243,11 @@ class Pipeline(Transistor):
         print("Restaurant Reviews scraped")
         df_avis, df_details, df_location, df_reviews = self.restaurant_info_extractor.to_dataframe()
         print("Dataframes created")
-      
+        self.process_restaurant_data(df_avis, df_location, df_details,restaurant.id_restaurant )
+        print("Info processed")
+        self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)
+        print("Reviews inserted")
+        print("Restaurant added")
     
     
     
@@ -248,3 +256,21 @@ class Pipeline(Transistor):
     
     
     
+# def insert_restaurant_reviews(restaurant, reviews):
+#     # Insérer les avis pour le restaurant
+#     try:
+#         for review in reviews:
+#             review_data = {
+#                 "user": review['user'],
+#                 "user_profile": review['user_profile'],
+#                 "num_contributions": review['num_contributions'],
+#                 "date": review['date_review'],
+#                 "title": review['title'],
+#                 "review": review['review'],
+#                 "rating": review['rating'],
+#                 "type_visit": review['type_visit']
+#             }
+#             insert_review(review_data, restaurant.id_restaurant)
+#     except Exception as e:
+#         print(f"Erreur lors de l'insertion des avis pour le restaurant {restaurant.nom} : {e}")
+
