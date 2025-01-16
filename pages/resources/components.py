@@ -535,12 +535,10 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                 horaires_container = st.container(border=True)
                 horaires_container.write("**Horaires d'ouverture**")
 
-                horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: Fermé; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
-
                 current_datetime, current_day = get_datetime()
-                horaires_dict = construct_horaires(horaires)
+                horaires_dict = construct_horaires(selected_restaurant.horaires)
                 
-                if not horaires:
+                if not selected_restaurant.horaires:
                     horaires_container.info("Les horaires d'ouverture ne sont pas disponibles", icon="ℹ️")
                 else:
                     plages_du_jour = horaires_dict.get(current_day, [])
@@ -565,25 +563,29 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
 
                     # Transformation des horaires en dictionnaire
                     horaires_dict = {}
-                    parties = horaires.split(";")
+                    parties = selected_restaurant.horaires.split(";")
                     for partie in parties:
                         if partie.strip():
-                            jour, heures = partie.split(": ")
-                            horaires_dict[jour] = heures
+                            jour, heures = partie.split(": ", 1)
+                            horaires_dict[jour.strip()] = heures.strip()
                     
                     # Affichage des horaires d'ouverture
-                    for jour in [" Lundi", " Mardi", " Mercredi", " Jeudi", " Vendredi", " Samedi", "Dimanche"]:
+                    for jour in ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]:
                         if jour in horaires_dict:
                             heures = horaires_dict[jour]
-                            if heures == "Fermé":
+                            if heures.lower() == "fermé":
                                 horaires_container.write(f"- {jour} : Fermé")
                             else:
-                                debut, fin = heures.split("-")
-                                debut = debut.replace(":", "h")
-                                fin = fin.replace(":", "h")
-                                horaires_container.write(f"- {jour} : {debut} - {fin}")
-                
-                horaires_container.write("*Horaires factices, les horaires réelles seront disponibles ultérieurement.*")
+                                periods = [p.strip() for p in heures.split(",")]
+                                formatted_periods = []
+                                for p in periods:
+                                    debut, fin = p.split("-", 1)
+                                    debut = debut.strip().replace(":", "h")
+                                    fin = fin.strip().replace(":", "h")
+                                    formatted_periods.append(f"{debut} - {fin}")
+                                horaires_container.write(f"- {jour} : {', '.join(formatted_periods)}")
+                        else:
+                            horaires_container.write(f"- {jour} : Horaires non disponibles")
 
                 # Affichage du résumé du restaurant
                 resume_container = st.container(border=True)
