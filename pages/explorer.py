@@ -349,9 +349,9 @@ def main():
                 })
 
     # Tab pour l'affichage de la page Explorer ou Comparer
-    explorer_tab, comparer_tab = st.tabs(["🔍 Explorer", "🆚 Comparer"])
+    restaurants_tab, comparer_tab = st.tabs(["🍽️ Restaurants", "🆚 Comparer"])
 
-    with explorer_tab:
+    with restaurants_tab:
 
         # Mise en page des résultats
         results_display_col1, results_display_col2 = st.columns([3, 2])
@@ -729,7 +729,7 @@ def main():
                     st.write(f"- 🚗 {duration_car}")
                 else:
                     # Message si aucun restaurant n'est sélectionné
-                    st.info("Sélectionnez un restaurant depuis l'onglet 🔍 Explorer en cliquant sur le bouton 🆚, afin de l'ajouter au comparateur.", icon="ℹ️")
+                    st.info("Sélectionnez un restaurant depuis l'onglet 🍽️ Restaurants en cliquant sur le bouton 🆚, afin de l'ajouter au comparateur.", icon="ℹ️")
 
 if __name__ == '__main__':
     main()
