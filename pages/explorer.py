@@ -15,6 +15,7 @@ load_dotenv(find_dotenv())
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
 transistor = Transistor()
 
+# Récupération des données des restaurants
 @st.cache_resource
 def get_session_and_restaurants():
     session = transistor.session

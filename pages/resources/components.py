@@ -10,6 +10,7 @@ import numpy as np
 import time
 import tqdm
 import datetime
+import locale
 from src.db.models import Chunk, get_session, init_db
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
@@ -18,12 +19,10 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 from ecologits import EcoLogits
 from litellm import ModelResponse
-
-
 from src.pipeline import Transistor
 
+# Instanciation d'un transistor
 transistor = Transistor()
-
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -168,8 +167,10 @@ def get_price_symbol(prix_min, prix_max):
 
 # Fonction pour obtenir le temps actuel
 def get_datetime():
+    # Définition de la timezone
+    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+    
     # Récupération de la date actuelle
-
     current_datetime = datetime.datetime.now()
 
     # Récupération du jour actuel
@@ -177,13 +178,13 @@ def get_datetime():
 
     # Traduction du jour en français
     fr_days = {
-        'Monday': 'Lundi',
-        'Tuesday': 'Mardi',
-        'Wednesday': 'Mercredi',
-        'Thursday': 'Jeudi',
-        'Friday': 'Vendredi',
-        'Saturday': 'Samedi',
-        'Sunday': 'Dimanche'
+        'lundi': 'Lundi',
+        'mardi': 'Mardi',
+        'mercredi': 'Mercredi',
+        'jeudi': 'Jeudi',
+        'vendredi': 'Vendredi',
+        'samedi': 'Samedi',
+        'dimanche': 'Dimanche'
     }
     current_day = fr_days.get(current_day, None)
     
@@ -192,13 +193,13 @@ def get_datetime():
 # Fonction pour construire les horaires d'ouverture d'un restaurant
 def construct_horaires(horaires_str):
     fr_days = {
-        'Monday': 'Lundi',
-        'Tuesday': 'Mardi',
-        'Wednesday': 'Mercredi',
-        'Thursday': 'Jeudi',
-        'Friday': 'Vendredi',
-        'Saturday': 'Samedi',
-        'Sunday': 'Dimanche'
+        'lundi': 'Lundi',
+        'mardi': 'Mardi',
+        'mercredi': 'Mercredi',
+        'jeudi': 'Jeudi',
+        'vendredi': 'Vendredi',
+        'samedi': 'Samedi',
+        'dimanche': 'Dimanche'
     }
 
     # Création d'un dictionnaire pour stocker les horaires
