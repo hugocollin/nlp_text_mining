@@ -411,11 +411,42 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
             # Affichage des informations de la colonne 1
             with col1:
                 info_container = st.container()
-                # Générer les URLs
-                lien_gm = get_google_maps_link(selected_restaurant.adresse)
-                tripadvisor_link = selected_restaurant.url_link
-                email_link = f"mailto:{selected_restaurant.email}"
-                tel_link = f"tel:{selected_restaurant.telephone}"
+                # Préparation des boutons
+                if selected_restaurant.adresse:
+                    gm = f"📍 {selected_restaurant.adresse}"
+                    gm_link = get_google_maps_link(selected_restaurant.adresse)
+                    disabled_adresse = ''
+                else:
+                    gm = "📍 Non disponible"
+                    gm_link = "None"
+                    disabled_adresse = 'disabled'
+
+                if selected_restaurant.url_link:
+                    tripadvisor = "🌐 Lien vers Tripadvisor"
+                    tripadvisor_link = selected_restaurant.url_link
+                    disabled_tripadvisor = ''
+                else:
+                    tripadvisor = "🌐 Non disponible"
+                    tripadvisor_link = "None"
+                    disabled_tripadvisor = 'disabled'
+
+                if selected_restaurant.email:
+                    email = f"📧 {selected_restaurant.email}"
+                    email_link = f"mailto:{selected_restaurant.email}"
+                    disabled_email = ''
+                else:
+                    email = "📧 Non disponible"
+                    email_link = "None"
+                    disabled_email = 'disabled'
+
+                if selected_restaurant.telephone:
+                    tel = f"📞 {selected_restaurant.telephone}"
+                    tel_link = f"tel:{selected_restaurant.telephone}"
+                    disabled_tel = ''
+                else:
+                    tel = "📞 Non disponible"
+                    tel_link = "None"
+                    disabled_tel = 'disabled'
 
                 # Affichage des boutons pour les liens
                 info_container.markdown(f'''
@@ -438,25 +469,34 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                         .custom-button:active {{
                             background-color: #FF4B4B;
                         }}
+                        .custom-button[disabled] {{
+                            color: #adadb2;
+                            cursor: not-allowed;
+                        }}
                         @media (prefers-color-scheme: dark) {{
                             .custom-button {{
                                 color: #fafafa;
                                 border-color: #3e4044;
                                 background-color: #14171f;
                             }}
+                            .custom-button[disabled] {{
+                                color: #6d6e71;
+                                border-color: #3e4044;
+                                background-color: transparent;
+                            }}
                         }}
                     </style>
-                    <a href="{lien_gm}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">📍 {selected_restaurant.adresse}</button>
+                    <a href="{gm_link}" target="_blank" style="text-decoration: none;">
+                        <button class="custom-button" {disabled_adresse}>{gm}</button>
                     </a>
                     <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">🌐 Lien vers Tripadvisor</button>
+                        <button class="custom-button" {disabled_tripadvisor}>{tripadvisor}</button>
                     </a>
                     <a href="{email_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">📧 {selected_restaurant.email}</button>
+                        <button class="custom-button" {disabled_email}>{email}</button>
                     </a>
                     <a href="{tel_link}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">📞 {selected_restaurant.telephone}</button>
+                        <button class="custom-button" {disabled_tel}>{tel}</button>
                     </a>
                 ''', unsafe_allow_html=True)
 
