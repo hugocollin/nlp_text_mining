@@ -4,7 +4,6 @@ import concurrent.futures
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text
-from pages.statistiques import display_restaurant_stats
 from src.db.models import get_all_restaurants
 from dotenv import find_dotenv, load_dotenv
 
@@ -45,9 +44,9 @@ def add_restaurant_dialog():
             st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
 
 # Fonction pour afficher le popup d'informations sur un restaurant
-@st.dialog("Informations sur le restaurant", width="large")
+@st.dialog("ℹ️ Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    display_restaurant_infos(personal_address, personal_latitude, personal_longitude)
+    display_restaurant_infos(session, personal_address, personal_latitude, personal_longitude)
 
 def main():
     # Barre de navigation
@@ -62,12 +61,6 @@ def main():
     # Initialisation du comparateur dans session_state
     if 'comparator' not in st.session_state:
         st.session_state['comparator'] = []
-
-    # Vérification si un restaurant a été sélectionné pour afficher ses statistiques
-    selected_stats = st.session_state.get('selected_stats_restaurant')
-    if selected_stats:
-        display_restaurant_stats(selected_stats)
-        return
 
     # Titre de la page
     st.title('🔍 Explorer')
@@ -491,7 +484,7 @@ def main():
             for result in filtered_results:
                 restaurant, tcl_url, fastest_mode = result
                 container = st.container(border=True)
-                col1, col2, col3, col4, col5 = container.columns([3.5, 1, 1, 1, 2.5])
+                col1, col2, col3, col4 = container.columns([3.5, 1, 1, 2.5])
                 
                 # Affichage des informations du restaurant
                 with col1:
@@ -504,25 +497,19 @@ def main():
                     if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
                         st.session_state['selected_restaurant'] = restaurant
                         restaurant_info_dialog()
-                
-                # Affichage du bouton de statistiques
-                with col3:
-                    if col3.button("📊", key=f"stats_btn_{restaurant.id_restaurant}"):
-                        st.session_state['selected_stats_restaurant'] = restaurant
-                        st.rerun()
 
                 # Affichage du bouton de comparaison
-                with col4:
-                    if col4.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
+                with col3:
+                    if col3.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
                         add_to_comparator(restaurant)
                 
                 # Affichage du bouton de trajet
-                with col5:
+                with col4:
                     emoji, fastest_duration = fastest_mode
                     bouton_label = f"{emoji} {fastest_duration}"
                     button_key = f"trajet_btn_{restaurant.id_restaurant}"
                     if tcl_url:
-                        col5.markdown(f'''
+                        col4.markdown(f'''
                             <style>
                                 .custom-button {{
                                     display: block;
@@ -555,7 +542,7 @@ def main():
                             </a>
                         ''', unsafe_allow_html=True)
                     else:
-                        col5.button(bouton_label, key=button_key, disabled=True)
+                        col4.button(bouton_label, key=button_key, disabled=True)
     
     # Affichage de la carte
     with results_display_col2:

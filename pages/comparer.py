@@ -2,7 +2,6 @@ import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pages.resources.components import Navbar, display_michelin_stars, display_stars, display_restaurant_infos, get_personal_address, tcl_api
-from pages.statistiques import display_restaurant_stats
 from src.db.models import get_all_restaurants
 
 # Configuration de la page
@@ -26,17 +25,11 @@ personal_address, personal_latitude, personal_longitude = get_personal_address()
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    display_restaurant_infos(personal_address, personal_latitude, personal_longitude)
+    display_restaurant_infos(session, personal_address, personal_latitude, personal_longitude)
 
 def main():
     # Barre de navigation
     Navbar()
-
-    # Vérification si un restaurant a été sélectionné pour afficher ses statistiques
-    selected_stats = st.session_state.get('selected_stats_restaurant')
-    if selected_stats:
-        display_restaurant_stats(selected_stats)
-        return
     
     # Titre de la page
     st.title('🆚 Comparer')
@@ -72,23 +65,17 @@ def main():
                 tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
 
                 # Mise en page des boutons
-                btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 3])
+                btn_col1, btn_col2 = st.columns(2)
 
                 with btn_col1:
                     # Bouton pour afficher les informations détaillées
                     if btn_col1.button("ℹ️", key=f"info_cmp_{restaurant.id_restaurant}"):
                         st.session_state['selected_restaurant'] = restaurant
                         restaurant_info_dialog()
-                
-                with btn_col2:
-                    # Bouton pour afficher les statistiques
-                    if btn_col2.button("📊", key=f"stats_btn_{restaurant.id_restaurant}"):
-                        st.session_state['selected_stats_restaurant'] = restaurant
-                        st.rerun()
 
-                with btn_col3:
+                with btn_col2:
                     # Bouton pour supprimer du comparateur
-                    if btn_col3.button("❌ Supprimer", key=f"remove_cmp_{restaurant.id_restaurant}"):
+                    if btn_col2.button("❌ Supprimer", key=f"remove_cmp_{restaurant.id_restaurant}"):
                         st.session_state['comparator'].remove(restaurant.id_restaurant)
                         st.rerun()
 
