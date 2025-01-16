@@ -7,7 +7,6 @@ from pages.resources.components import Navbar, get_personal_address, display_sta
 from dotenv import find_dotenv, load_dotenv
 from src.pipeline import Transistor
 
-
 # Récupération de la clé API Mistral
 load_dotenv(find_dotenv())
 
@@ -720,6 +719,13 @@ def main():
                                 st.success("Ouvert")
                             else:
                                 st.error("Fermé")
+
+                    # Affichage du rang
+                    rank_container = st.container(border=True)
+                    if restaurant.rank == 1:
+                        rank_container.markdown(f"**Rang :** {restaurant.rank}<sup>er</sup> restaurant", unsafe_allow_html=True)
+                    else:
+                        rank_container.markdown(f"**Rang :** {restaurant.rank}<sup>ème</sup> restaurant", unsafe_allow_html=True)
 
                     # Affichage du prix
                     prix_container = st.container(border=True)

@@ -593,6 +593,13 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
 
             # Affichage des informations de la colonne 2
             with col2:
+                # Affichage du rang
+                rank_container = st.container(border=True)
+                if selected_restaurant.rank == 1:
+                    rank_container.markdown(f"**Rang :** {selected_restaurant.rank}<sup>er</sup> restaurant", unsafe_allow_html=True)
+                else:
+                    rank_container.markdown(f"**Rang :** {selected_restaurant.rank}<sup>ème</sup> restaurant", unsafe_allow_html=True)
+
                 # Affichage de la fourchette de prix
                 prix_container = st.container(border=True)
                 prix_symbol = get_price_symbol(selected_restaurant.prix_min, selected_restaurant.prix_max)
