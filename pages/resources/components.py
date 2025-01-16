@@ -360,7 +360,7 @@ def tcl_api(personal_address, personal_latitude, personal_longitude, restaurant_
 
 # Fonction de traitement des restaurants
 def process_restaurant(personal_address, personal_latitude, personal_longitude, restaurant):
-    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
+    tcl_url, _duration_public, _duration_car, _duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
     return (restaurant, tcl_url, fastest_mode)
 
 # Récupération des informations du restaurant sélectionné
@@ -390,6 +390,7 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
 
         # Affichage des étoiles Michelin
         michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+        michelin_stars_html = ''
         if michelin_stars:
             if selected_restaurant.etoiles_michelin == 1:
                 michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
@@ -397,8 +398,7 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                 michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
             elif selected_restaurant.etoiles_michelin == 3:
                 michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
-        else:
-            michelin_stars_html = ''
+            
         st.html(f"<h1>{selected_restaurant.nom}   {michelin_stars_html}</h1>")
 
         # Tabs pour les informations
@@ -609,7 +609,7 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
             # Affichage de la colonne de commentaires
             with col1:
                 with st.container(height=1000, border=False):
-                    for i, r in enumerate(review[:st.session_state['display_count']]):
+                    for _i, r in enumerate(review[:st.session_state['display_count']]):
                         comment_container = st.container(border=True)
                         comment_col1, comment_col2 = comment_container.columns([0.6, 0.4])
                         with comment_col1:
