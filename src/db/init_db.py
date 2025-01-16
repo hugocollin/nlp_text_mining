@@ -392,7 +392,7 @@ def update_restaurant_data(restaurant_id, restaurant_data):
 
 
 #### Pour insérer des review pour un restaurant
-def insert_restaurant_reviews(restaurant_id, reviews):
+def insert_restaurant_reviews(restaurant_id, reviews, session):
     # Insérer les avis pour le restaurant
     try:
         for review in reviews:
@@ -408,8 +408,11 @@ def insert_restaurant_reviews(restaurant_id, reviews):
             }
             insert_review(review_data, restaurant_id)
             update_restaurant_columns(restaurant_id, {"scrapped": True}, session)
+        session.commit()
     except Exception as e:
         print(f"Erreur lors de l'insertion des avis pour le restaurant {restaurant_id} : {e}")
+        session.rollback()
+    
 
 
 def get_restaurants_from_folder(scrapping_dir):
@@ -796,6 +799,7 @@ def check_restaurants_in_db(resto_list, session):
     absent = [resto for resto in resto_list if resto not in db_restaurant_names]
     
     return {'present': present, 'absent': absent}
+
 
 def create_restaurants_from_csv(csv_path, session):
     #data_dir = os.path.join("Data", csv_path)  # Chemin vers le dossier 'data'
