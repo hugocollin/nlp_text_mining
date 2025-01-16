@@ -93,9 +93,12 @@ def execute_sql_query(session):
     for table in selected_tables:
         columns = inspector.get_columns(table)
         column_names = [f"{column['name']}" for column in columns]
-        cols = st.multiselect(f"Sélectionnez les colonnes de la table '{table}'", options=column_names, default=column_names, key=f"columns_{table}")
-        selected_columns.extend(cols)
-
+        selected_columns.extend(st.multiselect(f"Colonnes de '{table}'", options=column_names, default=column_names))
+        
+        selected_columns = [f'{table}.{col}' for col in selected_columns]
+    
+    
+    
     if not selected_columns:
         st.warning("Veuillez sélectionner au moins une colonne à afficher.")
         return
@@ -632,9 +635,10 @@ def pipeline_processing():
     selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
     # Get selected restaurant object
     restau = restaurant_names[selected_name]
-    if st.button("Scrapper ", key="scrape_everything" , help="Scrapper les informations du restaurant sélectionné" , disabled=True ):
+    if st.button("Scrapper ", key="scrape_everything" , help="Scrapper les informations du restaurant sélectionné"  ):  #, disabled=True
         pipe.add_new_restaurant(restau)
         st.success("Les informations ont été scrappées avec succès.")
+        st.rerun()
     
 
 
