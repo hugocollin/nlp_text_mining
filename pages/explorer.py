@@ -231,7 +231,7 @@ def main():
 
             # Filtre par cuisine
             container = st.container(border=True)
-            cuisines = sorted(list(set([c.strip() for restaurant in scrapped_restaurants for c in restaurant["cuisines"].split(',') if c.strip()])))
+            cuisines = sorted(list(set([c.strip() for restaurant in scrapped_restaurants for c in (restaurant["cuisines"] or "").split(',') if c.strip()])))
             selected_cuisines = container.pills(
                 label="Cuisine",
                 options=cuisines,
@@ -242,7 +242,7 @@ def main():
 
             # Filtre par type de repas
             container = st.container(border=True)
-            meals = sorted(list(set([m.strip() for restaurant in scrapped_restaurants for m in restaurant["repas"].split(',') if m.strip()])))
+            meals = sorted(list(set([m.strip() for restaurant in scrapped_restaurants for m in (restaurant["repas"] or "").split(',') if m.strip()])))
             selected_meals = container.pills(
                 label="Type de repas",
                 options=meals,
