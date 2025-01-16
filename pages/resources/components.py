@@ -517,7 +517,7 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
 
                 # Affichage du résumé du restaurant
                 resume_container = st.container(border=True)
-                resume_container.markdown("**Avis général**", help="Ce texte a été généré automatiquement à partir des avis des utilisateurs sur Tripadvisor, grâce à un processus combinant le traitement du langage naturel (NLP) et l'intelligence artificielle (IA) ✨")
+                resume_container.markdown("**Avis général**", help="✨ Ce texte a été généré automatiquement à partir des avis des utilisateurs sur Tripadvisor, grâce à un processus combinant le traitement du langage naturel (NLP) et l'intelligence artificielle (IA)")
                 resume_container.write(f"{selected_restaurant.resume_avis}")
 
                 # Affichage des informations complémentaires
