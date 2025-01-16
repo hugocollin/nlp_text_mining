@@ -479,6 +479,9 @@ def main():
 
             with container:
 
+                # Récupération du temps actuel
+                current_datetime, current_day = get_datetime()
+
                 # Affichage uniquement des restaurants filtrés
                 for result in filtered_results:
                     restaurant, tcl_url, fastest_mode = result
@@ -494,7 +497,6 @@ def main():
                     with col2:
                         horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: 11:30-23:00; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
 
-                        current_datetime, current_day = get_datetime()
                         horaires_dict = construct_horaires(horaires)
                         
                         if not horaires:
