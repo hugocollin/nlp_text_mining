@@ -10,7 +10,7 @@ import numpy as np
 import time
 import tqdm
 import datetime
-from src.db.models import Chunk, get_session, init_db, get_all_restaurants, get_user_and_review_from_restaurant_id
+from src.db.models import Chunk, get_session, init_db
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -18,7 +18,12 @@ from typing import List, Dict, Tuple
 from pathlib import Path
 from ecologits import EcoLogits
 from litellm import ModelResponse
-from sqlalchemy import create_engine
+
+
+from src.pipeline import Transistor
+
+transistor = Transistor()
+
 
 # Fonction pour afficher la barre de navigation
 def Navbar():
@@ -164,6 +169,7 @@ def get_price_symbol(prix_min, prix_max):
 # Fonction pour obtenir le temps actuel
 def get_datetime():
     # Récupération de la date actuelle
+
     current_datetime = datetime.datetime.now()
 
     # Récupération du jour actuel
@@ -180,7 +186,7 @@ def get_datetime():
         'Sunday': 'Dimanche'
     }
     current_day = fr_days.get(current_day, None)
-
+    
     return current_datetime, current_day
 
 # Fonction pour construire les horaires d'ouverture d'un restaurant
@@ -380,7 +386,7 @@ def process_restaurant(personal_address, personal_latitude, personal_longitude, 
     return (restaurant, tcl_url, fastest_mode)
 
 # Récupération des informations du restaurant sélectionné
-def display_restaurant_infos(session, personal_address, personal_latitude, personal_longitude):
+def display_restaurant_infos( personal_address, personal_latitude, personal_longitude):
     # Récupération de restaurant sélectionné
     selected_restaurant = st.session_state.get('selected_restaurant')
 
@@ -687,7 +693,7 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                 st.session_state['display_count'] = 10
 
             # Récupération des avis
-            review = get_user_and_review_from_restaurant_id(session, selected_restaurant.id_restaurant)
+            review = transistor.get_user_and_review_from_restaurant_id( selected_restaurant.id_restaurant)
 
             # Mise en page des informations
             col1, col2 = st.columns(2)
@@ -975,10 +981,8 @@ def instantiate_bdd() -> BDDChunks:
     # Instanciation de la classe BDDChunks
     bdd_chunks = BDDChunks(embedding_model="paraphrase-MiniLM-L6-v2")
 
-    # Connexion à la base de données
-    engine = create_engine('sqlite:///restaurant_reviews.db')
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
+
+    session = transistor.session
 
     try:
         # Supprimer les chunks existants pour éviter les doublons ou erreurs de type
@@ -986,7 +990,7 @@ def instantiate_bdd() -> BDDChunks:
         session.commit()
 
         # Récupération de tous les restaurants
-        restaurants = get_all_restaurants(session)
+        restaurants = transistor.get_all_restaurants()
 
         # Filtrage pour exclure les restaurants scrappés
         scrapped_restaurants = [restaurant for restaurant in restaurants if restaurant.scrapped]

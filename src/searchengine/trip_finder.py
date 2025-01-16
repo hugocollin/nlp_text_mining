@@ -4,9 +4,8 @@ import pandas as pd
 import re
 import time
 import numpy as np
-import random
-import string
-
+import platform
+import tqdm
 class SearchEngine:
     
     '''
@@ -25,22 +24,23 @@ class SearchEngine:
         self.base_url = "https://www.tripadvisor.fr"
         self.session = None
         self.cookies_list = [{'TADCID': '95got4bq91GmregYABQCrj-Ib21-TgWwDB4AzTFpg4J0pITsougolk1a7SaZZ7sYmkJu7KPOcqvM0xwqN1w93LttdFLFrqsYJ7w', 'TASameSite': '1', '__vt': 'M-4ijWLl6k7ybNR4ABQCjdMFtf3dS_auw5cMBDN7STJSRCH1nXChQ-WY5JlSnMR1uxIGdRWOqVv5tzhczv2Wi5nvq3oTCp7u5GoQG5I0EKASCq7B0TNG2mQVbmucgXvHPZ_YZpAWQnpr_ru3N91wLIMyxQ', 'TASID': 'A49FD32AED6A062F36B3FEFE390763C5', 'TAUnique': '%1%enc%3AdkjfOfw%2Ftm%2FlxUOBpOSBodxVTnjfkCfULJk9agUV4g3zZWtZ%2FjDJk605yvvNffQrNox8JbUSTxk%3D', 'datadome': 'M8Sgk8DaVoG_E_zlyrRsQ9uvHoNM93ifQS9R8PKSjGOo6Aqy6Zw5CJtbfX8jys20Iv2oN7NAJFAg6Nxh9nZYyZ4SJfCN_nRu~5g07XIDokW_jYeHO5ur5ekBFu_TMUFj'},
-                             {'TADCID': 'pWOlWMQ9rTQrw4-yABQCrj-Ib21-TgWwDB4AzTFpg4J0p6pwdv5KtAcMeTPh9NOSBuZgFyPInX5N5d6kNu1rc2I3wVanAOg1bM8', 'TASameSite': '1', '__vt': 'sefjLUFgusLVzJNDABQCjdMFtf3dS_auw5cMBDN7STJSR9S-Pr6HRW4D5FmDCNJPWCEtzl8xQdfnRg4bzFOEma7R3urefPF7w7WLoAMayeWGhhXHp4zx6QgSImflSHxOSvIMhEkPhfu3H58HXPrBkr7QOZg', 'TASID': '75B03A8BF5E2467EA2B26845AF0077F0', 'TAUnique': '%1%enc%3ADcEvE9PUQEJeZRjQgnP077Hf6KJQVv679yrXSkrw1YpW2kYmdT%2BQRHxWboddzuEKNox8JbUSTxk%3D', 'datadome': 'g7cP3wnjQn88CA01ShYAzGIiwkPjcGHwla26TME5rP~S_SRPp8UuXByx~YEfrySGepZowaITWCLrRfj9Qw0PtrPEmjzdM2E0U2Sd~s_hRR5C6C0nU5tluhbf4jjw4sRD'}]
+                             {'TADCID': '95got4bq91GmregYABQCrj-Ib21-TgWwDB4AzTFpg4J0pITsougolk1a7SaZZ7sYmkJu7KPOcqvM0xwqN1w93LttdFLFrqsYJ7w', 'TASameSite': '1', '__vt': 'M-4ijWLl6k7ybNR4ABQCjdMFtf3dS_auw5cMBDN7STJSRCH1nXChQ-WY5JlSnMR1uxIGdRWOqVv5tzhczv2Wi5nvq3oTCp7u5GoQG5I0EKASCq7B0TNG2mQVbmucgXvHPZ_YZpAWQnpr_ru3N91wLIMyxQ', 'TASID': 'A49FD32AED6A062F36B3FEFE390763C5', 'TAUnique': '%1%enc%3AdkjfOfw%2Ftm%2FlxUOBpOSBodxVTnjfkCfULJk9agUV4g3zZWtZ%2FjDJk605yvvNffQrNox8JbUSTxk%3D', 'datadome': 'M8Sgk8DaVoG_E_zlyrRsQ9uvHoNM93ifQS9R8PKSjGOo6Aqy6Zw5CJtbfX8jys20Iv2oN7NAJFAg6Nxh9nZYyZ4SJfCN_nRu~5g07XIDokW_jYeHO5ur5ekBFu_TMUFj'}]
         self.soup = None
         self.cookies = None
         self.rank = 0
+        self.url = None
+        
+############### __methods__ #######################    
+
     def __str__(self):
         print(f"SearchEngine(base_url='{self.base_url}')")
         print(f"Session: {self.session}")
-        # print headers
         print(f"cookies: {self.cookies}")
-        
-        
         print(f"Soup: {self.soup}")
         return ""
-        
-    
-    
+
+############### __methods__ #######################       
+
     def get_session(self):
         
         # Create a new session if it doesn't exist
@@ -53,34 +53,48 @@ class SearchEngine:
         else:
             print("Session already exists")
     
+############### __methods__ #######################    
+
+    def get_os_user_agent(self):
+        # Get the user agent based on the OS
+        os = platform.system()
+        if os == "Windows":
+            return "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0"
+        elif os == "Linux":
+            return "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/109.0"
+        else:
+            return "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/"
     
+############### __methods__ #######################    
+ 
     def run(self, url):
-        # Fetch the URL and return the soup object
-  
+        
+        user_agent = self.get_os_user_agent()
+        self.url = url
         headers = {
-            'User-Agent': "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/109.0",
+            
+            #'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/109.0", # AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+            # 'User-Agent': "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrower/27.0 Chrome/125.0.0.0 Mobile Safari/537.36",
+            'User-Agent':  "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrower/27.0 Chrome/125.0.0.0 Mobile Safari/537.36",
             'Accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/avif, image/webp, image/apng, image/*,*/*;q=0.8',
             'Accept-Language': 'fr-FR,fr;q=0.9',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
             'TE': 'Trailers',
-
-
             "DNT": "1",  # Do Not Track
+            "Origin": "https://www.tripadvisor.fr/",
+            'Referer' : url ,
 
         }
-        
         self.get_session()
         self.session.headers.update(headers)
+        time.sleep(1)
+        # print time to check the time of the request
+        print(time.ctime())
         response = self.session.get(url, headers=headers, timeout=(6, 36))
-        # print(response.headers)
-        print(self.session.headers)
-        
         time.sleep(1)
         if response.status_code == 200:
             self.soup = BeautifulSoup(response.content, 'html.parser')
-            with open('soup.html', 'w', encoding='utf-8') as f:
-                f.write(str(self.soup))
             return None
         elif response.status_code == 404:
             print("404 Not Found")
@@ -88,17 +102,8 @@ class SearchEngine:
         elif response.status_code == 403:
             print("403 Forbidden")
             print(response.text)
-            if self.rank < 5:
-                self.rank += 1
-                self.session = None
-                self.cookies = np.random.choice(self.cookies_list)
-                time.sleep(10)
-                return self.run(url)
-            else:
-                self.rank = 0
-                return None
+            return None
                 
-            
         elif response.status_code == 503:
             print("503 Service Unavailable")
             return None
@@ -142,7 +147,7 @@ class SearchEngine:
                 print("No next page found")
                 return None
 
-        
+############### __class__ #######################          
 
 class RestaurantFinder(SearchEngine):
     
@@ -159,7 +164,8 @@ class RestaurantFinder(SearchEngine):
         self.all_restaurants = []
         self.current_url = None
         self.current_page = 1
-        
+
+############### __methods__ #######################          
         
     def find_restaurants(self):
         """
@@ -195,7 +201,8 @@ class RestaurantFinder(SearchEngine):
                     })
         
         return restaurants
-            
+
+############### __methods__ #######################              
     
     def scrape_all_restaurants(self,start_url = "https://www.tripadvisor.fr/Restaurants-g187265-Lyon_Rhone_Auvergne_Rhone_Alpes.html" , max_pages=10):
         """
@@ -242,20 +249,21 @@ class RestaurantFinder(SearchEngine):
                 self.current_page += 1
                 print(f"Next page: {self.current_url}")
                 # Add delay between requests
-                time.sleep(random.uniform(1, 3))
+                time.sleep(np.random.uniform(2, 6))
         
         print(f"Found {len(self.all_restaurants)} restaurants total")
         return self.all_restaurants
     def to_dataframe(self):
         return pd.DataFrame(self.all_restaurants)
     
+############### __methods__ #######################    
+
     def to_csv(self):
         df = self.to_dataframe()
         df.to_csv('Data/liste_restaurants.csv', index=False)
         
-        
-        
-        
+############### __class__ #######################
+
 class restaurant_info_extractor(SearchEngine):
  
     '''
@@ -271,7 +279,9 @@ class restaurant_info_extractor(SearchEngine):
         self.restaurant_info = {}
         self.reviews = []
         self.soup_list = []
-        
+        self.rank_info = 0
+    
+############### __methods__ #######################       
             
     # Trouver les étoiles Michelin renvoie le nombre d'étoiles du restaurant (0, 1, 2 ou 3)
     def michelin_star_finder(self,soup): 
@@ -284,15 +294,40 @@ class restaurant_info_extractor(SearchEngine):
         else:
             return 0
     
+############### __methods__ #######################    
+    
     def get_restaurant_info(self, soup):
         # Notes et avis
         notes_avis_section = soup.find('div', class_='QSyom f e Q3 _Z')
+        if not notes_avis_section:
+            print("No notes found")
+            with open('restaurant_info.html', 'w', encoding='utf-8') as f:
+                f.write(str(soup))
+                if self.rank_info < 2:
+                    print("No data found")
+                    self.rank_info += 1
+                    # print tqdm progress bar for waiting 5 seconds
+                    for i in tqdm.tqdm(range(5)):
+                        time.sleep(1)
+                    print(self.session.cookies)
+                    self.session.cookies.clear()
+                    self.session = None
+                    return self.scrape_info(self.url)
+                
+                if self.rank_info == 2:
+                    self.rank_info = 0
+                    print("No data found correctly")
+                    
         notes = {}
         global_note = cuisine_note = service_note = quality_price_note = ambiance_note = 'N/A'
 
         if notes_avis_section:
+            
             global_note_tag = notes_avis_section.find('span', class_='biGQs _P fiohW uuBRH')
             global_note = global_note_tag.text if global_note_tag else 'N/A'
+            print(global_note)
+            print(self.session.cookies)
+
 
             other_notes_tags = notes_avis_section.find('div', class_='khxWm f e Q3')
             if other_notes_tags:
@@ -344,9 +379,10 @@ class restaurant_info_extractor(SearchEngine):
             email = email_tag['href'].split(':')[1] if email_tag else 'N/A'
 
             phone_tag = location_section.find('a', href=lambda x: x and x.startswith('tel:'))
-            phone = phone_tag.text.strip() if phone_tag else 'N/A'
+            phone_numer = phone_tag['href'].split(':')[1] if phone_tag else 'N/A'
+            # phone = phone_tag.text.strip() if phone_tag else 'N/A'
         else:
-            address = email = phone = 'N/A'
+            address = email = phone_numer = 'N/A'
 
         # Organiser les informations dans un dictionnaire
         restaurant_info = {
@@ -361,39 +397,55 @@ class restaurant_info_extractor(SearchEngine):
                 'LATITUDE': lat,
                 'LONGITUDE': lon,
                 'EMAIL': email,
-                'TELEPHONE': phone
+                'TELEPHONE': phone_numer
             }
         }
         stars = self.michelin_star_finder(soup)
         restaurant_info['Détails']['ÉTOILES MICHELIN'] = stars
         image_url = self.get_images(soup)
         restaurant_info['Détails']['IMAGE'] = image_url
+
+        fonctionnalite , horaires , rank = self.google_scrapping_info(self.url)
+        restaurant_info['Détails']['FONCTIONNALITE'] = fonctionnalite if fonctionnalite else 'N/A'
+        restaurant_info['Détails']['HORAIRES'] = horaires if horaires else 'N/A'
+        restaurant_info['Détails']['RANK'] = rank if rank else 'N/A'
+        
         
         return restaurant_info
+    
+############### __methods__ #######################     
     
     def get_images(self, soup):
         photo_viewer_div = soup.find('div', {'data-section-signature': 'photo_viewer'})
         if photo_viewer_div:
             # Trouver toutes les balises <source> et <img> à l'intérieur de ce div
             media_tags = photo_viewer_div.find( 'img')
-            
+            print(media_tags)
             # Extraire les URLs des attributs srcset
             srcset_urls = []
             media_tags
             srcset = media_tags.get('srcset')
+            src = media_tags.get('src')
             if srcset:
                     # Séparer les différentes résolutions et extraire les URLs
                 urls = [s.split(' ')[0] for s in srcset.split(',')]
                 srcset_urls.extend(urls)
                 first_url = srcset_urls[0]
                 cleaned_url = first_url.split('?')[0]
-            else:
+                
+            elif src:
+                urls = [s.split(' ')[0] for s in src.split(',')]
+                srcset_urls.extend(urls)
+                first_url = srcset_urls[0]
+                cleaned_url  = first_url.split('?')[0]
+            else :
                 cleaned_url = 'N/A'
         else:
             cleaned_url = 'N/A'
+            
         return cleaned_url
 
-    
+############### __methods__ #######################     
     
     def extract_reviews(self, soup):
         
@@ -417,9 +469,7 @@ class restaurant_info_extractor(SearchEngine):
                 
                 contrib_container = review.find("div", class_="vYLts")
                 num_contributions_tag = contrib_container.find("span", class_="b") if contrib_container else None
-                num_contributions = int(num_contributions_tag.text.strip()) if num_contributions_tag else 0
-                
-                
+                num_contributions = int(num_contributions_tag.text.strip()) if num_contributions_tag else 0 
                 
                 self.reviews.append({
                     'user': user.text.strip() if user else 'N/A',
@@ -434,7 +484,122 @@ class restaurant_info_extractor(SearchEngine):
                 })
             except AttributeError:
                 continue
+
+    def get_soup(self,url):
+    
+        header = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                    'Accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/avif, image/webp, image/apng, image/*,*/*;q=0.8',
+                    'Accept-Language': 'fr-FR,fr;q=0.9',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'TE': 'Trailers',
+                    "DNT": "1",  # Do Not Track
+                    "Origin": "https://www.tripadvisor.fr/",
+                    'Referer' : url ,
+                    
+        }
+   
+        response = requests.get(url, headers=header, timeout=(3.05, 27), params={"_": str(int(time.time()))})
+        if response.status_code != 200:
+            print(f"Failed to get page {url}")
+            return None
+        return BeautifulSoup(response.text, 'html.parser')
+
+    def get_workdays(self,soup_google):
+        hours_div = soup_google.find('div', class_='OlkEn AdWFC')
+        if not hours_div:
+            return None
+        hours_div_plus = hours_div.select('div[class="f"]')
+        if not hours_div_plus:
+            return None
+        horaires = {}
+        # class contenant un div jour klgPI Nk
+        # Parcourir les blocs pour extraire les informations
+        for div in hours_div_plus:
+            # Extraire le jour
             
+            jour_div = div.find('div', class_='klgPI Nk')
+            jours_precis = jour_div.find('div', class_='fOtGX')
+            if jours_precis:
+                jour = jours_precis.text.strip()
+            
+            else:
+                continue
+            # class conternant un div horraire f e
+            # Extraire les horaires ou l'indication "Fermé"
+            horaires_div = div.find('div', class_='f e')
+
+        
+            horaires[jour] = []
+            if horaires_div:
+                # get all span inside the div
+                horaires_span = horaires_div.find_all('span')
+                for span in horaires_span:
+                    horaires[jour].append(span.text)
+            else:
+                horaires[jour].append("Fermé")
+            
+        ## creer un texte sous la forme : "Lundi: 12h-14h, 19h-22h; Mardi: 12h-14h, 19h-22h; Mercredi: 12h-14h, 19h-22h; Jeudi: 12h-14h, 19h-22h; Vendredi: 12h-14h, 19h-22h; Samedi: 12h-14h, 19h-22h; Dimanche: 12h-14h, 19h-22h"
+        horaires_text = ""
+        for jour, horaire in horaires.items():
+            horaires_text += f"{jour}: {', '.join(horaire)}; "
+        return horaires_text
+
+    def get_ranking(self,soup_google):
+        # rank restaurant
+        # Clean the ranking string by removing non-breaking spaces and narrowing spaces
+        ranking = soup_google.find(attrs={"data-test-target": "restaurant-detail-info"})
+        if not ranking:
+            return None
+        ranking = ranking.find('span', class_='ffHqI')
+        if not ranking:
+            return None
+        ranking = ranking.text
+        ranking = ranking.replace('\u202f', '')
+        # Extract the current rank and total number of restaurants using regex
+        numbers  = re.findall(r'\d+', ranking)
+        # Extraire les deux nombres
+        if len(numbers) >= 2:
+            rank = int(numbers[0])
+        else:
+            rank = None
+            
+        return rank
+    
+    def get_fonctionnalite(self, soup_google):
+        # rank restaurant
+        # Clean the ranking string by removing non-breaking spaces and narrowing spaces
+        fonctionnalite = soup_google.find('div', class_='kYFok f e Q1 BUDdf')
+        if not fonctionnalite:
+            return None
+        features = []
+        feature_containers = fonctionnalite.find_all('div', class_='fQXjj')
+        if not feature_containers:
+            return None
+        
+        for container in feature_containers:
+            # Trouver les balises <span> qui contiennent le texte des fonctionnalités
+            feature_text = container.find('span')
+            if feature_text and feature_text.text.strip():
+                features.append(feature_text.text.strip())
+        fonct_text = ""
+        for feature in features:
+            fonct_text += f"{feature}; "
+        return fonct_text
+
+    def google_scrapping_info(self, url):
+        
+        soup_google = self.get_soup(url)
+        fonctionnalite = self.get_fonctionnalite(soup_google)
+        horaires = self.get_workdays(soup_google)
+        rank = self.get_ranking(soup_google)
+        return  fonctionnalite, horaires, rank
+
+
+
+############### __methods__ #######################    
+      
     def scrape_info(self, url):
         self.run(url)
         if not self.soup:
@@ -442,13 +607,15 @@ class restaurant_info_extractor(SearchEngine):
             return None
         self.restaurant_info = self.get_restaurant_info(self.soup)
         return self.restaurant_info
-    
+
+############### __methods__ #######################    
+
     def scrape_restaurant(self, url):
         self.run(url)
         if not self.soup:
             print(f"Failed to get restaurant page {url}")
             return None
-        self.restaurant_info = self.get_restaurant_info(self.soup)
+        
         next_page_href = self.get_next_url()
         while next_page_href:
             time.sleep(5)
@@ -459,24 +626,22 @@ class restaurant_info_extractor(SearchEngine):
     
         return self.restaurant_info, self.reviews
     
-    
-    
-    
-    
-    
+############### __methods__ #######################     
     
     def to_dataframe(self):
         df_reviews = pd.DataFrame(self.reviews) if self.reviews else pd.DataFrame()
        
         if self.restaurant_info:
             df_avis = pd.DataFrame(self.restaurant_info['Notes et avis'], index=[0])
-            df_details = pd.DataFrame(self.restaurant_info['Détails'], index=[0])
+            df_details = pd.DataFrame(self.restaurant_info['Détails'] , index=[0])
             df_location = pd.DataFrame(self.restaurant_info['Emplacement et coordonnées'], index=[0]) 
         else:
             df_avis = pd.DataFrame()
             df_details = pd.DataFrame()
             df_location = pd.DataFrame()  
         return df_avis, df_details, df_location, df_reviews
+
+############### __methods__ #######################    
     
     def to_csv(self):
         df_avis, df_details, df_location, df_reviews = self.to_dataframe()
