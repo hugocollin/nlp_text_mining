@@ -3,8 +3,7 @@ import pydeck as pdk
 import concurrent.futures
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text
-from pages.statistiques import display_restaurant_stats
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api
 from src.db.models import get_all_restaurants
 from dotenv import find_dotenv, load_dotenv
 
@@ -15,12 +14,20 @@ load_dotenv(find_dotenv())
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
 
 # Connexion à la base de données
-engine = create_engine('sqlite:///restaurant_reviews.db')
-Session = sessionmaker(bind=engine)
-session = Session()
+@st.cache_resource
+def get_db_session():
+    engine = create_engine('sqlite:///restaurant_reviews.db')
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+session = get_db_session()
 
 # Récupération de tous les restaurants
-restaurants = get_all_restaurants(session)
+@st.cache_data
+def fetch_restaurants(_session):
+    return get_all_restaurants(_session)
+
+restaurants = fetch_restaurants(session)
 
 # Récupération de l'adresse personnelle
 personal_address, personal_latitude, personal_longitude = get_personal_address()
@@ -45,9 +52,9 @@ def add_restaurant_dialog():
             st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
 
 # Fonction pour afficher le popup d'informations sur un restaurant
-@st.dialog("Informations sur le restaurant", width="large")
+@st.dialog("ℹ️ Informations sur le restaurant", width="large")
 def restaurant_info_dialog():
-    display_restaurant_infos(personal_address, personal_latitude, personal_longitude)
+    display_restaurant_infos(session, personal_address, personal_latitude, personal_longitude)
 
 def main():
     # Barre de navigation
@@ -63,17 +70,11 @@ def main():
     if 'comparator' not in st.session_state:
         st.session_state['comparator'] = []
 
-    # Vérification si un restaurant a été sélectionné pour afficher ses statistiques
-    selected_stats = st.session_state.get('selected_stats_restaurant')
-    if selected_stats:
-        display_restaurant_stats(selected_stats)
-        return
-
     # Titre de la page
     st.title('🔍 Explorer')
 
     # Mise en page du bouton d'ajout de restaurant
-    add_restaurant_btn_col1, add_restaurant_btn_col2 = st.columns([3, 1])
+    _add_restaurant_btn_col1, add_restaurant_btn_col2 = st.columns([3, 1])
 
     # Bouton pour ajouter un restaurant
     with add_restaurant_btn_col2:
@@ -230,7 +231,7 @@ def main():
 
             # Filtre par cuisine
             container = st.container(border=True)
-            cuisines = sorted(list(set([c.strip() for restaurant in scrapped_restaurants for c in restaurant["cuisines"].split(',') if c.strip()])))
+            cuisines = sorted(list(set([c.strip() for restaurant in scrapped_restaurants for c in (restaurant["cuisines"] or "").split(',') if c.strip()])))
             selected_cuisines = container.pills(
                 label="Cuisine",
                 options=cuisines,
@@ -241,7 +242,7 @@ def main():
 
             # Filtre par type de repas
             container = st.container(border=True)
-            meals = sorted(list(set([m.strip() for restaurant in scrapped_restaurants for m in restaurant["repas"].split(',') if m.strip()])))
+            meals = sorted(list(set([m.strip() for restaurant in scrapped_restaurants for m in (restaurant["repas"] or "").split(',') if m.strip()])))
             selected_meals = container.pills(
                 label="Type de repas",
                 options=meals,
@@ -355,281 +356,376 @@ def main():
                     }
                 })
 
-    # Mise en page des résultats
-    results_display_col1, results_display_col2 = st.columns([3, 2])
-    
-    # Affichage des résultats
-    with results_display_col1:
+    # Tab pour l'affichage de la page Explorer ou Comparer
+    restaurants_tab, comparer_tab = st.tabs(["🍽️ Restaurants", "🆚 Comparer"])
+
+    with restaurants_tab:
+
+        # Mise en page des résultats
+        results_display_col1, results_display_col2 = st.columns([3, 2])
         
-        # Parallélisation du traitement des restaurants
-        with st.spinner("Chargement des restaurants..."):
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                # Map des restaurants scrappés aux futurs
-                futures = {
-                    executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant): restaurant
-                    for restaurant in restaurants
-                    if restaurant.scrapped
-                }
-                # Collecte des résultats dans l'ordre des restaurants
-                results = []
-                for restaurant in restaurants:
-                    if restaurant.scrapped:
-                        future = next(f for f, r in futures.items() if r == restaurant)
-                        try:
-                            result = future.result()
-                            results.append(result)
-                        except Exception as e:
-                            st.error(f"Erreur lors du traitement du restaurant {restaurant.nom}: {e}")
-
-        # Filtrage des résultats en fonction des filtres
-        filtered_results = []
-        for result in results:
-            restaurant, tcl_url, fastest_mode = result
-
-            # Filtrage par étoiles Michelin
-            if selected_michelin_stars:
-                if not (restaurant.etoiles_michelin >= selected_michelin_stars):
-                    continue
+        # Affichage des résultats
+        with results_display_col1:
             
-            # Filtrage par note globale
-            if not (global_rating[global_rating_selected] <= restaurant.note_globale):
-                continue
-            
-            # Filtrage par note qualité-prix
-            if quality_price > 0:
-                if restaurant.qualite_prix_note is None or restaurant.qualite_prix_note < quality_price:
-                    continue
+            # Parallélisation du traitement des restaurants
+            with st.spinner("Chargement des restaurants..."):
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = {executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant): restaurant for restaurant in restaurants if restaurant.scrapped}
+                    results = sorted([future.result() for future in concurrent.futures.as_completed(futures)], key=lambda x: x[0].nom)
 
-            # Filtrage par note cuisine
-            if cuisine_note > 0:
-                if restaurant.cuisine_note is None or restaurant.cuisine_note < cuisine_note:
-                    continue
-
-            # Filtrage par note service
-            if service_note > 0:
-                if restaurant.service_note is None or restaurant.service_note < service_note:
-                    continue
-
-            # Filtrage par note ambiance
-            if ambiance_note > 0:
-                if restaurant.ambiance_note is None or restaurant.ambiance_note < ambiance_note:
-                    continue
-            
-            # Filtrage par temps de trajet
-            if tcl_url:
-                duration_str = fastest_mode[1]
-                if 'h' in duration_str:
-                    parts = duration_str.split('h')
-                    hours = int(parts[0])
-                    minutes = int(parts[1].replace('min', '')) if parts[1] else 0
-                    duration = hours * 60 + minutes
-                else:
-                    duration = int(duration_str.replace('min', ''))
-                if not (duration <= time_travel):
-                    continue
-            
-            # Filtrage par cuisine
-            if selected_cuisines:
-                restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
-                if not any(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
-                    continue
-            
-            # Filtrage par type de repas
-            if selected_meals:
-                restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
-                if not any(meal in restaurant_meals for meal in selected_meals):
-                    continue
-            filtered_results.append(result)
-
-        # Extraction des restaurants filtrés pour la carte
-        filtered_restaurants = [
-            (
-                result[0].nom,
-                result[0].latitude,
-                result[0].longitude
-            )
-            for result in filtered_results
-            if result[0] is not None
-        ]
-
-        # Récupération des coordonnées des restaurants pour la carte
-        map_data = []
-        for restaurant in filtered_restaurants:
-            nom, lat, lon = restaurant
-            map_data.append({
-                'name': nom,
-                'latitude': lat,
-                'longitude': lon
-            })
-
-        # Filtrage des restaurants par rayon
-        if personal_address:
-            map_data = filter_restaurants_by_radius(
-                map_data,
-                personal_latitude,
-                personal_longitude,
-                radius
-            )
-            # Obtention des noms des restaurants filtrés
-            filtered_names = [restaurant['name'] for restaurant in map_data]
-            # Filtrage des résultats en fonction des noms filtrés
-            filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
-
-        # Affichage du nombre de restaurants trouvés
-        if not filtered_results:
-            st.info("ℹ️ Aucun restaurant trouvé, essayez de modifier vos critères de recherche.")
-        elif (filtered_results and len(filtered_results) == 1):
-            st.info("ℹ️ 1 restaurant trouvé")
-        else:
-            st.info(f"ℹ️ {len(filtered_results)} restaurants trouvés")
-        
-        container = st.container(height=1000, border=False)
-
-        with container:
-
-            # Affichage uniquement des restaurants filtrés
-            for result in filtered_results:
+            # Filtrage des résultats en fonction des filtres
+            filtered_results = []
+            for result in results:
                 restaurant, tcl_url, fastest_mode = result
-                container = st.container(border=True)
-                col1, col2, col3, col4, col5 = container.columns([3.5, 1, 1, 1, 2.5])
-                
-                # Affichage des informations du restaurant
-                with col1:
-                    col1.write(restaurant.nom)
-                    stars = display_stars(restaurant.note_globale)
-                    col1.image(stars, width=20)
 
-                # Affichage du bouton d'information
-                with col2:
-                    if col2.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
-                        st.session_state['selected_restaurant'] = restaurant
-                        restaurant_info_dialog()
+                # Filtrage par étoiles Michelin
+                if selected_michelin_stars:
+                    if not (restaurant.etoiles_michelin >= selected_michelin_stars):
+                        continue
                 
-                # Affichage du bouton de statistiques
-                with col3:
-                    if col3.button("📊", key=f"stats_btn_{restaurant.id_restaurant}"):
-                        st.session_state['selected_stats_restaurant'] = restaurant
-                        st.rerun()
+                # Filtrage par note globale
+                if not (global_rating[global_rating_selected] <= restaurant.note_globale):
+                    continue
+                
+                # Filtrage par note qualité-prix
+                if quality_price > 0:
+                    if restaurant.qualite_prix_note is None or restaurant.qualite_prix_note < quality_price:
+                        continue
 
-                # Affichage du bouton de comparaison
-                with col4:
-                    if col4.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
-                        add_to_comparator(restaurant)
+                # Filtrage par note cuisine
+                if cuisine_note > 0:
+                    if restaurant.cuisine_note is None or restaurant.cuisine_note < cuisine_note:
+                        continue
+
+                # Filtrage par note service
+                if service_note > 0:
+                    if restaurant.service_note is None or restaurant.service_note < service_note:
+                        continue
+
+                # Filtrage par note ambiance
+                if ambiance_note > 0:
+                    if restaurant.ambiance_note is None or restaurant.ambiance_note < ambiance_note:
+                        continue
                 
-                # Affichage du bouton de trajet
-                with col5:
-                    emoji, fastest_duration = fastest_mode
-                    bouton_label = f"{emoji} {fastest_duration}"
-                    button_key = f"trajet_btn_{restaurant.id_restaurant}"
-                    if tcl_url:
-                        col5.markdown(f'''
-                            <style>
-                                .custom-button {{
-                                    display: block;
-                                    padding: 6px 12px;
-                                    margin-bottom: 15px;
-                                    color: #31333e;
-                                    border: 1px solid #d6d6d8;
-                                    border-radius: 8px;
-                                    cursor: pointer;
-                                    background-color: transparent;
-                                    transition: background-color 0.3s;
-                                }}
-                                .custom-button:hover {{
-                                    color: #FF4B4B;
-                                    border-color: #FF4B4B;
-                                }}
-                                .custom-button:active {{
-                                    background-color: #FF4B4B;
-                                }}
-                                @media (prefers-color-scheme: dark) {{
-                                    .custom-button {{
-                                        color: #fafafa;
-                                        border-color: #3e4044;
-                                        background-color: #14171f;
-                                    }}
-                                }}
-                            </style>
-                            <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
-                                <button class="custom-button">{bouton_label}</button>
-                            </a>
-                        ''', unsafe_allow_html=True)
+                # Filtrage par temps de trajet
+                if tcl_url:
+                    duration_str = fastest_mode[1]
+                    if 'h' in duration_str:
+                        parts = duration_str.split('h')
+                        hours = int(parts[0])
+                        minutes = int(parts[1].replace('min', '')) if parts[1] else 0
+                        duration = hours * 60 + minutes
                     else:
-                        col5.button(bouton_label, key=button_key, disabled=True)
-    
-    # Affichage de la carte
-    with results_display_col2:
-        with st.spinner("Chargement de la carte..."):
-            # Mise en forme du radius et de la couleur du domicile
-            if radius == 1000000:
-                radius = 25
-                color = '[0, 0, 255]'
-            else:
-                color = '[0, 0, 255, 100]'
+                        duration = int(duration_str.replace('min', ''))
+                    if not (duration <= time_travel):
+                        continue
+                
+                # Filtrage par cuisine
+                if selected_cuisines:
+                    restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
+                    if not any(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
+                        continue
+                
+                # Filtrage par type de repas
+                if selected_meals:
+                    restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
+                    if not any(meal in restaurant_meals for meal in selected_meals):
+                        continue
+                filtered_results.append(result)
 
-            # Ajout des coordonnées du domicile s'il est défini
-            if personal_address:
-                latitude = personal_latitude
-                longitude = personal_longitude
+            # Extraction des restaurants filtrés pour la carte
+            filtered_restaurants = [
+                (
+                    result[0].nom,
+                    result[0].latitude,
+                    result[0].longitude
+                )
+                for result in filtered_results
+                if result[0] is not None
+            ]
+
+            # Récupération des coordonnées des restaurants pour la carte
+            map_data = []
+            for restaurant in filtered_restaurants:
+                nom, lat, lon = restaurant
                 map_data.append({
-                    'name': 'Domicile',
-                    'latitude': personal_latitude,
-                    'longitude': personal_longitude
+                    'name': nom,
+                    'latitude': lat,
+                    'longitude': lon
                 })
+
+            # Filtrage des restaurants par rayon
+            if personal_address:
+                map_data = filter_restaurants_by_radius(
+                    map_data,
+                    personal_latitude,
+                    personal_longitude,
+                    radius
+                )
+                # Obtention des noms des restaurants filtrés
+                filtered_names = [restaurant['name'] for restaurant in map_data]
+                # Filtrage des résultats en fonction des noms filtrés
+                filtered_results = [result for result in filtered_results if result[0].nom in filtered_names]
+
+            # Affichage du nombre de restaurants trouvés
+            if not filtered_results:
+                st.info("Aucun restaurant trouvé, essayez de modifier vos critères de recherche", icon="ℹ️")
+            elif (filtered_results and len(filtered_results) == 1):
+                st.info("1 restaurant trouvé", icon="ℹ️")
             else:
-                latitude, longitude = 45.7640, 4.8357 # Coordonnées de Lyon
+                st.info(f"{len(filtered_results)} restaurants trouvés", icon="ℹ️")
+            
+            container = st.container(height=1000, border=False)
 
-            view_state = pdk.ViewState(
-                latitude=latitude,
-                longitude=longitude,
-                zoom=12,
-                pitch=0
-            )
+            with container:
 
-            # Paramètres du point du domicile (bleu)
-            home_layer = pdk.Layer(
-                'ScatterplotLayer',
-                data=[point for point in map_data if point['name'] == 'Domicile'],
-                get_position='[longitude, latitude]',
-                get_color=color,
-                get_radius=radius,
-                pickable=True,
-                auto_highlight=True
-            )
+                # Affichage uniquement des restaurants filtrés
+                for result in filtered_results:
+                    restaurant, tcl_url, fastest_mode = result
+                    container = st.container(border=True)
+                    col1, col2, col3, col4, col5 = container.columns([3.5, 1.7, 1, 1, 2.5])
+                    
+                    # Affichage des informations du restaurant
+                    with col1:
+                        col1.write(restaurant.nom)
+                        stars = display_stars(restaurant.note_globale)
+                        col1.image(stars, width=20)
 
-            # Paramètres des points des restaurants (rouge)
-            restaurants_layer = pdk.Layer(
-                'ScatterplotLayer',
-                data=[point for point in map_data if point['name'] != 'Domicile'],
-                get_position='[longitude, latitude]',
-                get_color='[255, 0, 0]',
-                get_radius=25,
-                pickable=True,
-                auto_highlight=True
-            )
+                    with col2:
+                        horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: 11:30-23:00; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
 
-            # Ajout des points à afficher sur la carte
-            layers = [restaurants_layer, home_layer]
+                        current_datetime, current_day = get_datetime()
+                        horaires_dict = construct_horaires(horaires)
+                        
+                        if not horaires:
+                            col2.error("Indisponible")
+                        else:
+                            plages_du_jour = horaires_dict.get(current_day, [])
+                            if not plages_du_jour:
+                                col2.error("Fermé")
+                            else:
+                                ouvert = False
+                                current_time = current_datetime.time()
+                                for start, end in plages_du_jour:
+                                    if start <= end:
+                                        if start <= current_time <= end:
+                                            ouvert = True
+                                            break
+                                    else:
+                                        if current_time >= start or current_time <= end:
+                                            ouvert = True
+                                            break
+                                if ouvert:
+                                    col2.success("Ouvert")
+                                else:
+                                    col2.error("Fermé")
 
-            # Paramètres des infos-bulles
-            tooltip = {
-                "html": "<b>{name}</b>",
-                "style": {
-                    "backgroundColor": "white",
-                    "color": "black"
+                    # Affichage du bouton d'information
+                    with col3:
+                        if col3.button(label="ℹ️", key=f"info_btn_{restaurant.id_restaurant}"):
+                            st.session_state['selected_restaurant'] = restaurant
+                            restaurant_info_dialog()
+
+                    # Affichage du bouton de comparaison
+                    with col4:
+                        if col4.button("🆚", key=f"compare_btn_{restaurant.id_restaurant}"):
+                            add_to_comparator(restaurant)
+                    
+                    # Affichage du bouton de trajet
+                    with col5:
+                        emoji, fastest_duration = fastest_mode
+                        bouton_label = f"{emoji} {fastest_duration}"
+                        button_key = f"trajet_btn_{restaurant.id_restaurant}"
+                        if tcl_url:
+                            col5.markdown(f'''
+                                <style>
+                                    .custom-button {{
+                                        display: block;
+                                        padding: 6px 12px;
+                                        margin-bottom: 15px;
+                                        color: #31333e;
+                                        border: 1px solid #d6d6d8;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        background-color: transparent;
+                                        transition: background-color 0.3s;
+                                    }}
+                                    .custom-button:hover {{
+                                        color: #FF4B4B;
+                                        border-color: #FF4B4B;
+                                    }}
+                                    .custom-button:active {{
+                                        background-color: #FF4B4B;
+                                    }}
+                                    @media (prefers-color-scheme: dark) {{
+                                        .custom-button {{
+                                            color: #fafafa;
+                                            border-color: #3e4044;
+                                            background-color: #14171f;
+                                        }}
+                                    }}
+                                </style>
+                                <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
+                                    <button class="custom-button">{bouton_label}</button>
+                                </a>
+                            ''', unsafe_allow_html=True)
+                        else:
+                            col5.button(bouton_label, key=button_key, disabled=True)
+        
+        # Affichage de la carte
+        with results_display_col2:
+            with st.spinner("Chargement de la carte..."):
+                # Mise en forme du radius et de la couleur du domicile
+                if (radius == 1000000):
+                    radius = 25
+                    color = '[0, 0, 255]'
+                else:
+                    color = '[0, 0, 255, 100]'
+
+                # Ajout des coordonnées du domicile s'il est défini
+                if personal_address:
+                    latitude = personal_latitude
+                    longitude = personal_longitude
+                    map_data.append({
+                        'name': 'Domicile',
+                        'latitude': personal_latitude,
+                        'longitude': personal_longitude
+                    })
+                else:
+                    latitude, longitude = 45.7640, 4.8357 # Coordonnées de Lyon
+
+                view_state = pdk.ViewState(
+                    latitude=latitude,
+                    longitude=longitude,
+                    zoom=12,
+                    pitch=0
+                )
+
+                # Paramètres du point du domicile (bleu)
+                home_layer = pdk.Layer(
+                    'ScatterplotLayer',
+                    data=[point for point in map_data if point['name'] == 'Domicile'],
+                    get_position='[longitude, latitude]',
+                    get_color=color,
+                    get_radius=radius,
+                    pickable=True,
+                    auto_highlight=True
+                )
+
+                # Paramètres des points des restaurants (rouge)
+                restaurants_layer = pdk.Layer(
+                    'ScatterplotLayer',
+                    data=[point for point in map_data if point['name'] != 'Domicile'],
+                    get_position='[longitude, latitude]',
+                    get_color='[255, 0, 0]',
+                    get_radius=25,
+                    pickable=True,
+                    auto_highlight=True
+                )
+
+                # Ajout des points à afficher sur la carte
+                layers = [restaurants_layer, home_layer]
+
+                # Paramètres des infos-bulles
+                tooltip = {
+                    "html": "<b>{name}</b>",
+                    "style": {
+                        "backgroundColor": "white",
+                        "color": "black"
+                    }
                 }
-            }
 
-            # Affichage de la carte
-            deck = pdk.Deck(
-                layers=layers,
-                initial_view_state=view_state,
-                tooltip=tooltip,
-                map_style='mapbox://styles/mapbox/light-v11'
-            )
+                # Affichage de la carte
+                deck = pdk.Deck(
+                    layers=layers,
+                    initial_view_state=view_state,
+                    tooltip=tooltip,
+                    map_style='mapbox://styles/mapbox/light-v11'
+                )
 
-            # Affichage de la carte
-            st.pydeck_chart(deck)
+                # Affichage de la carte
+                st.pydeck_chart(deck)
+
+    with comparer_tab:
+
+        # Initialisation du comparateur dans session_state
+        if 'comparator' not in st.session_state:
+            st.session_state['comparator'] = []
+
+        # Vérification du nombre de restaurants sélectionnés
+        comparator_empty = len(st.session_state['comparator']) == 0
+        
+        # Mise en page du bouton pour réinitialiser le comparateur
+        _reinit_cmp_btn_col1, reinit_cmp_btn_col2 = st.columns([2, 1])
+        
+        # Bouton pour réinitialiser le comparateur
+        if reinit_cmp_btn_col2.button("♻️ Réinitialiser le comparateur", disabled=comparator_empty):
+            st.session_state['comparator'] = []
+            st.rerun()
+
+        # Récupération des restaurants sélectionnés
+        selected_restaurants = [restaurant for restaurant in restaurants if restaurant.id_restaurant in st.session_state['comparator'][:3]]
+
+        # Mise en page des colonnes pour afficher les restaurants comparés
+        cols = st.columns(3, border=True)
+
+        # Affichage des restaurants comparés
+        for idx in range(3):
+            with cols[idx]:
+                if idx < len(selected_restaurants):
+                    restaurant = selected_restaurants[idx]
+                
+                    # Récupération des informations de trajet
+                    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
+
+                    # Mise en page des boutons
+                    btn_col1, btn_col2 = st.columns(2)
+
+                    with btn_col1:
+                        # Bouton pour afficher les informations détaillées
+                        if btn_col1.button("ℹ️", key=f"info_cmp_{restaurant.id_restaurant}"):
+                            st.session_state['selected_restaurant'] = restaurant
+                            restaurant_info_dialog()
+
+                    with btn_col2:
+                        # Bouton pour supprimer du comparateur
+                        if btn_col2.button("❌ Supprimer", key=f"remove_cmp_{restaurant.id_restaurant}"):
+                            st.session_state['comparator'].remove(restaurant.id_restaurant)
+                            st.rerun()
+
+                    # Affichage des informations du restaurant
+                    st.header(restaurant.nom)
+
+                    st.write("**Notations :**")
+                    michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
+                    michelin_stars_html = ' Aucune'
+                    if michelin_stars:
+                        if restaurant.etoiles_michelin == 1:
+                            michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+                        elif restaurant.etoiles_michelin == 2:
+                            michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
+                        elif restaurant.etoiles_michelin == 3:
+                            michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
+                    st.html(f"<li><b>Étoiles Michelin :</b>{michelin_stars_html}</li>")
+                    stars = display_stars(restaurant.note_globale)
+                    stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                    st.html(f"<li><b> Globale : </b>{stars_html}</li>")
+                    st.write(f"- **Qualité Prix :** {restaurant.qualite_prix_note}")
+                    st.write(f"- **Cuisine :** {restaurant.cuisine_note}")
+                    st.write(f"- **Service :** {restaurant.service_note}")
+                    st.write(f"- **Ambiance :** {restaurant.ambiance_note}")
+
+                    st.write("**Informations complémentaires :**")
+                    st.write(f"- **Cuisine :** {restaurant.cuisines}")
+                    st.write(f"- **Repas :** {restaurant.repas}")
+
+                    st.write("**Temps de trajet :**")
+                    st.write(f"- 🚲 {duration_soft}")
+                    st.write(f"- 🚌 {duration_public}")
+                    st.write(f"- 🚗 {duration_car}")
+                else:
+                    # Message si aucun restaurant n'est sélectionné
+                    st.info("Sélectionnez un restaurant depuis l'onglet 🍽️ Restaurants en cliquant sur le bouton 🆚, afin de l'ajouter au comparateur.", icon="ℹ️")
 
 if __name__ == '__main__':
     main()

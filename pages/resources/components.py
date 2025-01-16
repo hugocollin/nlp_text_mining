@@ -9,7 +9,8 @@ import litellm
 import numpy as np
 import time
 import tqdm
-from src.db.models import Chunk, get_session, init_db, get_all_restaurants
+import datetime
+from src.db.models import Chunk, get_session, init_db, get_all_restaurants, get_user_and_review_from_restaurant_id
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -24,7 +25,6 @@ def Navbar():
     with st.sidebar:
         st.page_link('app.py', label='Accueil', icon='🏠')
         st.page_link('pages/explorer.py', label='Explorer', icon='🔍')
-        st.page_link('pages/comparer.py', label='Comparer', icon='🆚')
         st.page_link('pages/admin.py', label='Admin', icon='🔒')
 
 # Fonction pour calculer la distance entre deux points
@@ -144,6 +144,78 @@ def display_stars(rating):
             else:
                 stars.append("")
     return stars
+
+# Fonction pour obtenir le temps actuel
+def get_datetime():
+    # Récupération de la date actuelle
+    current_datetime = datetime.datetime.now()
+
+    # Récupération du jour actuel
+    current_day = current_datetime.strftime('%A')
+
+    # Traduction du jour en français
+    fr_days = {
+        'Monday': 'Lundi',
+        'Tuesday': 'Mardi',
+        'Wednesday': 'Mercredi',
+        'Thursday': 'Jeudi',
+        'Friday': 'Vendredi',
+        'Saturday': 'Samedi',
+        'Sunday': 'Dimanche'
+    }
+    current_day = fr_days.get(current_day, None)
+
+    return current_datetime, current_day
+
+# Fonction pour construire les horaires d'ouverture d'un restaurant
+def construct_horaires(horaires_str):
+    fr_days = {
+        'Monday': 'Lundi',
+        'Tuesday': 'Mardi',
+        'Wednesday': 'Mercredi',
+        'Thursday': 'Jeudi',
+        'Friday': 'Vendredi',
+        'Saturday': 'Samedi',
+        'Sunday': 'Dimanche'
+    }
+
+    # Création d'un dictionnaire pour stocker les horaires
+    horaires_dict = {jour: [] for jour in fr_days.values()}
+    jours = horaires_str.split(";")
+    jours = [jour.strip() for jour in jours if jour.strip()]
+
+    # Parcours des jours
+    for jour in jours:
+        jour_nom, plages = jour.split(": ")
+
+        # Si le restaurant est fermé
+        if plages.lower() == "fermé":
+            horaires_dict[jour_nom] = []
+            continue
+        plages = plages.split(", ")
+
+        # Parcours des plages horaires
+        for plage in plages:
+            start_str, end_str = plage.split("-")
+            start_time = datetime.datetime.strptime(start_str, '%H:%M').time()
+            end_time = datetime.datetime.strptime(end_str, '%H:%M').time()
+            
+            # Gestion des horaires de nuit
+            if end_time <= start_time:
+                horaires_dict[jour_nom].append((start_time, datetime.time(23, 59)))
+                
+                index = list(fr_days.values()).index(jour_nom)
+                jour_suivant = list(fr_days.values())[(index + 1) % 7]
+                
+                horaires_dict[jour_suivant].append((datetime.time(0, 0), end_time))
+            else:
+                horaires_dict[jour_nom].append((start_time, end_time))
+    
+    # Tri des horaires par ordre croissant
+    for jour in horaires_dict:
+        horaires_dict[jour].sort(key=lambda x: x[0])
+    
+    return horaires_dict
 
 # Fonction pour ajouter un restaurant au comparateur
 def add_to_comparator(restaurant):
@@ -288,12 +360,15 @@ def tcl_api(personal_address, personal_latitude, personal_longitude, restaurant_
 
 # Fonction de traitement des restaurants
 def process_restaurant(personal_address, personal_latitude, personal_longitude, restaurant):
-    tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
+    tcl_url, _duration_public, _duration_car, _duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, restaurant.latitude, restaurant.longitude)
     return (restaurant, tcl_url, fastest_mode)
 
 # Récupération des informations du restaurant sélectionné
-def display_restaurant_infos(personal_address, personal_latitude, personal_longitude):
+def display_restaurant_infos(session, personal_address, personal_latitude, personal_longitude):
+    # Récupération de restaurant sélectionné
     selected_restaurant = st.session_state.get('selected_restaurant')
+
+    # Récupération des informations de trajet
     tcl_url, duration_public, duration_car, duration_soft, fastest_mode = tcl_api(personal_address, personal_latitude, personal_longitude, selected_restaurant.latitude, selected_restaurant.longitude)
 
     if selected_restaurant:
@@ -315,6 +390,7 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
 
         # Affichage des étoiles Michelin
         michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
+        michelin_stars_html = ''
         if michelin_stars:
             if selected_restaurant.etoiles_michelin == 1:
                 michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
@@ -322,140 +398,304 @@ def display_restaurant_infos(personal_address, personal_latitude, personal_longi
                 michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
             elif selected_restaurant.etoiles_michelin == 3:
                 michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
-        else:
-            michelin_stars_html = ''
+            
         st.html(f"<h1>{selected_restaurant.nom}   {michelin_stars_html}</h1>")
+
+        # Tabs pour les informations
+        presentation, avis = st.tabs(["🖼️ Présentation", "📝 Avis"])
         
-        # Mise en page des informations
-        container = st.container()
-        col1, col2 = container.columns([0.64, 0.36])
+        with presentation:
+            # Mise en page des informations
+            col1, col2 = st.columns([0.64, 0.36])
 
-        # Affichage des informations de la colonne 1
-        with col1:
-            info_container = st.container()
-            # Générer les URLs
-            lien_gm = get_google_maps_link(selected_restaurant.adresse)
-            tripadvisor_link = selected_restaurant.url_link
-            email_link = f"mailto:{selected_restaurant.email}"
-            tel_link = f"tel:{selected_restaurant.telephone}"
+            # Affichage des informations de la colonne 1
+            with col1:
+                info_container = st.container()
+                # Générer les URLs
+                lien_gm = get_google_maps_link(selected_restaurant.adresse)
+                tripadvisor_link = selected_restaurant.url_link
+                email_link = f"mailto:{selected_restaurant.email}"
+                tel_link = f"tel:{selected_restaurant.telephone}"
 
-            # Affichage des boutons pour les liens
-            info_container.markdown(f'''
-                <style>
-                    .custom-button {{
-                        display: block;
-                        padding: 6px 12px;
-                        margin-bottom: 15px;
-                        color: #31333e;
-                        border: 1px solid #d6d6d8;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        background-color: transparent;
-                        transition: background-color 0.3s;
-                    }}
-                    .custom-button:hover {{
-                        color: #FF4B4B;
-                        border-color: #FF4B4B;
-                    }}
-                    .custom-button:active {{
-                        background-color: #FF4B4B;
-                    }}
-                    @media (prefers-color-scheme: dark) {{
+                # Affichage des boutons pour les liens
+                info_container.markdown(f'''
+                    <style>
                         .custom-button {{
-                            color: #fafafa;
-                            border-color: #3e4044;
-                            background-color: #14171f;
+                            display: block;
+                            padding: 6px 12px;
+                            margin-bottom: 15px;
+                            color: #31333e;
+                            border: 1px solid #d6d6d8;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            background-color: transparent;
+                            transition: background-color 0.3s;
                         }}
-                    }}
-                </style>
-                <a href="{lien_gm}" target="_blank" style="text-decoration: none;">
-                    <button class="custom-button">📍 {selected_restaurant.adresse}</button>
-                </a>
-                <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
-                    <button class="custom-button">🌐 Lien vers Tripadvisor</button>
-                </a>
-                <a href="{email_link}" target="_blank" style="text-decoration: none;">
-                    <button class="custom-button">📧 {selected_restaurant.email}</button>
-                </a>
-                <a href="{tel_link}" target="_blank" style="text-decoration: none;">
-                    <button class="custom-button">📞 {selected_restaurant.telephone}</button>
-                </a>
-            ''', unsafe_allow_html=True)
-            
-            info_supp_container = st.container(border=True)
-            info_supp_container.write("**Informations complémentaires**")
-            info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
-            info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
-
-        # Affichage des informations de la colonne 2
-        with col2:
-            score_container = st.container(border=True)
-            
-            # Affichage des notations
-            score_container.write("**Notations**")
-            stars = display_stars(selected_restaurant.note_globale)
-            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
-            score_container.html(f"<b>Globale : </b>{stars_html}")
-            score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
-            score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
-            score_container.write(f"**Service :** {selected_restaurant.service_note}")
-            score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
-            
-            # Affichage des temps de trajet
-            journeys_container = st.container(border=True)
-            journeys_container.write("**Temps de trajet**")
-            journeys_container.write(f"🚲 {duration_soft}")
-            journeys_container.write(f"🚌 {duration_public}")
-            journeys_container.write(f"🚗 {duration_car}")
-            if tcl_url:
-                journeys_container.markdown(f'''
-                    <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
-                        <button class="custom-button">Consulter les itinéraires TCL</button>
+                        .custom-button:hover {{
+                            color: #FF4B4B;
+                            border-color: #FF4B4B;
+                        }}
+                        .custom-button:active {{
+                            background-color: #FF4B4B;
+                        }}
+                        @media (prefers-color-scheme: dark) {{
+                            .custom-button {{
+                                color: #fafafa;
+                                border-color: #3e4044;
+                                background-color: #14171f;
+                            }}
+                        }}
+                    </style>
+                    <a href="{lien_gm}" target="_blank" style="text-decoration: none;">
+                        <button class="custom-button">📍 {selected_restaurant.adresse}</button>
+                    </a>
+                    <a href="{tripadvisor_link}" target="_blank" style="text-decoration: none;">
+                        <button class="custom-button">🌐 Lien vers Tripadvisor</button>
+                    </a>
+                    <a href="{email_link}" target="_blank" style="text-decoration: none;">
+                        <button class="custom-button">📧 {selected_restaurant.email}</button>
+                    </a>
+                    <a href="{tel_link}" target="_blank" style="text-decoration: none;">
+                        <button class="custom-button">📞 {selected_restaurant.telephone}</button>
                     </a>
                 ''', unsafe_allow_html=True)
-            else:
-                emoji, fastest_duration = fastest_mode
-                bouton_label = f"{emoji} {fastest_duration}"
-                journeys_container.button(label=bouton_label, disabled=True)
-            
-            # Définition de la vue de la carte
-            view = pdk.ViewState(
-                latitude=selected_restaurant.latitude,
-                longitude=selected_restaurant.longitude,
-                zoom=13,
-                pitch=0
-            )
 
-            # Définition de la couche de la carte
-            layer = pdk.Layer(
-                'ScatterplotLayer',
-                data=[{'position': [selected_restaurant.longitude, selected_restaurant.latitude]}],
-                get_position='position',
-                get_color='[255, 0, 0]',
-                get_radius=25,
-                pickable=True,
-                auto_highlight=True
-            )
+                # Affichage des horaires d'ouverture
+                horaires_container = st.container(border=True)
+                horaires_container.write("**Horaires d'ouverture**")
 
-            # Paramètres de l'infos-bulle
-            tooltip = {
-                "html": f"<b>{selected_restaurant.nom}</b>",
-                "style": {
-                    "backgroundColor": "white",
-                    "color": "black"
+                horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: Fermé; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
+
+                current_datetime, current_day = get_datetime()
+                horaires_dict = construct_horaires(horaires)
+                
+                if not horaires:
+                    horaires_container.info("Les horaires d'ouverture ne sont pas disponibles", icon="ℹ️")
+                else:
+                    plages_du_jour = horaires_dict.get(current_day, [])
+                    if not plages_du_jour:
+                        horaires_container.error("Fermé")
+                    else:
+                        ouvert = False
+                        current_time = current_datetime.time()
+                        for start, end in plages_du_jour:
+                            if start <= end:
+                                if start <= current_time <= end:
+                                    ouvert = True
+                                    break
+                            else:
+                                if current_time >= start or current_time <= end:
+                                    ouvert = True
+                                    break
+                        if ouvert:
+                            horaires_container.success("Ouvert")
+                        else:
+                            horaires_container.error("Fermé")
+
+                    # Transformation des horaires en dictionnaire
+                    horaires_dict = {}
+                    parties = horaires.split(";")
+                    for partie in parties:
+                        if partie.strip():
+                            jour, heures = partie.split(": ")
+                            horaires_dict[jour] = heures
+                    
+                    # Affichage des horaires d'ouverture
+                    for jour in [" Lundi", " Mardi", " Mercredi", " Jeudi", " Vendredi", " Samedi", "Dimanche"]:
+                        if jour in horaires_dict:
+                            heures = horaires_dict[jour]
+                            if heures == "Fermé":
+                                horaires_container.write(f"- {jour} : Fermé")
+                            else:
+                                debut, fin = heures.split("-")
+                                debut = debut.replace(":", "h")
+                                fin = fin.replace(":", "h")
+                                horaires_container.write(f"- {jour} : {debut} - {fin}")
+                
+                horaires_container.write("*Horaires factices, les horaires réelles seront disponibles ultérieurement.*")
+
+                # Affichage du résumé du restaurant
+                resume_container = st.container(border=True)
+                resume_container.markdown("**Avis général**", help="✨ Ce texte a été généré automatiquement à partir des avis des utilisateurs sur Tripadvisor, grâce à un processus combinant le traitement du langage naturel (NLP) et l'intelligence artificielle (IA)")
+                resume_container.write(f"{selected_restaurant.resume_avis}")
+
+                # Affichage des informations complémentaires
+                info_supp_container = st.container(border=True)
+                info_supp_container.write("**Informations complémentaires**")
+                info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+                info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+
+            # Affichage des informations de la colonne 2
+            with col2:
+                score_container = st.container(border=True)
+                
+                # Affichage des notations
+                score_container.write("**Notations**")
+                stars = display_stars(selected_restaurant.note_globale)
+                stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                score_container.html(f"<b>Globale : </b>{stars_html}")
+                score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
+                score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
+                score_container.write(f"**Service :** {selected_restaurant.service_note}")
+                score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
+                
+                # Affichage des temps de trajet
+                journeys_container = st.container(border=True)
+                journeys_container.write("**Temps de trajet**")
+                journeys_container.write(f"🚲 {duration_soft}")
+                journeys_container.write(f"🚌 {duration_public}")
+                journeys_container.write(f"🚗 {duration_car}")
+                if tcl_url:
+                    journeys_container.markdown(f'''
+                        <a href="{tcl_url}" target="_blank" style="text-decoration: none;">
+                            <button class="custom-button">Consulter les itinéraires TCL</button>
+                        </a>
+                    ''', unsafe_allow_html=True)
+                else:
+                    emoji, fastest_duration = fastest_mode
+                    bouton_label = f"{emoji} {fastest_duration}"
+                    journeys_container.button(label=bouton_label, disabled=True)
+                
+                # Définition de la vue de la carte
+                view = pdk.ViewState(
+                    latitude=selected_restaurant.latitude,
+                    longitude=selected_restaurant.longitude,
+                    zoom=13,
+                    pitch=0
+                )
+
+                # Définition de la couche de la carte
+                layer = pdk.Layer(
+                    'ScatterplotLayer',
+                    data=[{'position': [selected_restaurant.longitude, selected_restaurant.latitude]}],
+                    get_position='position',
+                    get_color='[255, 0, 0]',
+                    get_radius=25,
+                    pickable=True,
+                    auto_highlight=True
+                )
+
+                # Paramètres de l'infos-bulle
+                tooltip = {
+                    "html": f"<b>{selected_restaurant.nom}</b>",
+                    "style": {
+                        "backgroundColor": "white",
+                        "color": "black"
+                    }
                 }
-            }
 
-            # Définition du rendu PyDeck
-            deck = pdk.Deck(
-                layers=layer,
-                initial_view_state=view,
-                tooltip=tooltip,
-                map_style='mapbox://styles/mapbox/light-v11'
-            )
+                # Définition du rendu PyDeck
+                deck = pdk.Deck(
+                    layers=layer,
+                    initial_view_state=view,
+                    tooltip=tooltip,
+                    map_style='mapbox://styles/mapbox/light-v11'
+                )
 
-            # Affichage de la carte
-            st.pydeck_chart(deck)
+                # Affichage de la carte
+                st.pydeck_chart(deck)
+
+        with avis:
+            # Initialisation du nombre de reviews à afficher
+            if 'display_count' not in st.session_state:
+                st.session_state['display_count'] = 10
+
+            # Récupération des avis
+            review = get_user_and_review_from_restaurant_id(session, selected_restaurant.id_restaurant)
+
+            # Mise en page des informations
+            col1, col2 = st.columns(2)
+
+            # Affichage de la colonne de commentaires
+            with col1:
+                with st.container(height=1000, border=False):
+                    for _i, r in enumerate(review[:st.session_state['display_count']]):
+                        comment_container = st.container(border=True)
+                        comment_col1, comment_col2 = comment_container.columns([0.6, 0.4])
+                        with comment_col1:
+                            st.markdown(f"**👤 {r[0].user_name}**", help=f"Nombre de contribution(s) : {r[0].num_contributions}")
+                            stars = display_stars(r[1].rating)
+                            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                            st.html(stars_html)
+
+                        with comment_col2:
+                            st.write(f"📅 ***{r[1].date_review}***")
+                            visit_mapping = {
+                                "none": "",
+                                "No information": "",
+                                "business": "💼 Travail",
+                                "couples": "❤️ Couple",
+                                "family": "👨‍👩‍👧‍👦 Famille",
+                                "friends": "👫 Amis",
+                                "solo": "🧍 Seul"
+                            }
+                            st.write(f"{visit_mapping.get(r[1].type_visit, r[1].type_visit)}")
+                        
+                        comment_container.write(f"**{r[1].title_review}**")
+                        comment_container.write(r[1].review_text)
+                
+                    # Bouton pour charger plus de reviews
+                    if st.session_state['display_count'] < len(review):
+                        if st.button("🔄️ Charger plus d'avis"):
+                            st.session_state['display_count'] += 10
+                            st.rerun(scope="fragment")
+            
+            with col2:
+                # Affichage du nombre d'avis
+                nb_avis_container = st.container(border=True)
+
+                nb_avis_container.write(f"**Nombre d'avis : {len(review)}**")
+
+                # Affichage du top contributeurs
+                top_contrib_container = st.container(border=True)
+
+                top_contrib_container.write("**Top contributeurs**")
+                user_reviews_count = {}
+                for user, _ in review:
+                    user_reviews_count[user.user_profile] = user_reviews_count.get(user.user_profile, 0) + 1
+                top_users = sorted(user_reviews_count.items(), key=lambda x: x[1], reverse=True)
+                
+                for rank, (user, count) in enumerate(top_users[:3], start=1):
+                    medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉"
+                    top_contrib_container.write(f"{medal} 👤 {user} : {count} avis")
+
+                # Affichage de la répartition des notes
+                marks_container = st.container(border=True)
+
+                marks_container.write("**Répartition des notes**")
+                rating_counts = {}
+                for _, r in review:
+                    rating_counts[r.rating] = rating_counts.get(r.rating, 0) + 1
+                marks_container.bar_chart(rating_counts, horizontal=True, color="#f6c944")
+
+                # Affichage de la répartition des types de visite
+                type_visit_container = st.container(border=True)
+
+                type_visit_container.write("**Répartition des types de visite**")
+                type_visit_counts = {}
+                visit_mapping = {
+                    "none": "Inconnue",
+                    "No information": "Inconnue",
+                    "business": "Travail",
+                    "couples": "Couple",
+                    "family": "Famille",
+                    "friends": "Amis",
+                    "solo": "Seul"
+                }
+                for _, r in review:
+                    mapped_visit = visit_mapping.get(r.type_visit, r.type_visit)
+                    type_visit_counts[mapped_visit] = type_visit_counts.get(mapped_visit, 0) + 1
+                type_visit_container.bar_chart(type_visit_counts, horizontal=True, color="#f6c944")
+
+                # Affichage de l'évolution du nombre d'avis dans le temps
+                month_container = st.container(border=True)
+
+                month_container.write("**Évolution du nombre d'avis dans le temps**")
+                month_counts = {}
+                for _, r in review:
+                    month = r.date_review.strftime("%Y-%m")
+                    month_counts[month] = month_counts.get(month, 0) + 1
+                month_container.bar_chart(month_counts, color="#f6c944")
 
 # Fonction pour mesurer le temps de réponse de l'IA
 def measure_latency(func):
