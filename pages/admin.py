@@ -632,7 +632,7 @@ def pipeline_processing():
     selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
     # Get selected restaurant object
     restau = restaurant_names[selected_name]
-    if st.button("Scrapper ", key="scrape_everything"):
+    if st.button("Scrapper ", key="scrape_everything" , help="Scrapper les informations du restaurant sélectionné" , disabled=True ):
         pipe.add_new_restaurant(restau)
         st.success("Les informations ont été scrappées avec succès.")
     

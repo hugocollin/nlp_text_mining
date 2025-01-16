@@ -405,11 +405,16 @@ class restaurant_info_extractor(SearchEngine):
         image_url = self.get_images(soup)
         restaurant_info['Détails']['IMAGE'] = image_url
 
+        time.sleep(1)
         fonctionnalite , horaires , rank = self.google_scrapping_info(self.url)
         restaurant_info['Détails']['FONCTIONNALITE'] = fonctionnalite if fonctionnalite else 'N/A'
         restaurant_info['Détails']['HORAIRES'] = horaires if horaires else 'N/A'
         restaurant_info['Détails']['RANK'] = rank if rank else 'N/A'
         
+        
+        
+        if  restaurant_info['Détails']['RANK'] == 'N/A':
+            restaurant_info['Détails']['RANK'] = self.get_ranking(soup)
         
         return restaurant_info
     
