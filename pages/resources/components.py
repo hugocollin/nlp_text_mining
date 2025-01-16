@@ -487,40 +487,16 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
 
             # Affichage de la colonne de commentaires
             with col1:
-                with st.container(height=1000):
+                with st.container(height=1000, border=False):
                     for i, r in enumerate(review[:st.session_state['display_count']]):
-                        # Initialize session state for this review if not exists
-                        if f"show_full_review_{i}" not in st.session_state:
-                            st.session_state[f"show_full_review_{i}"] = False
-                            
-                        review_text = r[1].review_text
-                        is_long_review = len(review_text) > 80
-                        
-                        # Display user name
-                        st.markdown(f"<div ><span class='user_name'>{r[0].user_name}</span></div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='date_review'>{r[1].date_review}</div>" , unsafe_allow_html=True)
+                        # Affichage du nom de l'utilisateur
+                        comment_container = st.container(border=True)
+                        comment_container.write(f"**👤 {r[0].user_name}**")
+                        comment_container.write(f"📅 *{r[1].date_review}*")
                         stars = display_stars(r[1].rating)
-                        st.image(stars, width=20)                
-                        # Display review text based on length and state
-                        if is_long_review:
-                            if st.session_state[f"show_full_review_{i}"]:
-                                st.markdown(f"<div class='review'>{review_text}</div>", unsafe_allow_html=True)
-                                st.markdown("<div class='review-button'>", unsafe_allow_html=True)
-                                if st.button("Voir moins", key=f"toggle_{i}"):
-                                    st.session_state[f"show_full_review_{i}"] = False
-                                    st.rerun()
-                                st.markdown("</div>", unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"<div class='review'>{review_text[:80]}...</div>", unsafe_allow_html=True)
-                                st.markdown("<div class='review-button'>", unsafe_allow_html=True)
-                                if st.button("...Voir plus", key=f"toggle_{i}"):
-                                    st.session_state[f"show_full_review_{i}"] = True
-                                    st.rerun()
-                                st.markdown("</div>", unsafe_allow_html=True)
-                        else:
-                            st.write(review_text)
-                            
-                        st.write("----")
+                        stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                        comment_container.html(stars_html)
+                        comment_container.write(r[1].review_text)
                 
                     # Bouton pour charger plus de reviews
                     if st.session_state['display_count'] < len(review):
