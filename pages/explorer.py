@@ -371,7 +371,7 @@ def main():
             with st.spinner("Chargement des restaurants..."):
                 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
                     futures = {executor.submit(process_restaurant, personal_address, personal_latitude, personal_longitude, restaurant): restaurant for restaurant in restaurants if restaurant.scrapped}
-                    results = [future.result() for future in concurrent.futures.as_completed(futures)]
+                    results = sorted([future.result() for future in concurrent.futures.as_completed(futures)], key=lambda x: x[0].nom)
 
             # Filtrage des résultats en fonction des filtres
             filtered_results = []
