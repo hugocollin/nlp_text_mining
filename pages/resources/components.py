@@ -570,8 +570,14 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                 # Affichage des informations complémentaires
                 info_supp_container = st.container(border=True)
                 info_supp_container.write("**Informations complémentaires**")
-                info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
-                info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+                if selected_restaurant.cuisines:
+                    info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
+                else:
+                    info_supp_container.write("**Cuisine :** Non disponible")
+                if selected_restaurant.repas:
+                    info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
+                else:
+                    info_supp_container.write("**Repas :** Non disponible")
 
             # Affichage des informations de la colonne 2
             with col2:
@@ -582,10 +588,22 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                 stars = display_stars(selected_restaurant.note_globale)
                 stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
                 score_container.html(f"<b>Globale : </b>{stars_html}")
-                score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
-                score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
-                score_container.write(f"**Service :** {selected_restaurant.service_note}")
-                score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
+                if selected_restaurant.qualite_prix_note:
+                    score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
+                else:
+                    score_container.write("**Qualité Prix :** Non disponible")
+                if selected_restaurant.cuisine_note:
+                    score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
+                else:
+                    score_container.write("**Cuisine :** Non disponible")
+                if selected_restaurant.service_note:
+                    score_container.write(f"**Service :** {selected_restaurant.service_note}")
+                else:
+                    score_container.write("**Service :** Non disponible")
+                if selected_restaurant.ambiance_note:
+                    score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
+                else:
+                    score_container.write("**Ambiance :** Non disponible")
                 
                 # Affichage des temps de trajet
                 journeys_container = st.container(border=True)
