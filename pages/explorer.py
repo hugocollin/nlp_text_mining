@@ -2,7 +2,7 @@ import streamlit as st
 import pydeck as pdk
 import concurrent.futures
 
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
 
 from dotenv import find_dotenv, load_dotenv
 from src.pipeline import Transistor
@@ -692,10 +692,46 @@ def main():
                             st.session_state['comparator'].remove(restaurant.id_restaurant)
                             st.rerun()
 
-                    # Affichage des informations du restaurant
+                    # Affichage du nom du restaurant
                     st.header(restaurant.nom)
 
-                    st.write("**Notations :**")
+                    # Affichage des horaires d'ouverture
+                    horaires = "Dimanche: 11:30-23:00; Lundi: 11:30-23:00; Mardi: 11:30-23:00; Mercredi: Fermé; Jeudi: 11:30-23:00; Vendredi: 11:30-0:15; Samedi: 11:30-0:15;" # [TEMP] Récupération des horaires du restaurant
+
+                    current_datetime, current_day = get_datetime()
+                    horaires_dict = construct_horaires(horaires)
+                    
+                    if not horaires:
+                        st.info("Les horaires d'ouverture ne sont pas disponibles", icon="ℹ️")
+                    else:
+                        plages_du_jour = horaires_dict.get(current_day, [])
+                        if not plages_du_jour:
+                            st.error("Fermé")
+                        else:
+                            ouvert = False
+                            current_time = current_datetime.time()
+                            for start, end in plages_du_jour:
+                                if start <= end:
+                                    if start <= current_time <= end:
+                                        ouvert = True
+                                        break
+                                else:
+                                    if current_time >= start or current_time <= end:
+                                        ouvert = True
+                                        break
+                            if ouvert:
+                                st.success("Ouvert")
+                            else:
+                                st.error("Fermé")
+
+                    # Affichage du prix
+                    prix_container = st.container(border=True)
+                    prix_symbol = get_price_symbol(restaurant.prix_min, restaurant.prix_max)
+                    prix_container.write(f"**Prix :** {prix_symbol}")
+
+                    # Affichage des notations
+                    mark_container = st.container(border=True)
+                    mark_container.write("**Notations**")
                     michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
                     michelin_stars_html = ' Aucune'
                     if michelin_stars:
@@ -705,23 +741,45 @@ def main():
                             michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
                         elif restaurant.etoiles_michelin == 3:
                             michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
-                    st.html(f"<li><b>Étoiles Michelin :</b>{michelin_stars_html}</li>")
+                    mark_container.html(f"<b>Étoiles Michelin :</b>{michelin_stars_html}")
                     stars = display_stars(restaurant.note_globale)
                     stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
-                    st.html(f"<li><b> Globale : </b>{stars_html}</li>")
-                    st.write(f"- **Qualité Prix :** {restaurant.qualite_prix_note}")
-                    st.write(f"- **Cuisine :** {restaurant.cuisine_note}")
-                    st.write(f"- **Service :** {restaurant.service_note}")
-                    st.write(f"- **Ambiance :** {restaurant.ambiance_note}")
+                    mark_container.html(f"<b> Globale : </b>{stars_html}")
+                    if restaurant.qualite_prix_note:
+                        mark_container.write(f"**Qualité Prix :** {restaurant.qualite_prix_note}")
+                    else:
+                        mark_container.write(f"**Qualité Prix :** Non disponible")
+                    if restaurant.cuisine_note:
+                        mark_container.write(f"**Cuisine :** {restaurant.cuisine_note}")
+                    else:
+                        mark_container.write(f"**Cuisine :** Non disponible")
+                    if restaurant.service_note:
+                        mark_container.write(f"**Service :** {restaurant.service_note}")
+                    else:
+                        mark_container.write(f"**Service :** Non disponible")
+                    if restaurant.ambiance_note:
+                        mark_container.write(f"**Ambiance :** {restaurant.ambiance_note}")
+                    else:
+                        mark_container.write(f"**Ambiance :** Non disponible")
 
-                    st.write("**Informations complémentaires :**")
-                    st.write(f"- **Cuisine :** {restaurant.cuisines}")
-                    st.write(f"- **Repas :** {restaurant.repas}")
+                    # Affichage des informations complémentaires
+                    info_comp_container = st.container(border=True)
+                    info_comp_container.write("**Informations complémentaires**")
+                    if restaurant.cuisines:
+                        info_comp_container.write(f"**Cuisine :** {restaurant.cuisines}")
+                    else:
+                        info_comp_container.write("**Cuisine :** Non disponible")
+                    if restaurant.repas:
+                        info_comp_container.write(f"**Repas :** {restaurant.repas}")
+                    else:
+                        info_comp_container.write("**Repas :** Non disponible")
 
-                    st.write("**Temps de trajet :**")
-                    st.write(f"- 🚲 {duration_soft}")
-                    st.write(f"- 🚌 {duration_public}")
-                    st.write(f"- 🚗 {duration_car}")
+                    # Affichage des temps de trajet
+                    trajet_container = st.container(border=True)
+                    trajet_container.write("**Temps de trajet**")
+                    trajet_container.write(f"🚲 {duration_soft}")
+                    trajet_container.write(f"🚌 {duration_public}")
+                    trajet_container.write(f"🚗 {duration_car}")
                 else:
                     # Message si aucun restaurant n'est sélectionné
                     st.info("Sélectionnez un restaurant depuis l'onglet 🍽️ Restaurants en cliquant sur le bouton 🆚, afin de l'ajouter au comparateur.", icon="ℹ️")
