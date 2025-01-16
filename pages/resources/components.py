@@ -145,6 +145,22 @@ def display_stars(rating):
                 stars.append("")
     return stars
 
+# Fonction pour obtenir le prix moyen d'un restaurant
+def get_price_symbol(prix_min, prix_max):
+    if prix_min and prix_max:
+        prix_avg = (prix_min + prix_max) / 2
+
+        if prix_avg < 20:
+            return ':material/euro_symbol:'
+        elif prix_avg < 30:
+            return ':material/euro_symbol::material/euro_symbol:'
+        elif prix_avg < 50:
+            return ':material/euro_symbol::material/euro_symbol::material/euro_symbol:'
+        else:
+            return ':material/euro_symbol::material/euro_symbol::material/euro_symbol::material/euro_symbol:'
+    else:
+        return 'Non disponible'
+
 # Fonction pour obtenir le temps actuel
 def get_datetime():
     # Récupération de la date actuelle
@@ -581,9 +597,13 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
 
             # Affichage des informations de la colonne 2
             with col2:
-                score_container = st.container(border=True)
+                # Affichage de la fourchette de prix
+                prix_container = st.container(border=True)
+                prix_symbol = get_price_symbol(selected_restaurant.prix_min, selected_restaurant.prix_max)
+                prix_container.write(f"**Prix :** {prix_symbol}")
                 
                 # Affichage des notations
+                score_container = st.container(border=True)
                 score_container.write("**Notations**")
                 stars = display_stars(selected_restaurant.note_globale)
                 stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
