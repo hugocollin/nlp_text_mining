@@ -492,7 +492,7 @@ def display_restaurant_infos(session, personal_address, personal_latitude, perso
                         comment_container = st.container(border=True)
                         comment_col1, comment_col2 = comment_container.columns([0.6, 0.4])
                         with comment_col1:
-                            st.write(f"**👤 {r[0].user_name}**")
+                            st.markdown(f"**👤 {r[0].user_name}**", help=f"Nombre de contribution(s) : {r[0].num_contributions}")
                             stars = display_stars(r[1].rating)
                             stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
                             st.html(stars_html)
