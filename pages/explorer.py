@@ -174,7 +174,7 @@ def main():
                 3: ":material/asterisk::material/asterisk::material/asterisk:",
             }
             selected_michelin_stars = container.pills(
-                "Étoiles Michelin minimale",
+                "Étoiles Michelin",
                 options=option_michelin.keys(),
                 format_func=lambda option: option_michelin[option],
                 selection_mode="multi",
