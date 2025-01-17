@@ -36,7 +36,8 @@ def add_restaurant_dialog():
         if selected_name != "Sélectionner un restaurant":
             # Get selected restaurant object
             restau = restaurant_names[selected_name]
-            pipe.add_new_restaurant(restau)
+            with st.spinner("Récupération des informations du restaurant..."):
+                pipe.add_new_restaurant(restau)
             st.session_state['restaurant_added'] = True
             st.rerun()
         else:
