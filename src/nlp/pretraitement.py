@@ -30,11 +30,15 @@ class NLPPretraitement:
         self.avis_restaurants = None
 
     def extraction_donnees(self):
+        print("Extraction...")
         avis_restaurants_data = get_restaurants_with_reviews_and_users(self.session)
         data = []
         for restaurant in avis_restaurants_data:
             for review in restaurant['reviews']:
                 data.append({
+                    'restaurant_id': review['restaurant_id'],
+                    'user_id': review['user_id'],
+                    'review_id': review['review_id'],
                     'restaurant': restaurant['restaurant'],
                     'restaurant_address': restaurant['restaurant_address'],
                     'title': review['title'],
@@ -58,9 +62,11 @@ class NLPPretraitement:
         return ' '.join(tokens)
 
     def appliquer_nettoyage(self):
+        print("Nettoyer avis...")
         self.avis_restaurants['review_cleaned'] = self.avis_restaurants['review'].apply(self.nettoyer_avis)
 
     def vectorisation(self, methode='bow', max_features=500):
+        print("Vectorisation avis...")
         vectorizer = CountVectorizer(max_features=max_features) if methode == 'bow' else TfidfVectorizer(max_features=max_features)
         vecteurs = vectorizer.fit_transform(self.avis_restaurants['review_cleaned'])
         return pd.DataFrame(vecteurs.toarray(), columns=vectorizer.get_feature_names_out())
@@ -69,6 +75,7 @@ class NLPPretraitement:
         return self.avis_restaurants
     
     def sauvegarder_donnees(self):
+        print("Sauvegarder avis...")
         try:
             fill_review_cleaned_column(self.avis_restaurants, self.session)
 

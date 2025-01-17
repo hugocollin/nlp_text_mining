@@ -31,16 +31,14 @@ def test_pretraitement():
     
     #afficher dataframe
     #tokens = 
-    pretraitement.afficher_dataframe_complet()
+    df = pretraitement.afficher_dataframe_complet()
     #print(tokens)
     
-    #review = models.get_user_and_review_from_restaurant_id(session, 1)
-    #tokens = pretraitement.nettoyer_avis(review[0][1].review_text)
-    #print(tokens)
-    
-    #sauvegarde donnees nettoyées   
+    print("Aperçu des données :")
+    print(df.head().to_csv("apercu_data.csv"))
     pretraitement.sauvegarder_donnees()
-    
+
     # Exécution du test
 if __name__ == "__main__":
     test_pretraitement()
+    

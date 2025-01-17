@@ -817,16 +817,16 @@ def fill_review_cleaned_column(df, session):
                 join(Restaurant, Review.id_restaurant == Restaurant.id_restaurant).\
                 join(User, Review.id_user == User.id_user).\
                 filter(
-                    Restaurant.nom == restaurant_name,
-                    User.user_profile == user_profile,
-                    Review.title_review == title
+                    Restaurant.id_restaurant == row['restaurant_id'],
+                    User.id_user == row['user_id'],
+                    Review.id_review == row['review_id']
                 ).first()
 
             if review_entry:
                 # Mettre à jour les colonnes `review_cleaned`, `sentiment`, et `sentiment_rating`
                 review_entry.review_cleaned = row['review_cleaned']
-                review_entry.sentiment = int(row['sentiment'])
-                review_entry.sentiment_rating = row['sentiment_rating']
+                # review_entry.sentiment = int(row['sentiment'])
+                # review_entry.sentiment_rating = row['sentiment_rating']
 
                 session.commit()
                 print(f"Colonne review_cleaned mise à jour pour {restaurant_name}, {user_profile}.")
@@ -835,6 +835,47 @@ def fill_review_cleaned_column(df, session):
         except Exception as e:
             session.rollback()  # Annuler la transaction en cas d'erreur
             print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
+
+def fill_sentiment_column(df, session):
+    """
+    Remplit la colonne `review_cleaned` dans la base de données à partir d'un DataFrame.
+
+    Args:
+        df (pd.DataFrame): DataFrame contenant `nom` (restaurant), `user_profile`, `review_cleaned`, `title`, `sentiment`, et `sentiment_rating`.
+        session: La session SQLAlchemy pour interagir avec la base de données.
+    """
+    for _, row in df.iterrows():
+        restaurant_name = row['restaurant']
+        user_profile = row['user_profile']
+        title = row['title']
+
+        # Mettre à jour la base de données
+        try:
+            # Rechercher l'enregistrement correspondant dans la base
+            review_entry = session.query(Review).\
+                join(Restaurant, Review.id_restaurant == Restaurant.id_restaurant).\
+                join(User, Review.id_user == User.id_user).\
+                filter(
+                    Restaurant.id_restaurant == row['restaurant_id'],
+                    User.id_user == row['user_id'],
+                    Review.id_review == row['review_id']
+                ).first()
+
+            if review_entry:
+                # Mettre à jour les colonnes `review_cleaned`, `sentiment`, et `sentiment_rating`
+                # review_entry.review_cleaned = row['review_cleaned']
+                review_entry.sentiment = int(row['sentiment'])
+                # review_entry.sentiment_rating = row['sentiment_rating']
+
+                session.commit()
+                print(f"Colonne sentiment mise à jour pour {restaurant_name}, {user_profile}.")
+            else:
+                print(f"Aucun avis trouvé pour {restaurant_name}, {user_profile}.")
+        except Exception as e:
+            session.rollback()  # Annuler la transaction en cas d'erreur
+            print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
+
+
 
 
 def fill_resume_avis_column(df, session):
@@ -865,6 +906,41 @@ def fill_resume_avis_column(df, session):
         
         except Exception as e:
             print(f"Erreur lors de la mise à jour pour {restaurant_name} : {e}")
+
+
+
+def fill_sentiment_rating_column(df, session):
+    
+    for _, row in df.iterrows():
+        restaurant_name = row['restaurant']
+        user_profile = row['user_profile']
+
+        try:
+            # Rechercher l'enregistrement correspondant dans la base de données
+            review_entry = session.query(Review).\
+                join(Restaurant, Review.id_restaurant == Restaurant.id_restaurant).\
+                join(User, Review.id_user == User.id_user).\
+                filter(
+                    Restaurant.id_restaurant == row['restaurant_id'],
+                    User.id_user == row['user_id'],
+                    Review.id_review == row['review_id']
+                ).first()
+
+            if review_entry:
+                # Mettre à jour la colonne `sentiment_rating`
+                review_entry.sentiment_rating = row['sentiment_rating']
+
+                # Commit des changements dans la base de données
+                session.commit()
+                print(f"Colonne sentiment_rating mise à jour pour {restaurant_name}, {user_profile}.")
+            else:
+                print(f"Aucun avis trouvé pour {restaurant_name}, {user_profile}.")
+        except Exception as e:
+            session.rollback()  # Annuler la transaction en cas d'erreur
+            print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
+
+
+
 
 
 
@@ -1059,5 +1135,36 @@ restaurants = get_all_restaurants(session)
         update_restaurant_columns(row['restaurant'], {"resume_avis": row['resume_avis']}, session)
 
     """
+
+    # Exemple de données
+    """data = {
+        "restaurant": ["Le Bouchon des Filles", "Le Bouchon des Filles", "Le Bouchon des Filles"],
+        "title": ["Très belle soirée", "Sans plus", "Bon et joyeux"],
+        "user_profile": ["SetC77", "marieno_lleb739", "Vymsbmm"],
+        "date_review": ["2024-12-16", "2024-11-23", "2024-11-14"],
+        "rating": [5.0, 3.0, 5.0],
+        "type_visit": ["amis", "amis", "amis"],
+        "num_contributions": [67, 96, 225],
+        "review": [
+            "Trop bon moment!! Accueil, plats, ambiance tout simplement parfaite.",
+            "Les serveurs et serveuses sont sympas. Mais l'onglet n'est tendre...",
+            "Une excellente soirée dans ce petit restaurant peu écart..."
+        ],
+        "review_cleaned": [
+            "trop bon moment accueil plat ambiance tout parfaite",
+            "serveurs serveuses sympas onglet nest tendre",
+            "excellente soirée petit restaurant peu écart"
+        ],
+        "sentiment": ['1', '0',  '1'],  # Exemple de sentiments (1 = positif, 0 = négatif)
+        "sentiment_rating": ['Positif', 'Negatif', 'Positif']  # Score de sentiment
+    }
+
+    # Création du DataFrame
+    df = pd.DataFrame(data)
+
+    fill_review_cleaned_column(df, session)"""
+
+
+
     
     

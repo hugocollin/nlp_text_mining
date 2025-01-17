@@ -8,7 +8,7 @@ Base = declarative_base()
 class Restaurant(Base):
     __tablename__ = 'dim_restaurants'
 
-     # Colonnes de la table
+    # Colonnes de la table
     id_restaurant = Column(Integer, primary_key=True, autoincrement=True)
     nom = Column(String, nullable=False)
     adresse = Column(String)
@@ -120,13 +120,17 @@ def get_restaurants_with_reviews_and_users(session):
         }
         for review in restaurant.avis:
             review_data = {
+                'restaurant_id': restaurant.id_restaurant,
+                'user_id': review.user.id_user,
+                'review_id': review.id_review,
                 'title': review.title_review,
                 'user_profile': review.user.user_profile,
                 'date_review': review.date_review,
                 'rating': review.rating,
                 'type_visit': review.type_visit,
                 'num_contributions': review.user.num_contributions,
-                'review': review.review_text
+                'review': review.review_text,
+                'review_cleaned': review.review_cleaned
             }
             restaurant_data['reviews'].append(review_data)
         result.append(restaurant_data)
