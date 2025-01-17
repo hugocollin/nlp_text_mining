@@ -43,7 +43,6 @@ def add_restaurant_dialog():
             # Get selected restaurant object
             restau = restaurant_names[selected_name]
             pipe.add_new_restaurant(restau)
-            st.success("Les informations ont été scrappées avec succès.")
             st.session_state['restaurant_added'] = True
             st.rerun()
         else:
