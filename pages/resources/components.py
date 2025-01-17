@@ -10,7 +10,7 @@ import numpy as np
 import time
 import tqdm
 import datetime
-import locale
+from zoneinfo import ZoneInfo
 from src.db.models import Chunk, get_session, init_db
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
@@ -155,25 +155,15 @@ def get_price_symbol(prix_min, prix_max):
 # Fonction pour obtenir le temps actuel
 def get_datetime():
     # Définition de la timezone
-    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+    tz = ZoneInfo('Europe/Paris')
     
     # Récupération de la date actuelle
-    current_datetime = datetime.datetime.now()
+    current_datetime = datetime.datetime.now(tz)
 
     # Récupération du jour actuel
-    current_day = current_datetime.strftime('%A')
-
-    # Traduction du jour en français
-    fr_days = {
-        'lundi': 'Lundi',
-        'mardi': 'Mardi',
-        'mercredi': 'Mercredi',
-        'jeudi': 'Jeudi',
-        'vendredi': 'Vendredi',
-        'samedi': 'Samedi',
-        'dimanche': 'Dimanche'
-    }
-    current_day = fr_days.get(current_day, None)
+    current_day_index = current_datetime.weekday()
+    fr_days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+    current_day = fr_days[current_day_index]
     
     return current_datetime, current_day
 
