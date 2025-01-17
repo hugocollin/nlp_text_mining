@@ -1,15 +1,22 @@
 import streamlit as st
-from src.db.models import  get_all_restaurants
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+
 from pages.resources.components import Navbar
+
 import pandas as pd
+
 from sqlalchemy import inspect, text 
+
 from sqlalchemy.types import Integer, Float
+
 from src.searchengine.trip_finder import SearchEngine, restaurant_info_extractor
+
 import time
 
 
+from src.pipeline import Pipeline , Transistor
+
+transistor = Transistor()
+session = transistor.session
 # Configuration de la page
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
 
@@ -17,13 +24,10 @@ set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_ic
 if 'address_toast_shown' in st.session_state:
     del st.session_state['address_toast_shown']
 
-# Connexion à la base de données
-engine = create_engine('sqlite:///restaurant_reviews.db')
-Session = sessionmaker(bind=engine)
-session = Session()
+
 
 # Récupération de tous les restaurants
-restaurants = get_all_restaurants(session)
+restaurants = transistor.get_all_restaurants()
 
 def get_column_type(inspector, table, column):
     """Helper function to get the data type of a column."""
@@ -88,10 +92,13 @@ def execute_sql_query(session):
     selected_columns = []
     for table in selected_tables:
         columns = inspector.get_columns(table)
-        column_names = [f"{table}.{column['name']}" for column in columns]
-        cols = st.multiselect(f"Sélectionnez les colonnes de la table '{table}'", options=column_names, default=column_names, key=f"columns_{table}")
-        selected_columns.extend(cols)
-
+        column_names = [f"{column['name']}" for column in columns]
+        selected_columns.extend(st.multiselect(f"Colonnes de '{table}'", options=column_names, default=column_names))
+        
+        selected_columns = [f'{table}.{col}' for col in selected_columns]
+    
+    
+    
     if not selected_columns:
         st.warning("Veuillez sélectionner au moins une colonne à afficher.")
         return
@@ -151,7 +158,13 @@ def execute_sql_query(session):
         )
 
         for col in filter_columns:
-            table, column = col.split('.')
+            # gere le cas où il y a que une table
+            if '.' in col:
+                
+                table, column = col.split('.')
+            else:
+                table = selected_tables[0]
+                column = col
             column_type = get_column_type(inspector, table, column)
 
             st.markdown(f"**Filtrer par {col}**")
@@ -512,10 +525,10 @@ def get_element_inspector_js():
     }
     </style>
     """
-def scrape_and_embed_tripadvisor(session):
+def scrape_and_embed_tripadvisor():
     st.header("Affichage html des élements HTML d'un restaurant")
     # Récupérer les restaurants non scrappés
-    restaurants = get_all_restaurants(session)
+    restaurants = transistor.get_all_restaurants()
     if not restaurants:
         st.warning("Aucun restaurant n'a été trouvé.")
     else:
@@ -578,10 +591,10 @@ def scrape_and_embed_tripadvisor(session):
     #     restaurant = restaurant_names[selected_name]
     #     st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
         
-def scrape_restaurant_informations(session):
+def scrape_restaurant_informations():
     # Récupérer les restaurants non scrappés
     st.header("Scraper les informations des restaurants")
-    restaurants = get_all_restaurants(session)
+    restaurants = transistor.get_all_restaurants()
     # Filtrer les restaurants non scrappés
     
     restaurant_names = {r.nom : r for r in restaurants}
@@ -611,17 +624,61 @@ def scrape_restaurant_informations(session):
     
             
             
+def pipeline_processing():
+    
+    # Récupérer les restaurants non scrappés
+    pipe = Pipeline()
+    st.header("Scraper les informations des restaurants")
+
+    restaurants = pipe.get_restaurants_non_scrapped()
+    restaurant_names = {r.nom : r for r in restaurants}
+    selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
+    # Get selected restaurant object
+    restau = restaurant_names[selected_name]
+    if st.button("Scrapper ", key="scrape_everything" , help="Scrapper les informations du restaurant sélectionné"  ):  #, disabled=True
+        pipe.add_new_restaurant(restau)
+        st.success("Les informations ont été scrappées avec succès.")
+        st.rerun()
+    
+
+def clear_reviews_one_restaurant():
+    # Récupérer les restaurants non scrappés
+    pipe = Pipeline()
+    st.header("Supprimer les avis d'un restaurant")
+
+    # Récupérer les ids des restaurants et print le nom de celui selectionné
+    restaurants = pipe.get_restaurants()
+    restaurant_names = {r.nom : r for r in restaurants}
+    selected_name = st.selectbox("Sélectionnez un restaurant à vider", list(restaurant_names.keys()))
+    # Get selected restaurant object
+    restau = restaurant_names[selected_name]
+    if st.button("Vider les avis", key="clear_reviews" , help="Vider les avis du restaurant sélectionné"  ):  #, disabled=True
+        pipe.clear_reviews_of_restaurant(restau.id_restaurant)
+       
+        st.success("Les avis ont été supprimés avec succès.")
+        time.sleep(2)
+        st.rerun()
+
 
 
 def main():
     # Barre de navigation
+    
     Navbar()
     
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
-    scrape_and_embed_tripadvisor(session)
+    
+    pipeline_processing()
+    
     st.write("----")
-    scrape_restaurant_informations(session)
+ 
+    clear_reviews_one_restaurant()
+    
+    st.write("----")
+    scrape_and_embed_tripadvisor()
+    st.write("----")
+    scrape_restaurant_informations()
     # Exécuter la requête SQL personnalisée
     execute_sql_query(session)
     st.write("----")

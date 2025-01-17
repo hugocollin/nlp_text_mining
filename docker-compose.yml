@@ -9,6 +9,9 @@ services:
       STREAMLIT_SERVER_HEADLESS: "true"
       STREAMLIT_SERVER_PORT: "8501"
       STREAMLIT_SERVER_ENABLECORS: "false"
+      LANG: "fr_FR.UTF-8"
+      LANGUAGE: "fr_FR:fr"
+      LC_ALL: "fr_FR.UTF-8"
     volumes:
       - .:/app
       - ./src/db:/app/src/db

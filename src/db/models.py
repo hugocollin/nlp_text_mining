@@ -34,6 +34,10 @@ class Restaurant(Base):
     longitude = Column(Float)
     resume_avis = Column(Text)
     image = Column(String)
+    fonctionnalite = Column(Text)
+    horaires = Column(Text)
+    google_map = Column(String)
+    rank = Column(Integer)
 
 
 """class Geographie(Base):
@@ -65,6 +69,7 @@ class Review(Base):
     review_cleaned = Column(Text)
     sentiment = Column(Integer)
     sentiment_rating = Column(String)
+
 
     restaurant = relationship("Restaurant", back_populates="avis")
     user = relationship("User", back_populates="avis")

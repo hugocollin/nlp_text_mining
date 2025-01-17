@@ -12,6 +12,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from db.models import get_restaurants_with_reviews_and_users
 from db.init_db import fill_sentiment_column, fill_resume_avis_column, fill_sentiment_rating_column
+from src.db.models import get_restaurants_with_reviews_and_users
+from src.db.init_db import fill_sentiment_column, fill_resume_avis_column
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.text import Tokenizer
