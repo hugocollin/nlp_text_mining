@@ -59,7 +59,7 @@ class SearchEngine:
         # Get the user agent based on the OS
         os = platform.system()
         if os == "Windows":
-            return "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0"
+            return "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/109.0"
         elif os == "Linux":
             return "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/109.0"
         else:
@@ -67,15 +67,18 @@ class SearchEngine:
     
 ############### __methods__ #######################    
  
-    def run(self, url):
+    def run(self, url, reviews=None):
         
-        user_agent = self.get_os_user_agent()
+        if reviews:
+            user_agent = self.get_os_user_agent()
+        else:
+            user_agent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrower/27.0 Chrome/125.0.0.0 Mobile Safari/537.36"
         self.url = url
         headers = {
             
             #'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/109.0", # AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
             # 'User-Agent': "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrower/27.0 Chrome/125.0.0.0 Mobile Safari/537.36",
-            'User-Agent':  "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrower/27.0 Chrome/125.0.0.0 Mobile Safari/537.36",
+            'User-Agent':  user_agent,
             'Accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/avif, image/webp, image/apng, image/*,*/*;q=0.8',
             'Accept-Language': 'fr-FR,fr;q=0.9',
             'Connection': 'keep-alive',
@@ -94,6 +97,8 @@ class SearchEngine:
         response = self.session.get(url, headers=headers, timeout=(6, 36))
         time.sleep(1)
         if response.status_code == 200:
+            with open('restaurant_page.html', 'w', encoding='utf-8') as f:
+                f.write(response.text)
             self.soup = BeautifulSoup(response.content, 'html.parser')
             return None
         elif response.status_code == 404:
@@ -280,6 +285,7 @@ class restaurant_info_extractor(SearchEngine):
         self.reviews = []
         self.soup_list = []
         self.rank_info = 0
+        self.review_number = 0
     
 ############### __methods__ #######################       
             
@@ -455,12 +461,13 @@ class restaurant_info_extractor(SearchEngine):
     def extract_reviews(self, soup):
         
         reviews = soup.find_all("div", class_="_c")
+        print("longueur des reviews", len(reviews))
         for review in reviews:
             try:
                 user = review.find("a", class_="BMQDV _F Gv wSSLS SwZTJ FGwzt ukgoS")
                 user_profil = user['href'].replace('/Profile/', '') if user and 'href' in user.attrs else 'N/A'
                 title = review.find("div", class_="biGQs _P fiohW qWPrE ncFvv fOtGX").text.strip()
-                avis = review.find_all("span", class_="JguWG")
+                avis = review.find("span", class_="JguWG")
                 date_review = review.find("div", class_="biGQs _P pZUbB ncFvv osNWb").text.replace('Rédigé le ', '').strip()
                 type_visits = review.find("span", class_="DlAxN")
                 if type_visits is not None:
@@ -475,6 +482,12 @@ class restaurant_info_extractor(SearchEngine):
                 contrib_container = review.find("div", class_="vYLts")
                 num_contributions_tag = contrib_container.find("span", class_="b") if contrib_container else None
                 num_contributions = int(num_contributions_tag.text.strip()) if num_contributions_tag else 0 
+                print("user", user.text)
+                print("user_profil", user_profil)
+                print("date_review", date_review)
+                print("avis",   avis.text.strip())
+                
+                
                 
                 self.reviews.append({
                     'user': user.text.strip() if user else 'N/A',
@@ -484,9 +497,15 @@ class restaurant_info_extractor(SearchEngine):
                     'rating': rating,
                     'type_visit': type_visits,
                     'num_contributions': num_contributions, 
-                    'review': avis[0].text if avis else 'N/A',
+                    'review': avis.text if avis else 'N/A'
                     
                 })
+                
+                # #write the reviews in a file
+                # with open(f'review/{self.review_number}.txt', 'w', encoding='utf-8') as f:
+                #     f.write(f"{user.text.strip()}|{user_profil}|{date_review}|{title}|{rating}|{type_visits}|{num_contributions}|{avis.text.strip()}\n")
+                self.review_number += 1
+                
             except AttributeError:
                 continue
 
@@ -616,14 +635,17 @@ class restaurant_info_extractor(SearchEngine):
 ############### __methods__ #######################    
 
     def scrape_restaurant(self, url):
-        self.run(url)
+        self.session = None
+        self.run(url, reviews=True)
         if not self.soup:
             print(f"Failed to get restaurant page {url}")
             return None
         
         next_page_href = self.get_next_url()
+        print("Next page : " , next_page_href)
         while next_page_href:
-            time.sleep(5)
+            for i in tqdm.tqdm(range(5)):
+                        time.sleep(1)
             self.soup_list.append(self.soup)
             self.extract_reviews(self.soup)
             self.run(self.base_url + next_page_href)
@@ -634,7 +656,20 @@ class restaurant_info_extractor(SearchEngine):
 ############### __methods__ #######################     
     
     def to_dataframe(self):
-        df_reviews = pd.DataFrame(self.reviews) if self.reviews else pd.DataFrame()
+        
+        if self.reviews:
+            # Nettoyage des données
+            for review in self.reviews:
+                for key, value in review.items():
+                    if isinstance(value, str):
+                        review[key] = re.sub(r'\s+', ' ', value).strip()
+                    elif isinstance(value, list):
+                        review[key] = ', '.join(value)  # Convertit les listes en chaînes
+
+            # Créer le DataFrame
+            df_reviews = pd.DataFrame(self.reviews)
+        else:
+            df_reviews = pd.DataFrame()
        
         if self.restaurant_info:
             df_avis = pd.DataFrame(self.restaurant_info['Notes et avis'], index=[0])

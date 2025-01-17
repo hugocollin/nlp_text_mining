@@ -392,10 +392,10 @@ def update_restaurant_data(restaurant_id, restaurant_data):
 
 
 #### Pour insérer des review pour un restaurant
-def insert_restaurant_reviews(restaurant_id, reviews, session):
-    # Insérer les avis pour le restaurant
+def insert_restaurant_reviews(restaurant_id,df, session):
+    # Insérer les avis pour le restaurant à partir d'un DataFrame
     try:
-        for review in reviews:
+        for _, review in df.iterrows():
             review_data = {
                 "user": review['user'],
                 "user_profile": review['user_profile'],
@@ -406,13 +406,12 @@ def insert_restaurant_reviews(restaurant_id, reviews, session):
                 "rating": review['rating'],
                 "type_visit": review['type_visit']
             }
-            insert_review(review_data, restaurant_id)
-            update_restaurant_columns(restaurant_id, {"scrapped": True}, session)
+            insert_review(review_data, int(restaurant_id))
+            update_restaurant_columns(int(restaurant_id), {"scrapped": True}, session)
         session.commit()
     except Exception as e:
         print(f"Erreur lors de l'insertion des avis pour le restaurant {restaurant_id} : {e}")
         session.rollback()
-    
 
 
 def get_restaurants_from_folder(scrapping_dir):
