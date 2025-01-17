@@ -244,7 +244,6 @@ class Pipeline(Transistor):
         print("Restaurant Reviews scraped")
         df_avis, df_details, df_location, df_reviews = self.restaurant_info_extractor.to_dataframe()
         print("Dataframes created")
-        self.restaurant_info_extractor.to_csv()
         self.process_restaurant_data(df_avis, df_location, df_details,restaurant.id_restaurant )
         print("Info processed")
         self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)

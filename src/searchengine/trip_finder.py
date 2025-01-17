@@ -97,8 +97,6 @@ class SearchEngine:
         response = self.session.get(url, headers=headers, timeout=(6, 36))
         time.sleep(1)
         if response.status_code == 200:
-            with open('restaurant_page.html', 'w', encoding='utf-8') as f:
-                f.write(response.text)
             self.soup = BeautifulSoup(response.content, 'html.parser')
             return None
         elif response.status_code == 404:
@@ -415,8 +413,13 @@ class restaurant_info_extractor(SearchEngine):
 
         time.sleep(1)
         fonctionnalite , horaires , rank = self.google_scrapping_info(self.url)
+        print("1")
+        print(fonctionnalite)
+        print(horaires)
+        print(rank)
+        print("2")
         if fonctionnalite is None:
-            if self.rank_info < 2:
+            if self.rank_info < 3:
                 for i in tqdm.tqdm(range(5)):
                     time.sleep(1)
                 self.google_scrapping_info(self.url)
@@ -427,7 +430,9 @@ class restaurant_info_extractor(SearchEngine):
         restaurant_info['Détails']['FONCTIONNALITE'] = fonctionnalite if fonctionnalite else 'N/A'
         restaurant_info['Détails']['HORAIRES'] = horaires if horaires else 'N/A'
         restaurant_info['Détails']['RANK'] = rank if rank else 'N/A'
-        
+        print(restaurant_info['Détails']['FONCTIONNALITE'])
+        print(restaurant_info['Détails']['HORAIRES'])
+        print(restaurant_info['Détails']['RANK'])
         
         
         if  restaurant_info['Détails']['RANK'] == 'N/A':
@@ -651,7 +656,7 @@ class restaurant_info_extractor(SearchEngine):
         if not self.soup:
             print(f"Failed to get restaurant page {url}")
             return None
-        
+        self.extract_reviews(self.soup)
         next_page_href = self.get_next_url()
         print("Next page : " , next_page_href)
         while next_page_href:

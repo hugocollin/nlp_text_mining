@@ -422,6 +422,7 @@ def insert_restaurant_reviews(restaurant_id,df, session):
             }
             insert_review(review_data, int(restaurant_id))
             update_restaurant_columns(int(restaurant_id), {"scrapped": True}, session)
+            print(f"Avis inséré pour {restaurant_id}.")
         session.commit()
     except Exception as e:
         print(f"Erreur lors de l'insertion des avis pour le restaurant {restaurant_id} : {e}")
