@@ -5,7 +5,7 @@ import concurrent.futures
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
 
 from dotenv import find_dotenv, load_dotenv
-from src.pipeline import Transistor
+from src.pipeline import Transistor , Pipeline
 
 # Récupération de la clé API Mistral
 load_dotenv(find_dotenv())
@@ -14,14 +14,12 @@ load_dotenv(find_dotenv())
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
 transistor = Transistor()
 
-# Récupération des données des restaurants
-@st.cache_resource
-def get_session_and_restaurants():
-    session = transistor.session
-    restaurants = transistor.get_all_restaurants()
-    return session, restaurants
 
-session, restaurants = get_session_and_restaurants()
+session = transistor.session
+restaurants = transistor.get_all_restaurants()
+   
+
+
 
 # Récupération de l'adresse personnelle
 personal_address, personal_latitude, personal_longitude = get_personal_address()
@@ -30,16 +28,21 @@ personal_address, personal_latitude, personal_longitude = get_personal_address()
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
     # Filtrage sur les restaurants non scrappés
-    scrapped_restaurants = [restaurant.nom for restaurant in restaurants if not restaurant.scrapped]
-    options = ["Sélectionner un restaurant"] + scrapped_restaurants
+    pipe = Pipeline()
+    restaurants = pipe.get_restaurants_non_scrapped()
+    restaurant_names = {r.nom : r for r in restaurants}
+     # Sélection du restaurant à ajouter
+    selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()),placeholder="Sélectionner un restaurant" , label_visibility="collapsed" , key="restaurant_select")
+   
 
-    # Sélection du restaurant à ajouter
-    restaurant_select = st.selectbox(label="Sélectionner un restaurant", label_visibility="collapsed", placeholder="Sélectionner un restaurant", options=options, key="restaurant_select")
     
     # Scapping du restaurant sélectionné
     if st.button(icon="➕", label="Ajouter le restaurant"):
-        if restaurant_select != "Sélectionner un restaurant":
-            # [TEMP] Code pour scrapper le restaurant sélectionné et ajouter les informations à la base de données
+        if selected_name != "Sélectionner un restaurant":
+            # Get selected restaurant object
+            restau = restaurant_names[selected_name]
+            pipe.add_new_restaurant(restau)
+            st.success("Les informations ont été scrappées avec succès.")
             st.session_state['restaurant_added'] = True
             st.rerun()
         else:

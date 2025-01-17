@@ -179,6 +179,8 @@ def get_datetime():
 
 # Fonction pour construire les horaires d'ouverture d'un restaurant
 def construct_horaires(horaires_str):
+    if horaires_str is None:
+        return {}
     fr_days = {
         'lundi': 'Lundi',
         'mardi': 'Mardi',
