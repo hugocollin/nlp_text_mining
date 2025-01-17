@@ -1,7 +1,6 @@
 import streamlit as st
 import pydeck as pdk
 import concurrent.futures
-import datetime
 
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
 
@@ -15,13 +14,10 @@ load_dotenv(find_dotenv())
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
 transistor = Transistor()
 
-
+# Récupération des informations des restaurants
 session = transistor.session
 restaurants = transistor.get_all_restaurants()
    
-
-
-
 # Récupération de l'adresse personnelle
 personal_address, personal_latitude, personal_longitude = get_personal_address()
 
@@ -32,11 +28,9 @@ def add_restaurant_dialog():
     pipe = Pipeline()
     restaurants = pipe.get_restaurants_non_scrapped()
     restaurant_names = {r.nom : r for r in restaurants}
-     # Sélection du restaurant à ajouter
-    selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()),placeholder="Sélectionner un restaurant" , label_visibility="collapsed" , key="restaurant_select")
+    # Sélection du restaurant à ajouter
+    selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()),placeholder="Sélectionner un restaurant" , label_visibility="collapsed" , key="restaurant_select")
    
-
-    
     # Scapping du restaurant sélectionné
     if st.button(icon="➕", label="Ajouter le restaurant"):
         if selected_name != "Sélectionner un restaurant":
