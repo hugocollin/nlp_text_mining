@@ -1,6 +1,7 @@
 import streamlit as st
 import pydeck as pdk
 import concurrent.futures
+import datetime
 
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
 
@@ -137,10 +138,8 @@ def main():
                 radius = 1000000
                 filtered_restaurants = scrapped_restaurants
 
-            grades_col1, grades_col2 = st.columns(2)
-
             # Filtre par rang
-            container = grades_col1.container(border=True)
+            container = header_col1.container(border=True)
             rank = container.slider(
                     label="Rang maximal",
                     min_value=1,
@@ -150,6 +149,16 @@ def main():
                     key="filter_rank"
                 )
             
+            grades_col1, grades_col2 = st.columns(2)
+
+            # Filtre par ouverture actuelle
+            container = grades_col1.container(border=True)
+            only_open_now = container.toggle(
+                label="Afficher seulement les restaurants ouverts maintenant",
+                value=False,
+                key="only_open_now"
+            )
+
             # Filtre par prix
             container = grades_col2.container(border=True)
             option_map = {
@@ -421,6 +430,17 @@ def main():
                 # Filtrage par rang
                 if not (restaurant.rank <= rank):
                     continue
+
+                # Filtrage par ouverture actuelle
+                if only_open_now:
+                    current_datetime, current_day = get_datetime()
+                    horaires_dict = construct_horaires(restaurant.horaires)
+                    current_time = current_datetime.time()
+                    if not (horaires_dict.get(current_day) and any(
+                        start_time <= current_time <= end_time
+                        for start_time, end_time in horaires_dict[current_day]
+                    )):
+                        continue
 
                 # Filtrage par prix
                 if selected_price:
