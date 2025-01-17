@@ -590,6 +590,11 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
                 else:
                     info_supp_container.write("**Repas :** Non disponible")
+                if selected_restaurant.fonctionnalite:
+                    functionalities = selected_restaurant.fonctionnalite.replace(';', ', ').rstrip(', ')
+                    info_supp_container.write(f"**Fonctionnalités :** {functionalities}")
+                else:
+                    info_supp_container.write("**Fonctionnalités :** Non disponible")
 
             # Affichage des informations de la colonne 2
             with col2:

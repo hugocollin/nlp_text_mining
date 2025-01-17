@@ -766,16 +766,21 @@ def main():
                         mark_container.write(f"**Ambiance :** Non disponible")
 
                     # Affichage des informations complémentaires
-                    info_comp_container = st.container(border=True)
-                    info_comp_container.write("**Informations complémentaires**")
+                    info_supp_container = st.container(border=True)
+                    info_supp_container.write("**Informations complémentaires**")
                     if restaurant.cuisines:
-                        info_comp_container.write(f"**Cuisine :** {restaurant.cuisines}")
+                        info_supp_container.write(f"**Cuisine :** {restaurant.cuisines}")
                     else:
-                        info_comp_container.write("**Cuisine :** Non disponible")
+                        info_supp_container.write("**Cuisine :** Non disponible")
                     if restaurant.repas:
-                        info_comp_container.write(f"**Repas :** {restaurant.repas}")
+                        info_supp_container.write(f"**Repas :** {restaurant.repas}")
                     else:
-                        info_comp_container.write("**Repas :** Non disponible")
+                        info_supp_container.write("**Repas :** Non disponible")
+                    if restaurant.fonctionnalite:
+                        functionalities = restaurant.fonctionnalite.replace(';', ', ').rstrip(', ')
+                        info_supp_container.write(f"**Fonctionnalités :** {functionalities}")
+                    else:
+                        info_supp_container.write("**Fonctionnalités :** Non disponible")
 
                     # Affichage des temps de trajet
                     trajet_container = st.container(border=True)
