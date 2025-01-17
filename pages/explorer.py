@@ -300,6 +300,16 @@ def main():
         header_container = st.container(border=True)
         chat_container = header_container.container(height=500)
 
+        # Sécurité si la clé API Mistral n'est pas présente
+        if not find_dotenv():
+            header_container.error(
+                "Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez rajouter le fichier `.env` à la racine du projet puis relancer l'application.",
+                icon="⚠️"
+            )
+            st.session_state['found_mistral_api'] = False
+        else:
+            st.session_state['found_mistral_api'] = True
+
         # Vérification si l'historique de la conversation est initialisé
         if "messages" not in st.session_state:
             st.session_state.messages = []
@@ -345,7 +355,7 @@ def main():
                     )
 
         # Text input pour le chat avec l'IA
-        if message := header_container.chat_input(placeholder="Écrivez votre message", key="search_restaurant_temp"):
+        if message := header_container.chat_input(placeholder="Écrivez votre message", key="search_restaurant_temp", disabled=not st.session_state.get('found_mistral_api', False)):
             if message.strip():
 
                 # Affichage du message de l'utilisateur
