@@ -104,6 +104,9 @@ def main():
                     "nom": restaurant.nom,
                     "latitude": restaurant.latitude,
                     "longitude": restaurant.longitude,
+                    "rank": restaurant.rank,
+                    "prix_min": restaurant.prix_min,
+                    "prix_max": restaurant.prix_max,
                     "etoiles_michelin": restaurant.etoiles_michelin,
                     "note_globale": restaurant.note_globale,
                     "qualite_prix_note": restaurant.qualite_prix_note,
@@ -111,7 +114,8 @@ def main():
                     "service_note": restaurant.service_note,
                     "ambiance_note": restaurant.ambiance_note,
                     "cuisines": restaurant.cuisines,
-                    "repas": restaurant.repas
+                    "repas": restaurant.repas,
+                    "fonctionnalite": restaurant.fonctionnalite,
                 }
                 for restaurant in [restaurant for restaurant in restaurants if restaurant.scrapped]
             ]
@@ -135,18 +139,46 @@ def main():
 
             grades_col1, grades_col2 = st.columns(2)
 
+            # Filtre par rang
+            container = grades_col1.container(border=True)
+            rank = container.slider(
+                    label="Rang maximal",
+                    min_value=1,
+                    max_value=3500,
+                    step=1,
+                    value=3500,
+                    key="filter_rank"
+                )
+            
+            # Filtre par prix
+            container = grades_col2.container(border=True)
+            option_map = {
+                1: ":material/euro_symbol:",
+                2: ":material/euro_symbol::material/euro_symbol:",
+                3: ":material/euro_symbol::material/euro_symbol::material/euro_symbol:",
+                4: ":material/euro_symbol::material/euro_symbol::material/euro_symbol::material/euro_symbol:",
+            }
+            selected_price = container.pills(
+                "Prix",
+                options=option_map.keys(),
+                format_func=lambda option: option_map[option],
+                selection_mode="multi",
+                key="filter_price"
+            )
+
             # Filtre par étoiles Michelin
             container = grades_col1.container(border=True)
-            option_map = {
+            option_michelin = {
                 1: ":material/asterisk:",
                 2: ":material/asterisk::material/asterisk:",
                 3: ":material/asterisk::material/asterisk::material/asterisk:",
             }
             selected_michelin_stars = container.pills(
                 "Étoiles Michelin minimale",
-                options=option_map.keys(),
-                format_func=lambda option: option_map[option],
-                selection_mode="single",
+                options=option_michelin.keys(),
+                format_func=lambda option: option_michelin[option],
+                selection_mode="multi",
+                key="filter_michelin_stars"
             )
 
             # Filtre par note globale
@@ -246,6 +278,17 @@ def main():
                 default=[],
                 selection_mode = "multi",
                 key="filter_meals"
+            )
+
+            # Filtres par fonctionnalités
+            container = st.container(border=True)
+            functionalities = sorted(list(set([f.strip() for restaurant in scrapped_restaurants for f in (restaurant["fonctionnalite"] or "").split(';') if f.strip()])))
+            selected_functionalities = container.pills(
+                label="Fonctionnalités",
+                options=functionalities,
+                default=[],
+                selection_mode = "multi",
+                key="filter_functionalities"
             )
 
     # Tab pour le chat avec l'IA [TEMP]
@@ -375,9 +418,28 @@ def main():
             for result in results:
                 restaurant, tcl_url, fastest_mode = result
 
+                # Filtrage par rang
+                if not (restaurant.rank <= rank):
+                    continue
+
+                # Filtrage par prix
+                if selected_price:
+                    if restaurant.prix_min and restaurant.prix_max:
+                        prix_avg = (restaurant.prix_min + restaurant.prix_max) / 2
+
+                        if not (
+                            (1 in selected_price and prix_avg < 20) or
+                            (2 in selected_price and 20 <= prix_avg < 30) or
+                            (3 in selected_price and 30 <= prix_avg < 50) or
+                            (4 in selected_price and 50 <= prix_avg)
+                        ):
+                            continue
+                    else:
+                        continue
+
                 # Filtrage par étoiles Michelin
                 if selected_michelin_stars:
-                    if not (restaurant.etoiles_michelin >= selected_michelin_stars):
+                    if restaurant.etoiles_michelin not in selected_michelin_stars:
                         continue
                 
                 # Filtrage par note globale
@@ -428,6 +490,14 @@ def main():
                     restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
                     if not any(meal in restaurant_meals for meal in selected_meals):
                         continue
+
+                # Filtrage par fonctionnalités
+                if selected_functionalities:
+                    restaurant_functionalities = [f.strip() for f in restaurant.fonctionnalite.split(';')]
+                    if not any(functionality in restaurant_functionalities for functionality in selected_functionalities):
+                        continue
+                
+                # Application des filtres
                 filtered_results.append(result)
 
             # Extraction des restaurants filtrés pour la carte
