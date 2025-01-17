@@ -791,6 +791,42 @@ def fill_resume_avis_column(df, session):
         except Exception as e:
             print(f"Erreur lors de la mise à jour pour {restaurant_name} : {e}")
 
+
+def fill_sentiment_rating_column(df, session):
+    
+    for _, row in df.iterrows():
+        restaurant_name = row['restaurant']
+        user_profile = row['user_profile']
+
+        try:
+            # Rechercher l'enregistrement correspondant dans la base de données
+            review_entry = session.query(Review).\
+                join(Restaurant, Review.id_restaurant == Restaurant.id_restaurant).\
+                join(User, Review.id_user == User.id_user).\
+                filter(
+                    Restaurant.id_restaurant == row['restaurant_id'],
+                    User.id_user == row['user_id'],
+                    Review.id_review == row['review_id']
+                ).first()
+
+            if review_entry:
+                # Mettre à jour la colonne `sentiment_rating`
+                review_entry.sentiment_rating = row['sentiment_rating']
+
+                # Commit des changements dans la base de données
+                session.commit()
+                print(f"Colonne sentiment_rating mise à jour pour {restaurant_name}, {user_profile}.")
+            else:
+                print(f"Aucun avis trouvé pour {restaurant_name}, {user_profile}.")
+        except Exception as e:
+            session.rollback()  # Annuler la transaction en cas d'erreur
+            print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
+
+
+
+
+
+
 def check_restaurants_in_db(resto_list, session):
     """
     Vérifie quels restaurants dans une liste sont présents ou absents dans la base de données.

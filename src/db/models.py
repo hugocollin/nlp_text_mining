@@ -8,7 +8,7 @@ Base = declarative_base()
 class Restaurant(Base):
     __tablename__ = 'dim_restaurants'
 
-     # Colonnes de la table
+    # Colonnes de la table
     id_restaurant = Column(Integer, primary_key=True, autoincrement=True)
     nom = Column(String, nullable=False)
     adresse = Column(String)
