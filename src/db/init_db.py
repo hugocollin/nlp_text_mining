@@ -95,6 +95,20 @@ def insert_restaurant(
             "SELECT id_restaurant FROM dim_restaurants WHERE nom = ?", [name]
         )
         return new_restaurant[0]
+    
+    
+def clear_reviews_of_restaurant(restaurant_id, session):
+    """Efface tous les avis pour un restaurant donné et mets le champs scrapped = 0."""
+    query = "DELETE FROM fact_reviews WHERE id_restaurant = ?"
+    execute_query(query, [restaurant_id])
+    update_restaurant_columns(restaurant_id, {"scrapped": False} , session  )
+    print(f"Avis effacés pour le restaurant {restaurant_id}.")
+
+
+
+
+
+
 
 
 def insert_review(review, id_restaurant):

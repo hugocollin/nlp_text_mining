@@ -1,7 +1,7 @@
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src.db.models import  get_all_restaurants , get_user_and_review_from_restaurant_id , get_restaurants_with_reviews_and_users
 
-from src.db.init_db import insert_user , insert_restaurant , insert_review , parse_french_date, parse_to_dict , process_restaurant_csv , update_restaurant , update_restaurant_data , insert_restaurant_reviews ,get_restaurants_from_folder , process_csv_files , get_restaurants_with_reviews , update_scrapped_status_for_reviews , update_restaurant_columns , get_restaurant , add_columns_to_table , fill_review_cleaned_column , fill_sentiment_column , fill_resume_avis_column , check_restaurants_in_db , create_restaurants_from_csv , process_restaurant_data 
+from src.db.init_db import insert_user , insert_restaurant , insert_review , parse_french_date, parse_to_dict , process_restaurant_csv , update_restaurant , update_restaurant_data , insert_restaurant_reviews ,get_restaurants_from_folder , process_csv_files , get_restaurants_with_reviews , update_scrapped_status_for_reviews , update_restaurant_columns , get_restaurant , add_columns_to_table , fill_review_cleaned_column , fill_sentiment_column , fill_resume_avis_column , check_restaurants_in_db , create_restaurants_from_csv , process_restaurant_data , clear_reviews_of_restaurant 
 
 # from src.nlp.analyse import NLPAnalysis
 from src.nlp.pretraitement import NLPPretraitement
@@ -99,7 +99,8 @@ class Transistor:
     def get_restaurants_non_scrapped(self):
         restaurants = self.get_restaurants()
         return [r for r in restaurants if r.scrapped == 0]
-
+    def clear_reviews_of_restaurant(self, restaurant_id):
+        return clear_reviews_of_restaurant(restaurant_id, self.session)
 
 ############################################################# INIT_DB.py #########################
 

@@ -641,7 +641,23 @@ def pipeline_processing():
         st.rerun()
     
 
+def clear_reviews_one_restaurant():
+    # Récupérer les restaurants non scrappés
+    pipe = Pipeline()
+    st.header("Supprimer les avis d'un restaurant")
 
+    # Récupérer les ids des restaurants et print le nom de celui selectionné
+    restaurants = pipe.get_restaurants()
+    restaurant_names = {r.nom : r for r in restaurants}
+    selected_name = st.selectbox("Sélectionnez un restaurant à vider", list(restaurant_names.keys()))
+    # Get selected restaurant object
+    restau = restaurant_names[selected_name]
+    if st.button("Vider les avis", key="clear_reviews" , help="Vider les avis du restaurant sélectionné"  ):  #, disabled=True
+        pipe.clear_reviews_of_restaurant(restau.id_restaurant)
+       
+        st.success("Les avis ont été supprimés avec succès.")
+        time.sleep(2)
+        st.rerun()
 
 
 
@@ -656,7 +672,10 @@ def main():
     pipeline_processing()
     
     st.write("----")
+ 
+    clear_reviews_one_restaurant()
     
+    st.write("----")
     scrape_and_embed_tripadvisor()
     st.write("----")
     scrape_restaurant_informations()
