@@ -295,23 +295,3 @@ class Pipeline(Transistor):
     
     
     
-    
-    
-# def insert_restaurant_reviews(restaurant, reviews):
-#     # Insérer les avis pour le restaurant
-#     try:
-#         for review in reviews:
-#             review_data = {
-#                 "user": review['user'],
-#                 "user_profile": review['user_profile'],
-#                 "num_contributions": review['num_contributions'],
-#                 "date": review['date_review'],
-#                 "title": review['title'],
-#                 "review": review['review'],
-#                 "rating": review['rating'],
-#                 "type_visit": review['type_visit']
-#             }
-#             insert_review(review_data, restaurant.id_restaurant)
-#     except Exception as e:
-#         print(f"Erreur lors de l'insertion des avis pour le restaurant {restaurant.nom} : {e}")
-

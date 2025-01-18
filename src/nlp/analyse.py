@@ -65,6 +65,9 @@ class NLPAnalysis:
         sequences = self.tokenizer.texts_to_sequences(self.data['review_cleaned'])
         return pad_sequences(sequences, padding='post', maxlen=200)
 
+
+
+
     def train_lstm_model(self):
         # Ajouter la colonne 'sentiment_rating' avec les valeurs Positif, Négatif, Neutre en fonction de 'rating'
         self.data['sentiment_rating'] = self.data['rating'].apply(
@@ -114,32 +117,31 @@ class NLPAnalysis:
 
 
 
-    def summarize_chunk(self,summarizer, chunk):
-        return summarizer(chunk, max_length=100, min_length=20, do_sample=False)[0]['summary_text']
-
     def summarize_reviews(self, df):
-        summarizer = pipeline("summarization", model="t5-small", tokenizer="t5-small")
-        all_reviews = ' '.join(df['review_cleaned'].values)
+        summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+        all_reviews = ' '.join(df['review'].values)
         
-        # Split the reviews into chunks of 512 tokens
-        max_chunk_length = 512
+        # Split the reviews into chunks of 1024 tokens
+        max_chunk_length = 1024
         chunks = [all_reviews[i:i + max_chunk_length] for i in range(0, len(all_reviews), max_chunk_length)]
         
-        # Summarize each chunk in parallel
-        summaries = []
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            future_to_chunk = {executor.submit(self.summarize_chunk, summarizer, chunk): chunk for chunk in chunks}
-            for future in as_completed(future_to_chunk):
-                try:
-                    summary = future.result()
-                    summaries.append(summary)
-                except Exception as e:
-                    print(f"Erreur lors de la summarization du chunk: {e}")
+        percent = int(len(chunks) * 0.1)
+        if percent < 1:
+            percent = len(chunks)
+        sample_of_chunks_alea = np.random.choice(chunks, percent)
         
-        # Combine all summaries into a single summary
-        final_summary = ' '.join(summaries)
-        return final_summary
-
+        # Summarize each chunk and combine the summaries
+        summaries = []
+        print(len(chunks))
+        for id, chunk in enumerate(sample_of_chunks_alea):
+            print(f"Summarizing chunk of {id} characters...")
+            summary = summarizer(chunk, max_length=30, min_length=20, do_sample=True)
+            summaries.append(summary[0]['summary_text'])
+            print(summary[0]['summary_text'])
+        
+        summary = ' '.join(summaries)
+        summary_final = summarizer(summary, max_length=60, min_length=30, do_sample=True)
+        return summary
 
 
 
