@@ -3,7 +3,7 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.db.functions_db import fill_sentiment_column, fill_resume_avis_column , get_restaurants_with_reviews_and_users, fill_sentiment_rating_column
+from src.db.functions_db import fill_sentiment_column, fill_resume_avis_column , get_restaurants_with_reviews_and_users
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.text import Tokenizer
