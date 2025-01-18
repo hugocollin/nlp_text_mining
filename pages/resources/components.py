@@ -804,11 +804,9 @@ class BDDChunks:
         self.session: Session = get_session(init_db())
 
     # Fonction de découpage du texte en chunks de taille spécifiée
-    def split_text_into_chunks(self, corpus: str, chunk_size: int = 500) -> list[str]:
-        chunks = [
-            corpus[i:i + chunk_size]
-            for i in range(0, len(corpus), chunk_size)
-        ]
+    def split_text_into_chunks(self, corpus: str) -> list[str]:
+        chunks = corpus.split('|')
+        chunks = [chunk.strip() for chunk in chunks if chunk.strip()]
         return chunks
 
     # Fonction pour ajouter les embeddings des chunks à la base de données
@@ -970,8 +968,6 @@ class AugmentedRAG:
     
 # Fonction pour instancier BDDChunks
 def instantiate_bdd() -> BDDChunks:
-    st.toast("Démarrage de l'IA en cours...", icon="✨")
-
     # Instanciation de la classe BDDChunks
     bdd_chunks = BDDChunks(embedding_model="paraphrase-MiniLM-L6-v2")
 
@@ -993,20 +989,24 @@ def instantiate_bdd() -> BDDChunks:
 
         for restaurant in scrapped_restaurants:
             restaurant_info = (
-                f"Nom du restaurant : {restaurant.nom} | \n"
-                f"ID du restaurant {restaurant.nom} : {restaurant.id_restaurant} | \n"
-                f"Adresse du restaurant {restaurant.nom} : {restaurant.adresse} | \n"
-                f"Lien TripAdvisor du restaurant {restaurant.nom} : {restaurant.url_link} | \n"
-                f"Email du restaurant {restaurant.nom} : {restaurant.email} | \n"
-                f"Téléphone du restaurant {restaurant.nom} : {restaurant.telephone} | \n"
-                f"Type de cuisine du restaurant {restaurant.nom} : {restaurant.cuisines} | \n"
-                f"Type de repas du restaurant {restaurant.nom} : {restaurant.repas} | \n"
-                f"Étoiles Michelin du restaurant {restaurant.nom} : {restaurant.etoiles_michelin} | \n"
-                f"Note globale du restaurant {restaurant.nom} : {restaurant.note_globale} | \n"
-                f"Note de cuisine du restaurant {restaurant.nom} : {restaurant.cuisine_note} | \n"
-                f"Note de service du restaurant {restaurant.nom} : {restaurant.service_note} | \n"
-                f"Note de qualité prix du restaurant {restaurant.nom} : {restaurant.qualite_prix_note} | \n"
-                f"Note d'ambiance du restaurant {restaurant.nom} : {restaurant.ambiance_note} | \n"
+                f"Nom du restaurant : {restaurant.nom} | "
+                f"Adresse du restaurant {restaurant.nom} : {restaurant.adresse} | "
+                f"Lien TripAdvisor du restaurant {restaurant.nom} : {restaurant.url_link} | "
+                f"Email du restaurant {restaurant.nom} : {restaurant.email} | "
+                f"Téléphone du restaurant {restaurant.nom} : {restaurant.telephone} | "
+                f"Horaires du restaurant {restaurant.nom} : {restaurant.horaires} | "
+                f"Résumé de l'avis du restaurant {restaurant.nom} : {restaurant.resume_avis} | "
+                f"Type de cuisine du restaurant {restaurant.nom} : {restaurant.cuisines} | "
+                f"Type de repas du restaurant {restaurant.nom} : {restaurant.repas} | "
+                f"Fonctionnalités du restaurant {restaurant.nom} : {restaurant.fonctionnalite} | "
+                f"Rang du restaurant {restaurant.nom} : {restaurant.rank} | "
+                f"Prix moyen du restaurant {restaurant.nom} : {restaurant.prix_min} - {restaurant.prix_max} | "
+                f"Étoiles Michelin du restaurant {restaurant.nom} : {restaurant.etoiles_michelin} | "
+                f"Note globale du restaurant {restaurant.nom} : {restaurant.note_globale} | "
+                f"Note de cuisine du restaurant {restaurant.nom} : {restaurant.cuisine_note} | "
+                f"Note de service du restaurant {restaurant.nom} : {restaurant.service_note} | "
+                f"Note de qualité prix du restaurant {restaurant.nom} : {restaurant.qualite_prix_note} | "
+                f"Note d'ambiance du restaurant {restaurant.nom} : {restaurant.ambiance_note} | "
             )
             corpus.append(restaurant_info)
 
@@ -1018,7 +1018,5 @@ def instantiate_bdd() -> BDDChunks:
 
     finally:
         session.close()
-
-    st.toast("IA prête à être utilisée !", icon="✨")
 
     return bdd_chunks

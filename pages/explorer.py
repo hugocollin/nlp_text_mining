@@ -294,7 +294,7 @@ def main():
                 key="filter_functionalities"
             )
 
-    # Tab pour le chat avec l'IA [TEMP]
+    # Tab pour le chat avec l'IA
     with ai_tab:
         # Mise en page du chat avec l'IA
         header_container = st.container(border=True)
@@ -365,21 +365,23 @@ def main():
                 # Ajout du message de l'utilisateur à l'historique de la conversation
                 st.session_state.messages.append({"role": "User", "content": message})
 
-                # Initialisation des connaissances de l'IA si nécessaire
-                if 'bdd_chunks' not in st.session_state:
-                    st.session_state['bdd_chunks'] = instantiate_bdd()
+                with header_container:
+                    # Initialisation des connaissances de l'IA si nécessaire
+                    if 'bdd_chunks' not in st.session_state:
+                        with st.spinner("Démarrage de l'IA..."):
+                            st.session_state['bdd_chunks'] = instantiate_bdd()
 
-                if 'llm' not in st.session_state:
-                    st.session_state['llm'] = AugmentedRAG(
-                        role_prompt=role_prompt,
-                        generation_model="mistral-large-latest",
-                        bdd_chunks=st.session_state['bdd_chunks'],
-                        top_n=3,
-                        max_tokens=3000,
-                        temperature=0.3,
-                    )
+                    if 'llm' not in st.session_state:
+                        st.session_state['llm'] = AugmentedRAG(
+                            role_prompt=role_prompt,
+                            generation_model="mistral-large-latest",
+                            bdd_chunks=st.session_state['bdd_chunks'],
+                            top_n=3,
+                            max_tokens=3000,
+                            temperature=0.3,
+                        )
 
-                llm = st.session_state['llm']
+                    llm = st.session_state['llm']
 
                 # Récupération de la réponse de l'IA
                 response = llm(
