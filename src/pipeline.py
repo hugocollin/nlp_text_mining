@@ -5,7 +5,8 @@ from src.db.update_db import insert_review , insert_user  , insert_restaurant, c
 from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df
 import time
 import pandas as pd
-
+import litellm
+from typing import Dict
 
 from src.nlp.analyse import NLPAnalysis
 from src.nlp.pretraitement import NLPPretraitement
@@ -231,9 +232,11 @@ class Pipeline(Transistor):
         print(resume)
         print("Reviews analysed")
         
-        # MISTRAL #
-        
-        
+        # API MISTRAL
+        role_prompt = "Tu es un assistant qui résume les avis des clients pour un restaurant. À partir des commentaires suivants, fournis un résumé concis des avis afin de se faire une idée générale du restaurant."
+        query = "Hello World" # à changer
+        response = self.api_Mistral(query, role_prompt)
+        print(response["response"]) # à changer
         
         time.sleep(10)
         self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)
@@ -270,7 +273,7 @@ class Pipeline(Transistor):
         # make avis a datframe
         df =review_from_1_rest_as_df(self.session, restaurant_id)
         
-        
+    
     
      
         df_review = self.clean_reviews_a_la_volée(df)
@@ -279,7 +282,25 @@ class Pipeline(Transistor):
         print(resume)
         time.sleep(5)
         
-    
+    def api_Mistral(self, query, role_prompt, generation_model: str = "mistral-large-latest", max_tokens: int = 50, temperature: float = 0.7) -> Dict[str, str]:
+        query_prompt = f"""
+        # Question:
+        {query}
+
+        # Réponse:
+        """
+        prompt = [
+            {"role": "system", "content": role_prompt},
+            {"role": "user", "content": query_prompt},
+        ]
+        response = litellm.completion(
+            model=f"mistral/{generation_model}",
+            messages=prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        response_text = str(response.choices[0].message.content)
+        return {"response": response_text}
     
     def clean_reviews_test(self, restaurant_id):
         self.initiate_processing()
