@@ -353,6 +353,26 @@ def update_restaurant_data(restaurant_id, restaurant_data):
     except Exception as e:
         print(f"Erreur lors de la mise à jour du restaurant {restaurant_id} : {e}")
 
+
+def add_resume_avis_to_restaurant(session, restaurant_id, resume_avis):
+    try:
+        # Recherche du restaurant dans la base de données
+        restaurant = session.query(Restaurant).filter_by(id_restaurant=restaurant_id).first()
+
+        if not restaurant:
+            print(f"Restaurant {restaurant_id} non trouvé dans la base de données. Ignoré.")
+            return
+
+        # Mise à jour de la colonne `resume_avis`
+        restaurant.resume_avis = resume_avis
+        session.commit()
+
+        print(f"Colonne resume_avis mise à jour pour {restaurant_id} : {resume_avis}")
+    
+    except Exception as e:
+        session.rollback()
+        print(f"Erreur lors de la mise à jour pour {restaurant_id} : {e}")
+
 # Fonction d'actualisation des données d'un restaurant dans la base de données
 def process_restaurant_data(avis_df, location_df, details_df, restaurant_id):
     try:

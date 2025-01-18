@@ -2,7 +2,7 @@
 
 from src.db.update_db import insert_review , insert_user  , insert_restaurant, clear_reviews_of_restaurant , insert_restaurant_reviews , update_scrapped_status_for_reviews , update_restaurant_columns
 
-from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df
+from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df , add_resume_avis_to_restaurant
 import time
 import pandas as pd
 import litellm
@@ -13,6 +13,9 @@ from src.nlp.pretraitement import NLPPretraitement
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from src.searchengine.trip_finder import SearchEngine , restaurant_info_extractor
+
+       
+       
 
         
 # class transitor that will be used to make the connection between the different classes and the database and the streamlit pages
@@ -188,6 +191,9 @@ class Transistor:
         """Redirect to models.get_restaurants_with_reviews_and_users"""
         return get_restaurants_with_reviews_and_users(self.session)
 
+    def add_resume_avis_to_restaurant(self, restaurant_id, resume):
+        """Redirect to models.add_resume_avis_to_restaurant"""
+        return add_resume_avis_to_restaurant( self.session, restaurant_id, resume)
 
 
 
@@ -232,6 +238,10 @@ class Pipeline(Transistor):
         print(resume)
         print("Reviews analysed")
         
+        
+        
+        
+        
         # API MISTRAL
         role_prompt = "Tu es un assistant qui résume les avis des clients pour un restaurant. À partir des commentaires suivants, fournis un résumé concis des avis afin de se faire une idée générale du restaurant."
         query = resume
@@ -240,11 +250,106 @@ class Pipeline(Transistor):
         
         time.sleep(10)
         self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)
+        
+        # inserer resumé dans restaurant
+        
+        
+        # fait moi une fonction qui me permet de travaillé avec les reviews d'un restaurant cleaned et qui me ressort une analyse nlp approfondie avec du clustering, du sentiment analysis ainsi que du topic modeling
+        
+        
+        
+        
+        
+        
+        
+        
+        
         print("Reviews inserted")
         print("Restaurant added")
         self.clear()
           
-    
+    def approfondir_analyse_nlp(self,df, num_clusters=5, num_topics=5):
+        """
+        Effectue une analyse NLP approfondie sur les avis nettoyés d'un restaurant,
+        incluant le clustering, l'analyse de sentiment et le topic modeling.
+
+        Parameters:
+        - df (pd.DataFrame): DataFrame contenant les avis nettoyés dans la colonne 'review_cleaned'.
+        - num_clusters (int): Nombre de clusters pour le clustering K-Means.
+        - num_topics (int): Nombre de sujets pour le topic modeling LDA.
+
+        Returns:
+        - df (pd.DataFrame): DataFrame original avec des colonnes ajoutées pour le sentiment, le cluster et le topic.
+        - summary (dict): Résumé des analyses effectuées.
+        """
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        from transformers import pipeline
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.cluster import KMeans
+        from sklearn.metrics import silhouette_score
+        from sklearn.decomposition import LatentDirichletAllocation
+        import numpy as np
+        import nltk
+        # nltk.download('stopwords')
+        from nltk.corpus import stopwords
+        
+        # Vérifier que la colonne 'review_cleaned' existe
+        if 'review_cleaned' not in df.columns:
+            raise ValueError("Le DataFrame doit contenir une colonne 'review_cleaned'.")
+
+        # 1. Analyse de Sentiment
+        
+        # 2. Vectorisation pour Clustering et Topic Modeling
+        print("Vectorisation des avis...")
+        vectorizer = TfidfVectorizer(max_features=5000, stop_words=stopwords.words('french'))
+        tfidf_matrix = vectorizer.fit_transform(df['review_cleaned'])
+
+        # 3. Clustering avec K-Means
+        print(f"Effectuer le clustering en {num_clusters} clusters...")
+        kmeans = KMeans(n_clusters=num_clusters, random_state=42)
+        clusters = kmeans.fit_predict(tfidf_matrix)
+        df['cluster'] = clusters
+
+        # Calcul du score Silhouette
+        silhouette_avg = silhouette_score(tfidf_matrix, clusters)
+        print(f"Score Silhouette pour K-Means avec {num_clusters} clusters: {silhouette_avg:.2f}")
+
+        # 4. Topic Modeling avec LDA
+        print(f"Effectuer le topic modeling en {num_topics} topics...")
+        lda = LatentDirichletAllocation(n_components=num_topics, random_state=42)
+        lda.fit(tfidf_matrix)
+        topics = lda.transform(tfidf_matrix)
+        df['topic'] = topics.argmax(axis=1)
+
+        # 5. Résumé des Analyses
+        summary = {
+            'nombre_avis': len(df),
+            'score_silhouette_kmeans': silhouette_avg,
+            'nombre_clusters': num_clusters,
+            'nombre_topics': num_topics,
+            'distribution_clusters': df['cluster'].value_counts().to_dict(),
+            'distribution_topics': df['topic'].value_counts().to_dict()
+        }
+
+        # (Optionnel) Visualisations
+        print("Générer les visualisations...")
+      
+        plt.figure(figsize=(10, 6))
+        sns.countplot(x='cluster', data=df)
+        plt.title(f"Distribution des Clusters (K-Means, k={num_clusters})")
+        plt.xlabel("Cluster")
+        plt.ylabel("Nombre d'Avis")
+        plt.show()
+
+        plt.figure(figsize=(10, 6))
+        sns.countplot(x='topic', data=df)
+        plt.title(f"Distribution des Topics (LDA, {num_topics} topics)")
+        plt.xlabel("Topic")
+        plt.ylabel("Nombre d'Avis")
+        plt.show()
+
+        return df, summary
     def clean_reviews_a_la_volée(self, df_reviews):
         df_reviews['review_cleaned'] = ""
         print("Processing initiated")
@@ -277,6 +382,8 @@ class Pipeline(Transistor):
     
      
         df_review = self.clean_reviews_a_la_volée(df)
+
+        
         print("Reviews cleaned")
         resume = self.make_analyse_resume(df_review)
         print(resume)
@@ -286,6 +393,14 @@ class Pipeline(Transistor):
         query = resume
         response = self.api_Mistral(query, role_prompt)
         print("api " , response["response"]) # à changer
+        
+        # put the resume in the restaurant table
+        self.add_resume_avis_to_restaurant(restaurant_id, response["response"])
+        print("Reviews inserted")
+        print("Restaurant added")
+        self.clear()
+    
+        
         
         time.sleep(10)
         
