@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import re
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -108,20 +109,47 @@ class NLPAnalysis:
         print(f"Précision du modèle LSTM : {accuracy * 100:.2f}%")
 
 
-    def summarize_reviews(self):
+
+
+
+
+
+    def summarize_chunk(summarizer, chunk):
+        return summarizer(chunk, max_length=100, min_length=20, do_sample=False)[0]['summary_text']
+
+    def summarize_reviews(self, df):
         summarizer = pipeline("summarization", model="t5-small", tokenizer="t5-small")
+        all_reviews = ' '.join(df['review_cleaned'].values)
         
-        def resumer_avis(avis):
-            segments = [' '.join(avis.split()[i:i+200]) for i in range(0, len(avis.split()), 200)]
-            return ' '.join(summarizer(segment, max_length=10, min_length=3, do_sample=False)[0]['summary_text'] for segment in segments)
+        # Split the reviews into chunks of 512 tokens
+        max_chunk_length = 512
+        chunks = [all_reviews[i:i + max_chunk_length] for i in range(0, len(all_reviews), max_chunk_length)]
+        
+        # Summarize each chunk in parallel
+        summaries = []
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            future_to_chunk = {executor.submit(self.summarize_chunk, summarizer, chunk): chunk for chunk in chunks}
+            for future in as_completed(future_to_chunk):
+                try:
+                    summary = future.result()
+                    summaries.append(summary)
+                except Exception as e:
+                    print(f"Erreur lors de la summarization du chunk: {e}")
+        
+        # Combine all summaries into a single summary
+        final_summary = ' '.join(summaries)
+        return final_summary
 
-        resultats = []
-        with ThreadPoolExecutor() as executor:
-            for restaurant, group in self.data.groupby("restaurant"):
-                avis = ' '.join(group['review_cleaned'])
-                resultats.append({"restaurant": restaurant, "resume_avis": executor.submit(resumer_avis, avis).result()})
 
-        return pd.DataFrame(resultats)
+
+
+
+
+
+
+
+
+
 
     def generate_wordcloud(self):
         tous_avis = ' '.join(self.data['review_cleaned'])
@@ -146,7 +174,7 @@ class NLPAnalysis:
 
     def sauvegarder_sentiment_rating(self):
         try:
-            fill_sentiment_rating_column(self.data, self.session)
+            fill_sentiment_column(self.data, self.session)
         except Exception as e:
             print(f"Erreur lors de la sauvegarde des données: {e}")
         
