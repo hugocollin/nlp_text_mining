@@ -65,24 +65,48 @@ class NLPAnalysis:
         return pad_sequences(sequences, padding='post', maxlen=200)
 
     def train_lstm_model(self):
-        # Préparation des données
-        X_pad = self.preprocess_reviews()
+        # Ajouter la colonne 'sentiment_rating' avec les valeurs Positif, Négatif, Neutre en fonction de 'rating'
+        self.data['sentiment_rating'] = self.data['rating'].apply(
+            lambda x: 'Positif' if x > 3 else ('Négatif' if x < 3 else 'Neutre')
+        )
+        
+        # Convertir les ratings en 3 classes : Négatif (0), Positif (1), Neutre (2)
+        self.data['sentiment'] = self.data['rating'].apply(
+            lambda x: 1 if x >= 4 else (0 if x <= 2 else 2)
+        )
+        
+        # Tokenisation des avis
+        if self.tokenizer is None:
+            self.tokenizer = Tokenizer(num_words=10000)
+            self.tokenizer.fit_on_texts(self.data['review_cleaned'])
+        
+        sequences = self.tokenizer.texts_to_sequences(self.data['review_cleaned'])
+        
+        # Padding des séquences
+        X_pad = pad_sequences(sequences, padding='post', maxlen=200)
+        # Préparation des cibles (sentiment)
         y = self.data['sentiment']
+        # Séparation en jeu d'entraînement et test
         X_train, X_test, y_train, y_test = train_test_split(X_pad, y, test_size=0.2, random_state=42)
-
-        # Définition et entraînement du modèle LSTM
+        
+        # Définition du modèle LSTM
         self.model = Sequential([
-            Embedding(input_dim=10000, output_dim=128, input_length=200),
-            LSTM(128, dropout=0.2, recurrent_dropout=0.2),
-            Dense(3, activation='softmax')
+            Embedding(input_dim=10000, output_dim=128, input_length=200),  # Couche d'embedding
+            LSTM(128, dropout=0.2, recurrent_dropout=0.2),  # Couche LSTM
+            Dense(3, activation='softmax')  # Couche de sortie pour 3 classes
         ])
+        
+        # Compilation du modèle
         self.model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        
+        # Entraînement du modèle
         self.model.fit(X_train, y_train, epochs=5, batch_size=64, validation_data=(X_test, y_test), verbose=1)
-
+        
         # Évaluation du modèle
-        y_pred = np.argmax(self.model.predict(X_test), axis=1)
+        y_pred = np.argmax(self.model.predict(X_test), axis=1)  # Prédictions sur le jeu de test
         accuracy = accuracy_score(y_test, y_pred)
         print(f"Précision du modèle LSTM : {accuracy * 100:.2f}%")
+
 
     def summarize_reviews(self):
         summarizer = pipeline("summarization", model="t5-small", tokenizer="t5-small")
@@ -103,35 +127,11 @@ class NLPAnalysis:
         tous_avis = ' '.join(self.data['review_cleaned'])
         wordcloud = WordCloud(width=800, height=400, background_color='white').generate(tous_avis)
         return wordcloud
-
-    def visualize_tokens_3d(self, num_clusters=5):
-        # Assurez-vous que les données sont vectorisées
-        if self.data.empty:
-            raise ValueError("Data is not loaded or vectorized")
-
-        # Utiliser UMAP pour réduire la dimensionnalité à 3D
-        reducer = umap.UMAP(n_components=3)
-        embeddings = reducer.fit_transform(self.data)
-
-        # Utiliser KMeans pour le clustering
-        kmeans = KMeans(n_clusters=num_clusters)
-        clusters = kmeans.fit_predict(embeddings)
-
-        # Visualiser les résultats en 3D
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        scatter = ax.scatter(embeddings[:, 0], embeddings[:, 1], embeddings[:, 2], c=clusters, cmap='viridis')
-
-        # Ajouter une légende
-        legend1 = ax.legend(*scatter.legend_elements(), title="Clusters")
-        ax.add_artist(legend1)
-
-        plt.show()
-
+    
     def sauvegarder_donnees(self):
         print("Sauvegarder sentiment...")
         try:
-            fill_sentiment_column(self.avis_restaurants, self.session)
+            fill_sentiment_column(self.data, self.session)
 
         except Exception as e:
             print(f"Erreur lors de la sauvegarde des données: {e}")
@@ -144,6 +144,11 @@ class NLPAnalysis:
         except Exception as e:
             print(f"Erreur lors de la sauvegarde des données: {e}")
 
+    def sauvegarder_sentiment_rating(self):
+        try:
+            fill_sentiment_rating_column(self.data, self.session)
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde des données: {e}")
         
 # Exemple d'utilisation
 if __name__ == "__main__":

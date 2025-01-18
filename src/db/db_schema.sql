@@ -13,7 +13,6 @@ CREATE TABLE dim_restaurants (
     adresse TEXT,
     url_link TEXT,
     email TEXT,
-    -- details TEXT,
     telephone TEXT,
     cuisines TEXT, 
     note_globale FLOAT,   
@@ -25,12 +24,16 @@ CREATE TABLE dim_restaurants (
     prix_max FLOAT,
     etoiles_michelin INTEGER,
     repas TEXT,
+    scrapped BOOLEAN,
     latitude FLOAT,
     longitude FLOAT,
-    scrapped BOOLEAN,
-    image TEXT
+    resume_avis TEXT,
+    image TEXT,
+    fonctionnalite TEXT,
+    horaires TEXT,
+    google_map TEXT,
+    rank INTEGER
 );
-
 
 -- Table des avis
 CREATE TABLE fact_reviews (
@@ -42,30 +45,16 @@ CREATE TABLE fact_reviews (
     review_text TEXT,
     rating FLOAT,
     type_visit TEXT,
+    review_cleaned TEXT,
+    sentiment INTEGER,
+    sentiment_rating TEXT,
     FOREIGN KEY (id_restaurant) REFERENCES dim_restaurants(id_restaurant),
     FOREIGN KEY (id_user) REFERENCES dim_users(id_user)
 );
 
-ALTER TABLE fact_reviews 
-ADD COLUMN review_cleaned TEXT;
-
-ALTER TABLE fact_reviews 
-ADD COLUMN sentiment INTEGER;
-
-ALTER TABLE fact_reviews 
-ADD COLUMN sentiment_rating TEXT;
-
-ALTER TABLE dim_restaurants 
-ADD COLUMN resume_avis TEXT;
-
-ALTER TABLE dim_restaurants 
-ADD COLUMN fonctionnalite TEXT;
-
-ALTER TABLE dim_restaurants 
-ADD COLUMN google_map TEXT;
-
-ALTER TABLE dim_restaurants 
-ADD COLUMN horaires TEXT;
-
-ALTER TABLE dim_restaurants 
-ADD COLUMN rank INTEGER;
+-- Table des chunks
+CREATE TABLE chunks (
+    id TEXT PRIMARY KEY AUTOINCREMENT,
+    text TEXT,
+    embedding JSON
+);
