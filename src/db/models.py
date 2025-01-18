@@ -1,7 +1,7 @@
+import uuid
 from sqlalchemy import  Column, Integer, String, Float, Text, ForeignKey, Date, Boolean, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-import uuid
 
 # Création de la classe de base
 Base = declarative_base()
@@ -76,23 +76,3 @@ class Chunk(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     text = Column(Text, nullable=False)
     embedding = Column(JSON, nullable=False)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
