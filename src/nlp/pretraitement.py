@@ -1,4 +1,3 @@
-
 import pandas as pd
 import re
 from nltk.corpus import stopwords
@@ -7,11 +6,7 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
 from src.db.functions_db import get_restaurants_with_reviews_and_users , fill_review_cleaned_column
-from sqlalchemy import Table, MetaData
-from sqlalchemy.dialects.sqlite import insert
-
 
 class NLPPretraitement:
     def __init__(self, db_url='sqlite:///restaurant_reviews.db'):
