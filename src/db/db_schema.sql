@@ -32,7 +32,6 @@ CREATE TABLE dim_restaurants (
 );
 
 
-
 -- Table des avis
 CREATE TABLE fact_reviews (
     id_review INTEGER PRIMARY KEY AUTOINCREMENT,

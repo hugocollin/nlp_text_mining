@@ -1,9 +1,13 @@
-# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from src.db.models import  get_all_restaurants , get_user_and_review_from_restaurant_id , get_restaurants_with_reviews_and_users
 
-from src.db.init_db import insert_user , insert_restaurant , insert_review , parse_french_date, parse_to_dict , process_restaurant_csv , update_restaurant , update_restaurant_data , insert_restaurant_reviews ,get_restaurants_from_folder , process_csv_files , get_restaurants_with_reviews , update_scrapped_status_for_reviews , update_restaurant_columns , get_restaurant , add_columns_to_table , fill_review_cleaned_column , fill_sentiment_column , fill_resume_avis_column , check_restaurants_in_db , create_restaurants_from_csv , process_restaurant_data , clear_reviews_of_restaurant 
 
-# from src.nlp.analyse import NLPAnalysis
+from src.db.update_db import insert_review , insert_user  , insert_restaurant, clear_reviews_of_restaurant , insert_restaurant_reviews , update_scrapped_status_for_reviews , update_restaurant_columns  , add_columns_to_table 
+
+from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db
+
+
+
+
+from src.nlp.analyse import NLPAnalysis
 from src.nlp.pretraitement import NLPPretraitement
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -35,9 +39,7 @@ class Transistor:
         if self.bdd:
             print("BDD: ", self.bdd)
         return ""
-    
-    def insert_user(self, user):
-        return insert_user(self.session, user)
+
     
     def nettoyer_avis(self, avis):
         return self.nlp_pretraitement.nettoyer_avis(avis)
@@ -62,6 +64,15 @@ class Transistor:
     
     def load_data(self):
         return self.nlp_analysis.load_data()
+    
+    def init_db(self):
+        return init_db()
+    
+    def get_session(self):
+        return get_session(self.bdd)
+    
+    def get_session_chunk(self, bdd):
+        return get_session(bdd)
     
     def preprocess_reviews(self):
         return self.nlp_analysis.preprocess_reviews()
@@ -74,7 +85,10 @@ class Transistor:
             
     def initiate_processing(self):
         self.nlp_pretraitement = NLPPretraitement()
+    def initiate_analytic(self):
+        self.nlp_pretraitement = NLPAnalysis()
         
+    
     def initiate_search(self):
         self.search_engine = SearchEngine()
         
@@ -99,6 +113,7 @@ class Transistor:
     def get_restaurants_non_scrapped(self):
         restaurants = self.get_restaurants()
         return [r for r in restaurants if r.scrapped == 0]
+    
     def clear_reviews_of_restaurant(self, restaurant_id):
         return clear_reviews_of_restaurant(restaurant_id, self.session)
 
@@ -124,9 +139,6 @@ class Transistor:
         """Redirect to init_db.parse_to_dict"""
         return parse_to_dict(data_str)
 
-    def process_restaurant_csv(self, file_name):
-        """Redirect to init_db.process_restaurant_csv"""
-        return process_restaurant_csv(file_name)
 
     def update_restaurant(self, name, **kwargs):
         """Redirect to init_db.update_restaurant"""
@@ -139,14 +151,6 @@ class Transistor:
     def insert_restaurant_reviews(self, restaurant_id, reviews):
         """Redirect to init_db.insert_restaurant_reviews"""
         return insert_restaurant_reviews(restaurant_id, reviews, self.session)
-
-    def get_restaurants_from_folder(self, scrapping_dir):
-        """Redirect to init_db.get_restaurants_from_folder"""
-        return get_restaurants_from_folder(scrapping_dir)
-
-    def process_csv_files(self, scrapping_dir, with_reviews=True):
-        """Redirect to init_db.process_csv_files"""
-        return process_csv_files(scrapping_dir, self.session, with_reviews)
 
     def get_restaurants_with_reviews(self):
         """Redirect to init_db.get_restaurants_with_reviews"""
@@ -168,26 +172,6 @@ class Transistor:
         """Redirect to init_db.add_columns_to_table"""
         return add_columns_to_table(self.bdd, table_name, columns)
 
-    def fill_review_cleaned_column(self, df):
-        """Redirect to init_db.fill_review_cleaned_column"""
-        return fill_review_cleaned_column(df, self.session)
-
-    def fill_sentiment_column(self, df):
-        """Redirect to init_db.fill_sentiment_column"""
-        return fill_sentiment_column(df, self.session)
-
-    def fill_resume_avis_column(self, df):
-        """Redirect to init_db.fill_resume_avis_column"""
-        return fill_resume_avis_column(df, self.session)
-
-    def check_restaurants_in_db(self, resto_list):
-        """Redirect to init_db.check_restaurants_in_db"""
-        return check_restaurants_in_db(resto_list, self.session)
-
-    def create_restaurants_from_csv(self, csv_path):
-        """Redirect to init_db.create_restaurants_from_csv"""
-        return create_restaurants_from_csv(csv_path, self.session)
-    
     def process_restaurant_data(self, avis_df, location_df, details_df, restaurant_id):
         """Redirect to init_db.process_restaurant_data"""
         return process_restaurant_data(avis_df, location_df, details_df, restaurant_id)
@@ -206,12 +190,6 @@ class Transistor:
     def get_restaurants_with_reviews_and_users(self):
         """Redirect to models.get_restaurants_with_reviews_and_users"""
         return get_restaurants_with_reviews_and_users(self.session)
-
-
-
-
-
-
 
 
 
@@ -246,10 +224,43 @@ class Pipeline(Transistor):
         print("Dataframes created")
         self.process_restaurant_data(df_avis, df_location, df_details,restaurant.id_restaurant )
         print("Info processed")
+        
+        self.initiate_processing()
+        print("Processing initiated")
+        df_reviews = self.clean_reviews_a_la_volée(df_reviews)
+        
         self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)
         print("Reviews inserted")
         print("Restaurant added")
+        self.clear()
+          
     
+    def clean_reviews_a_la_volée(self, df_reviews):
+        df_reviews['review_cleaned'] = ""
+        print("Processing initiated")
+        for index, row in df_reviews.iterrows():
+                review = row['review']
+                net = self.nettoyer_avis(review)
+                df_reviews.at[index, 'review_cleaned'] = net
+        print("Reviews cleaned")
+        print(df_reviews)
+        return df_reviews
+        
+    
+    def _analyse(self):
+        self.initiate_analytic()
+        print("Reviews analysed")
+    
+    
+    def clean_reviews_test(self, restaurant_id):
+        self.initiate_processing()
+        print("Processing initiated")
+        avis = self.get_user_and_review_from_restaurant_id(restaurant_id)
+        print("Avis recupérés")
+        print(avis[0][1].review_text)
+        net = self.nlp_pretraitement.nettoyer_avis(avis[0][1].review_text)
+        print(net)
+  
     
     
     

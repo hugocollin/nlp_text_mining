@@ -11,7 +11,7 @@ import time
 import tqdm
 import datetime
 from zoneinfo import ZoneInfo
-from src.db.models import Chunk, get_session, init_db
+from src.db.models import Chunk
 from sqlalchemy.orm import Session, sessionmaker
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -801,7 +801,7 @@ class BDDChunks:
     def __init__(self, embedding_model: str):
         self.embedding_model = embedding_model
         self.embeddings = SentenceTransformer(self.embedding_model)
-        self.session: Session = get_session(init_db())
+        self.session: Session = transistor.get_session_chunk(transistor.init_db())
 
     # Fonction de découpage du texte en chunks de taille spécifiée
     def split_text_into_chunks(self, corpus: str, chunk_size: int = 500) -> list[str]:
@@ -844,7 +844,7 @@ class AugmentedRAG:
         self.role_prompt = role_prompt
         self.max_tokens = max_tokens
         self.temperature = temperature
-        self.engine = init_db()
+        self.engine = transistor.init_db()
         EcoLogits.init(providers="litellm", electricity_mix_zone="FRA")
 
     # Fonction pour calculer la similarité cosinus entre deux vecteurs

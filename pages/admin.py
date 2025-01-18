@@ -661,6 +661,21 @@ def clear_reviews_one_restaurant():
 
 
 
+def clean_reviews_pipeline():
+    # Récupérer les restaurants non scrappés
+    pipe = Pipeline()
+    st.header("Nettoyer les avis des restaurants")
+
+    # Récupérer les ids des restaurants et print le nom de celui selectionné
+    restaurants = pipe.get_restaurants()
+    restaurant_names = {r.nom : r for r in restaurants}
+    selected_name = st.selectbox("Sélectionnez un restaurant à nettoyer", list(restaurant_names.keys()))
+    # Get selected restaurant object
+    restau = restaurant_names[selected_name]
+    if st.button("Nettoyer les avis", key="clean_reviews" , help="Nettoyer les avis du restaurant sélectionné"  ):  #, disabled=True
+        pipe.clean_reviews(restau.id_restaurant)
+        st.success("Les avis ont été nettoyés avec succès.")
+
 def main():
     # Barre de navigation
     
@@ -668,7 +683,8 @@ def main():
     
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
-    
+    clean_reviews_pipeline()
+    st.write("----")
     pipeline_processing()
     
     st.write("----")
