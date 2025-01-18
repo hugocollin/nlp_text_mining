@@ -88,6 +88,7 @@ def create_chart_dialog(df):
             elif chart_type == "Carte proportionnelle":
                 fig = px.treemap(df, path=[x_col], values=y_col)
             st.session_state.charts.append(fig)
+            st.toast("Graphique créé avec succès", icon="📊")
             st.rerun()
     else:
         st.warning("Vous avez déjà créé 4 graphiques, veuillez en supprimer un pour en créer un nouveau", icon="⚠️")
@@ -1000,18 +1001,21 @@ def main():
                 num_charts = len(st.session_state.charts)   
                 if num_charts == 1:
                     container = st.container(border=True)
-                    if container.button("🗑️ Supprimer", key="delete_chart_1"):
+                    _btn_col1, btn_col2 = container.columns([3, 1])
+                    if btn_col2.button("🗑️ Supprimer", key="delete_chart_1"):
                         st.session_state.charts.pop(0)
                         st.rerun()
                     container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
                 elif num_charts == 2:
                     container = st.container(border=True)
-                    if container.button("🗑️ Supprimer", key="delete_chart_1"):
+                    _btn_col1, btn_col2 = container.columns([3, 1])
+                    if btn_col2.button("🗑️ Supprimer", key="delete_chart_1"):
                         st.session_state.charts.pop(0)
                         st.rerun()
                     container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
                     container = st.container(border=True)
-                    if container.button("🗑️ Supprimer", key="delete_chart_2"):
+                    _btn_col1, btn_col2 = container.columns([3, 1])
+                    if btn_col2.button("🗑️ Supprimer", key="delete_chart_2"):
                         st.session_state.charts.pop(1)
                         st.rerun()
                     container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
@@ -1019,18 +1023,21 @@ def main():
                     col1, col2 = st.columns(2)
                     with col1:
                         container = st.container(border=True)
-                        if container.button("🗑️ Supprimer", key="delete_chart_1"):
+                        _btn_col1, btn_col2 = container.columns([3, 1])
+                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_1"):
                             st.session_state.charts.pop(0)
                             st.rerun()
                         container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
                         container = st.container(border=True)
-                        if container.button("🗑️ Supprimer", key="delete_chart_3"):
+                        _btn_col1, btn_col2 = container.columns([3, 1])
+                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_3"):
                             st.session_state.charts.pop(2)
                             st.rerun()
                         container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
                     with col2:
                         container = st.container(border=True)
-                        if container.button("🗑️ Supprimer", key="delete_chart_2"):
+                        _btn_col1, btn_col2 = container.columns([3, 1])
+                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_2"):
                             st.session_state.charts.pop(1)
                             st.rerun()
                         container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
@@ -1038,23 +1045,27 @@ def main():
                     col1, col2 = st.columns(2)
                     with col1:
                         container = st.container(border=True)
-                        if container.button("🗑️ Supprimer", key="delete_chart_1"):
+                        _btn_col1, btn_col2 = container.columns([3, 1])
+                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_1"):
                             st.session_state.charts.pop(0)
                             st.rerun()
                         container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
                         container = st.container(border=True)
-                        if container.button("🗑️ Supprimer", key="delete_chart_3"):
+                        _btn_col1, btn_col2 = container.columns([3, 1])
+                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_3"):
                             st.session_state.charts.pop(2)
                             st.rerun()
                         container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
                     with col2:
                         container = st.container(border=True)
-                        if container.button("🗑️ Supprimer", key="delete_chart_2"):
+                        _btn_col1, btn_col2 = container.columns([3, 1])
+                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_2"):
                             st.session_state.charts.pop(1)
                             st.rerun()
                         container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
                         container = st.container(border=True)
-                        if container.button("🗑️ Supprimer", key="delete_chart_4"):
+                        _btn_col1, btn_col2 = container.columns([3, 1])
+                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_4"):
                             st.session_state.charts.pop(3)
                             st.rerun()
                         container.plotly_chart(st.session_state.charts[3], use_container_width=True, key="chart_4")
