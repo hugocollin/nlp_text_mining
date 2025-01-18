@@ -57,7 +57,7 @@ def restaurant_info_dialog():
 @st.dialog("Créer un graphique")
 def create_chart_dialog(df):
     # Vérification du nombre de graphiques créés
-    if len(st.session_state.charts) < 4:
+    if len(st.session_state.charts) < 5:
         # Choix du type de graphique
         chart_type = st.selectbox(
             "Type de graphique",
@@ -80,30 +80,26 @@ def create_chart_dialog(df):
             r_col = st.selectbox("Sélectionnez le champ pour l'axe r", options=df.columns, key="radar_r_col")
         
         if st.button(icon="📊", label="Créer le graphique"):
-            if chart_type == "Barres":
-                fig = px.bar(df, x=x_col, y=y_col)
-                chart_name = f"Diagramme en barres du {y_col} en fonction du {x_col}"
-            elif chart_type == "Circulaire":
-                fig = px.pie(df, names=names_col, values=values_col)
-                chart_name = f"Diagramme circulaire du {values_col} en fonction du {names_col}"
-            elif chart_type == "Histogramme":
-                fig = px.histogram(df, x=x_col)
-                chart_name = f"Histogramme du {x_col}"
-            elif chart_type == "Nuage de points":
-                fig = px.scatter(df, x=x_col, y=y_col)
-                chart_name = f"Nuage de points du {y_col} en fonction du {x_col}"
-            elif chart_type == "Carte proportionnelle":
-                fig = px.treemap(df, path=[x_col], values=y_col)
-                chart_name = f"Carte proportionnelle du {y_col} en fonction du {x_col}"
-            elif chart_type == "Radar":
-                fig = px.line_polar(df, r=r_col, theta=theta_col, line_close=True)
-                chart_name = f"Graphe radar du {theta_col} en fonction du {r_col}"
-            fig.update_layout(title=chart_name)
-            st.session_state.charts.append(fig)
+            # Génération automatique du nom du graphique
+            chart_name = f"Graphique {chart_type}"
+            
+            # Stockage des paramètres du graphique
+            chart_params = {
+                "type": chart_type,
+                "name": chart_name,
+                "x": x_col if 'x_col' in locals() else None,
+                "y": y_col if 'y_col' in locals() else None,
+                "names": names_col if 'names_col' in locals() else None,
+                "values": values_col if 'values_col' in locals() else None,
+                "theta": theta_col if 'theta_col' in locals() else None,
+                "r": r_col if 'r_col' in locals() else None
+            }
+            
+            st.session_state.charts.append(chart_params)
             st.toast("Graphique créé avec succès", icon="📊")
             st.rerun()
     else:
-        st.warning("Vous avez déjà créé 4 graphiques, veuillez en supprimer un pour en créer un nouveau", icon="⚠️")
+        st.warning("Vous avez déjà créé 5 graphiques, veuillez en supprimer un pour en créer un nouveau", icon="⚠️")
 
         if st.button("Fermer"):
             st.rerun()
@@ -980,24 +976,29 @@ def main():
             # Création d'un DataFrame global à partir des données filtrées
             df_filtered = pd.DataFrame(filtered_data)
 
-            # Traitement des champs textuels sur le DataFrame filtré
-            # Cuisine
-            cuisines_expanded_filtered = df_filtered['cuisines'].str.get_dummies(sep=',')
-            df_filtered = pd.concat([df_filtered, cuisines_expanded_filtered], axis=1)
-
-            # Repas
-            repas_expanded_filtered = df_filtered['repas'].str.get_dummies(sep=',')
-            df_filtered = pd.concat([df_filtered, repas_expanded_filtered], axis=1)
-
-            # Fonctionnalités
-            fonction_expanded_filtered = df_filtered['fonctionnalite'].str.get_dummies(sep=';')
-            df_filtered = pd.concat([df_filtered, fonction_expanded_filtered], axis=1)
-
             # Calcul du prix moyen
             df_filtered['prix_moyen'] = (df_filtered['prix_min'] + df_filtered['prix_max']) / 2
 
             # Suppression des colonnes avec un nom vide
             df_filtered = df_filtered.loc[:, df_filtered.columns != ' ']
+
+            # Renommage des colonnes
+            df_filtered.rename(columns={
+                "nom": "Nom",
+                "rank": "Rang",
+                "prix_min": "Prix minimum",
+                "prix_max": "Prix maximum",
+                "prix_moyen": "Prix moyen",
+                "etoiles_michelin": "Étoiles Michelin",
+                "note_globale": "Note globale",
+                "qualite_prix_note": "Note qualité prix",
+                "cuisine_note": "Note cuisine",
+                "service_note": "Note service",
+                "ambiance_note": "Note ambiance",
+                "cuisines": "Cuisines",
+                "repas": "Repas",
+                "fonctionnalite": "Fonctionnalités",
+            }, inplace=True)
 
             # Mise en page du bouton de création de graphique
             _create_chart_btn_col1, create_chart_btn_col2, delete_all_btn_col3 = st.columns([2, 1, 1.5])
@@ -1013,77 +1014,30 @@ def main():
 
             # Affichage des graphiques
             if st.session_state.charts:
-                num_charts = len(st.session_state.charts)   
-                if num_charts == 1:
-                    container = st.container(border=True)
-                    _btn_col1, btn_col2 = container.columns([3, 1])
-                    if btn_col2.button("🗑️ Supprimer", key="delete_chart_1"):
-                        st.session_state.charts.pop(0)
-                        st.rerun()
-                    container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
-                elif num_charts == 2:
-                    container = st.container(border=True)
-                    _btn_col1, btn_col2 = container.columns([3, 1])
-                    if btn_col2.button("🗑️ Supprimer", key="delete_chart_1"):
-                        st.session_state.charts.pop(0)
-                        st.rerun()
-                    container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
-                    container = st.container(border=True)
-                    _btn_col1, btn_col2 = container.columns([3, 1])
-                    if btn_col2.button("🗑️ Supprimer", key="delete_chart_2"):
-                        st.session_state.charts.pop(1)
-                        st.rerun()
-                    container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
-                elif num_charts == 3:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        container = st.container(border=True)
-                        _btn_col1, btn_col2 = container.columns([3, 1])
-                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_1"):
-                            st.session_state.charts.pop(0)
-                            st.rerun()
-                        container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
-                        container = st.container(border=True)
-                        _btn_col1, btn_col2 = container.columns([3, 1])
-                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_3"):
-                            st.session_state.charts.pop(2)
-                            st.rerun()
-                        container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
-                    with col2:
-                        container = st.container(border=True)
-                        _btn_col1, btn_col2 = container.columns([3, 1])
-                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_2"):
-                            st.session_state.charts.pop(1)
-                            st.rerun()
-                        container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
-                elif num_charts == 4:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        container = st.container(border=True)
-                        _btn_col1, btn_col2 = container.columns([3, 1])
-                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_1"):
-                            st.session_state.charts.pop(0)
-                            st.rerun()
-                        container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
-                        container = st.container(border=True)
-                        _btn_col1, btn_col2 = container.columns([3, 1])
-                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_3"):
-                            st.session_state.charts.pop(2)
-                            st.rerun()
-                        container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
-                    with col2:
-                        container = st.container(border=True)
-                        _btn_col1, btn_col2 = container.columns([3, 1])
-                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_2"):
-                            st.session_state.charts.pop(1)
-                            st.rerun()
-                        container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
-                        container = st.container(border=True)
-                        _btn_col1, btn_col2 = container.columns([3, 1])
-                        if btn_col2.button("🗑️ Supprimer", key="delete_chart_4"):
-                            st.session_state.charts.pop(3)
-                            st.rerun()
-                        container.plotly_chart(st.session_state.charts[3], use_container_width=True, key="chart_4")
+                for idx, chart in enumerate(st.session_state.charts):
+                    with st.container(border=True):
+                        chart_col1, chart_col2 = st.columns([4, 1])
+                        with chart_col1:
+                            # Génération dynamique du graphique en fonction des filtres actuels
+                            if chart["type"] == "Barres":
+                                fig = px.bar(df_filtered, x=chart["x"], y=chart["y"], title=chart["name"])
+                            elif chart["type"] == "Circulaire":
+                                fig = px.pie(df_filtered, names=chart["names"], values=chart["values"], title=chart["name"])
+                            elif chart["type"] == "Histogramme":
+                                fig = px.histogram(df_filtered, x=chart["x"], title=chart["name"])
+                            elif chart["type"] == "Nuage de points":
+                                fig = px.scatter(df_filtered, x=chart["x"], y=chart["y"], title=chart["name"])
+                            elif chart["type"] == "Carte proportionnelle":
+                                fig = px.treemap(df_filtered, path=[chart["x"]], values=chart["y"], title=chart["name"])
+                            elif chart["type"] == "Radar":
+                                fig = px.line_polar(df_filtered, r=chart["r"], theta=chart["theta"], line_close=True, title=chart["name"])
+                            
+                            st.plotly_chart(fig, use_container_width=True, key=f"chart_{idx}")
+
+                        with chart_col2:
+                            if st.button("🗑️ Supprimer", key=f"delete_chart_{idx}"):
+                                st.session_state.charts.pop(idx)
+                                st.rerun()
 
             else:
                 st.info("Aucun graphique n'a été créé. Pour créer un graphique, cliquez sur le bouton 📊 Créer un graphique.", icon="ℹ️")
