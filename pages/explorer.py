@@ -1,6 +1,8 @@
 import streamlit as st
 import pydeck as pdk
 import concurrent.futures
+import plotly.express as px
+import pandas as pd
 
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
 
@@ -48,6 +50,48 @@ def add_restaurant_dialog():
 def restaurant_info_dialog():
     display_restaurant_infos( personal_address, personal_latitude, personal_longitude)
 
+# Fonction pour afficher le popup de création de graphique
+@st.dialog("Créer un graphique")
+def create_chart_dialog(df):
+    # Vérification du nombre de graphiques créés
+    if len(st.session_state.charts) < 4:
+        # Choix du type de graphique
+        chart_type = st.selectbox(
+            "Type de graphique",
+            ["Barres", "Circulaire", "Histogramme", "Nuage de points", "Carte proportionnelle"],
+            key="chart_type"
+        )
+
+        # Sélection des colonnes en fonction du type de graphique
+        if chart_type in ["Barres", "Nuage de points", "Carte proportionnelle"]:
+            x_col = st.selectbox("Sélectionner l'axe X", options=df.columns, key="x_axis")
+            y_col = st.selectbox("Sélectionner l'axe Y", options=df.columns, key="y_axis")
+        elif chart_type == "Histogramme":
+            x_col = st.selectbox("Sélectionner la colonne pour l'histogramme", options=df.columns, key="hist_axis")
+            y_col = None
+        elif chart_type == "Circulaire":
+            names_col = st.selectbox("Sélectionner la colonne des labels", options=df.columns, key="pie_names")
+            values_col = st.selectbox("Sélectionner la colonne des valeurs", options=df.columns, key="pie_values")
+        
+        if st.button(icon="📊", label="Créer le graphique"):
+            if chart_type == "Barres":
+                fig = px.bar(df, x=x_col, y=y_col)
+            elif chart_type == "Circulaire":
+                fig = px.pie(df, names=names_col, values=values_col)
+            elif chart_type == "Histogramme":
+                fig = px.histogram(df, x=x_col)
+            elif chart_type == "Nuage de points":
+                fig = px.scatter(df, x=x_col, y=y_col)
+            elif chart_type == "Carte proportionnelle":
+                fig = px.treemap(df, path=[x_col], values=y_col)
+            st.session_state.charts.append(fig)
+            st.rerun()
+    else:
+        st.warning("Vous avez déjà créé 4 graphiques, veuillez en supprimer un pour en créer un nouveau", icon="⚠️")
+
+        if st.button("Fermer"):
+            st.rerun()
+
 def main():
     # Barre de navigation
     Navbar()
@@ -61,6 +105,10 @@ def main():
     # Initialisation du comparateur dans session_state
     if 'comparator' not in st.session_state:
         st.session_state['comparator'] = []
+
+    # Initialisation de la liste des graphiques
+    if "charts" not in st.session_state:
+        st.session_state.charts = []
 
     # Titre de la page
     st.title('🔍 Explorer')
@@ -412,7 +460,7 @@ def main():
                 })
 
     # Tab pour l'affichage de la page Explorer ou Comparer
-    restaurants_tab, comparer_tab = st.tabs(["🍽️ Restaurants", "🆚 Comparer"])
+    restaurants_tab, comparer_tab, visualisation_tab = st.tabs(["🍽️ Restaurants", "🆚 Comparer", "📊 Visualiser"])
 
     with restaurants_tab:
 
@@ -890,6 +938,104 @@ def main():
                 else:
                     # Message si aucun restaurant n'est sélectionné
                     st.info("Sélectionnez un restaurant depuis l'onglet 🍽️ Restaurants en cliquant sur le bouton 🆚, afin de l'ajouter au comparateur.", icon="ℹ️")
+
+    # Tab pour la visualisation des données
+    with visualisation_tab:
+        # Affichage des graphiques
+        if filtered_results:
+
+            # Extraction des données filtrées
+            filtered_data = [
+                {
+                    "nom": restaurant.nom,
+                    "rank": restaurant.rank,
+                    "prix_min": restaurant.prix_min,
+                    "prix_max": restaurant.prix_max,
+                    "etoiles_michelin": restaurant.etoiles_michelin,
+                    "note_globale": restaurant.note_globale,
+                    "qualite_prix_note": restaurant.qualite_prix_note,
+                    "cuisine_note": restaurant.cuisine_note,
+                    "service_note": restaurant.service_note,
+                    "ambiance_note": restaurant.ambiance_note,
+                    "cuisines": restaurant.cuisines,
+                    "repas": restaurant.repas,
+                    "fonctionnalite": restaurant.fonctionnalite,
+                }
+                for restaurant, _, _ in filtered_results
+            ]
+
+            # Création d'un DataFrame global à partir des données filtrées
+            df_filtered = pd.DataFrame(filtered_data)
+
+            # Traitement des champs textuels sur le DataFrame filtré
+            # Cuisine
+            cuisines_expanded_filtered = df_filtered['cuisines'].str.get_dummies(sep=',')
+            df_filtered = pd.concat([df_filtered, cuisines_expanded_filtered], axis=1)
+
+            # Repas
+            repas_expanded_filtered = df_filtered['repas'].str.get_dummies(sep=',')
+            df_filtered = pd.concat([df_filtered, repas_expanded_filtered], axis=1)
+
+            # Fonctionnalités
+            fonction_expanded_filtered = df_filtered['fonctionnalite'].str.get_dummies(sep=';')
+            df_filtered = pd.concat([df_filtered, fonction_expanded_filtered], axis=1)
+
+            # Calcul du prix moyen
+            df_filtered['prix_moyen'] = (df_filtered['prix_min'] + df_filtered['prix_max']) / 2
+
+            # Mise en page du bouton de création de graphique
+            _create_chart_btn_col1, create_chart_btn_col2 = st.columns([3, 1])
+
+            # Affichage du bouton pour créer un graphique
+            if create_chart_btn_col2.button(icon="📊", label="Créer un graphique", key="create_chart_btn"):
+                create_chart_dialog(df_filtered)
+
+            # Affichage des graphiques
+            if st.session_state.charts:
+                num_charts = len(st.session_state.charts)
+                if num_charts == 1:
+                    container = st.container(border=True)
+                    container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
+                elif num_charts == 2:
+                    container = st.container(border=True)
+                    container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
+                    container = st.container(border=True)
+                    container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
+                elif num_charts == 3:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        container = st.container(border=True)
+                        container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
+                        container = st.container(border=True)
+                        container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
+                    with col2:
+                        container = st.container(border=True)
+                        container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
+                elif num_charts == 4:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        container = st.container(border=True)
+                        container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
+                        container = st.container(border=True)
+                        container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
+                    with col2:
+                        container = st.container(border=True)
+                        container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
+                        container = st.container(border=True)
+                        container.plotly_chart(st.session_state.charts[3], use_container_width=True, key="chart_4")
+
+        else:
+            # Mise en page du bouton de création de graphique
+            _create_chart_btn_col1, create_chart_btn_col2 = st.columns([3, 1])
+
+            # Affichage du bouton pour créer un graphique
+            create_chart_btn_col2.button(icon="📊", label="Créer un graphique", key="create_chart_btn", disabled=True)
+
+            # Affichage d'un message d'information
+            st.info("Fonctionnalité indisponible, car aucun restaurant n'a été trouvé, essayez de modifier vos critères de recherche", icon="ℹ️")
+
+            # Réinitialisation des graphiques affichés
+            st.session_state.charts = []
 
 if __name__ == '__main__':
     main()
