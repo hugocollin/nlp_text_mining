@@ -188,21 +188,28 @@ def main():
     container.write("**Profitez d’une expérience culinaire optimisée et trouvez votre prochain repas à Lyon en toute simplicité avec SISE Ô Resto.**")
     container.write("Découvrez et explorez les meilleurs restaurants de Lyon grâce à notre application intuitive où vous pourrez :")
     
-    container_col1_1, container_col1_2, container_col1_3 = container.columns(3, border=True)
-    
-    container_col1_1.write("**🔍 Explorez les restaurants**")
-    container_col1_1.write("Parcourez une vaste sélection de restaurants à Lyon en filtrant par [...] pour trouver l'endroit idéal pour votre prochain repas.")
-    container_col1_2.write("**ℹ️ Obtenez les informations détailllés des restaurants**")
-    container_col1_2.write("Accédez aux fiches complètes comprenant [...] pour chaque restaurant.")
-    container_col1_3.write("**🆚 Comparez les restaurants**")
-    container_col1_3.write("Comparez facilement [...] et les caractéristiques des différents établissements pour prendre une décision éclairée.")
-    
-    container_col2_1, container_col2_2 = container.columns(2, border=True)
+    container_col1_1, container_col1_2 = container.columns(2, border=True)
+    container_col1_1.write("**🔍 Explorez les restaurants à Lyon**")
+    container_col1_1.write("Découvrez une large sélection de restaurants à Lyon et trouvez l'endroit idéal pour votre prochain repas. Consultez rapidement le statut actuel de chaque établissement, le temps de trajet et accédez en un clic à des informations détaillées et à l'itinéraire.")
+    container_col1_2.write("**ℹ️ Informations détaillées à portée de main**")
+    container_col1_2.write("Accédez aux fiches complètes de chaque restaurant, incluant les informations pratiques, les avis clients et bien plus.")
 
-    container_col2_1.write("**📊 Statistiques détaillés des restaurants**")
-    container_col2_1.write("Visualisez des statistiques pertinentes telles que [...] pour mieux comprendre chaque restaurant.")
-    container_col2_2.write("**🗺️ Localiser les restaurants et obtenir un itinéraire en un clic**")
-    container_col2_2.write("Utilisez la carte interactive pour localiser les restaurants proches de votre domicile et obtenez rapidement un itinéraire pour vous y rendre (veuillez renseigner votre adresse personelle via la page d'accueil pour accéder à cette fonctionnalité).")
+    container_col2_1, container_col2_2, container_col2_3 = container.columns(3, border=True)
+    container_col2_1.write("**🎨 Filtres avancés pour une recherche personnalisée**")
+    container_col2_1.write("Utilisez 14 filtres différents pour affiner votre recherche et trouver l'endroit parfait selon vos préférences.")
+    container_col2_2.write("**✨ Obtenez des recommandations personnalisées**")
+    container_col2_2.write("Discutez avec notre IA pour des conseils sur les meilleurs restaurants à Lyon adaptés à vos goûts.")
+    container_col2_3.write("**🗺️ Localisez les restaurants en un clin d'œil**")
+    container_col2_3.write("Grâce à la carte interactive, repérez facilement les restaurants près de chez vous et explorez vos options.")
+
+    container_col3_1, container_col3_2, container_col3_3 = container.columns(3, border=True)
+    container_col3_1.write("**🆚 Comparez les établissements facilement**")
+    container_col3_1.write("Comparez les caractéristiques des différents restaurants pour prendre une décision éclairée rapidement et sans effort.")
+    container_col3_2.write("**📊 Visualisez vos graphiques de manière intuitive**")
+    container_col3_2.write("Créez des graphiques personnalisés pour comparer et analyser les données des restaurants de Lyon facilement et rapidement.")
+    container_col3_3.write("**➕ Ajoutez des restaurants à votre sélection en un clic**")
+    container_col3_3.write("Ajoutez des restaurants à votre liste pour les comparer et les consulter en un instant.")
+    
     
     st.write("*Cette application a été développée par KPAMEGAN Falonne, KARAMOKO Awa, GABRYSCH Alexis et COLLIN Hugo, dans le cadre du Master 2 SISE.*")
 
