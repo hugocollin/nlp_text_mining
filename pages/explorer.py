@@ -1016,28 +1016,47 @@ def main():
             if st.session_state.charts:
                 for idx, chart in enumerate(st.session_state.charts):
                     with st.container(border=True):
-                        chart_col1, chart_col2 = st.columns([4, 1])
-                        with chart_col1:
-                            # Génération dynamique du graphique en fonction des filtres actuels
-                            if chart["type"] == "Barres":
-                                fig = px.bar(df_filtered, x=chart["x"], y=chart["y"], title=chart["name"])
-                            elif chart["type"] == "Circulaire":
-                                fig = px.pie(df_filtered, names=chart["names"], values=chart["values"], title=chart["name"])
-                            elif chart["type"] == "Histogramme":
-                                fig = px.histogram(df_filtered, x=chart["x"], title=chart["name"])
-                            elif chart["type"] == "Nuage de points":
-                                fig = px.scatter(df_filtered, x=chart["x"], y=chart["y"], title=chart["name"])
-                            elif chart["type"] == "Carte proportionnelle":
-                                fig = px.treemap(df_filtered, path=[chart["x"]], values=chart["y"], title=chart["name"])
-                            elif chart["type"] == "Radar":
-                                fig = px.line_polar(df_filtered, r=chart["r"], theta=chart["theta"], line_close=True, title=chart["name"])
-                            
-                            st.plotly_chart(fig, use_container_width=True, key=f"chart_{idx}")
-
+                        _chart_col1, chart_col2 = st.columns([3, 1])
                         with chart_col2:
                             if st.button("🗑️ Supprimer", key=f"delete_chart_{idx}"):
                                 st.session_state.charts.pop(idx)
                                 st.rerun()
+                        
+                        # Transformation des colonnes textuelles séparées par virgule ou point-virgule
+                        text_columns = ["Cuisines", "Repas", "Fonctionnalité"]
+                        x_data = chart["x"]
+                        y_data = chart["y"]
+                        
+                        if x_data in text_columns and chart["type"] in ["Barres", "Circulaire"]:
+                            df_plot = df_filtered[x_data].dropna().str.split('[,;]', expand=True).stack().str.strip().value_counts().reset_index()
+                            df_plot.columns = [x_data, "Nombre"]
+                            x_plot = x_data
+                            y_plot = "Nombre"
+                        elif y_data in text_columns and chart["type"] in ["Barres", "Circulaire"]:
+                            df_plot = df_filtered[y_data].dropna().str.split('[,;]', expand=True).stack().str.strip().value_counts().reset_index()
+                            df_plot.columns = [y_data, "Nombre"]
+                            x_plot = y_data
+                            y_plot = "Nombre"
+                        else:
+                            df_plot = df_filtered
+                            x_plot = x_data
+                            y_plot = y_data
+
+                        # Génération dynamique du graphique en fonction des filtres actuels
+                        if chart["type"] == "Barres":
+                            fig = px.bar(df_plot, x=x_plot, y=y_plot if y_plot else None, title=chart["name"])
+                        elif chart["type"] == "Circulaire":
+                            fig = px.pie(df_plot, names=x_plot, values=y_plot if y_plot else None, title=chart["name"])
+                        elif chart["type"] == "Histogramme":
+                            fig = px.histogram(df_plot, x=x_plot, title=chart["name"])
+                        elif chart["type"] == "Nuage de points":
+                            fig = px.scatter(df_plot, x=x_plot, y=y_plot, title=chart["name"])
+                        elif chart["type"] == "Carte proportionnelle":
+                            fig = px.treemap(df_plot, path=[x_plot], values=y_plot, title=chart["name"])
+                        elif chart["type"] == "Radar":
+                            fig = px.line_polar(df_plot, r=y_plot, theta=x_plot, line_close=True, title=chart["name"])
+                        
+                        st.plotly_chart(fig, use_container_width=True, key=f"chart_{idx}")
 
             else:
                 st.info("Aucun graphique n'a été créé. Pour créer un graphique, cliquez sur le bouton 📊 Créer un graphique.", icon="ℹ️")
