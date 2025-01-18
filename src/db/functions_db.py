@@ -7,7 +7,7 @@ from dateutil import parser
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker , joinedload
 from src.db.models import Base , Restaurant , Review
-
+import pandas as pd
 # Définition de la zone géographique pour les dates en français
 locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
 
@@ -92,6 +92,31 @@ def fetch_one_as_dict(query, params=None, table_name=None):
         columns = get_table_columns(table_name)
         return dict(zip(columns, result))
     return None
+
+
+
+def review_from_1_rest_as_df(session, restaurant_id):
+    reviews = session.query(Review).filter(Review.id_restaurant == restaurant_id).all()
+    data = []
+    for review in reviews:
+        data.append({
+            'restaurant_id': review.id_restaurant,
+            'user_id': review.id_user,
+            'review_id': review.id_review,
+            'title': review.title_review,
+            'user_profile': review.user.user_profile,
+            'date_review': review.date_review,
+            'rating': review.rating,
+            'type_visit': review.type_visit,
+            'num_contributions': review.user.num_contributions,
+            'review': review.review_text,
+            'review_cleaned': review.review_cleaned
+        })
+    return pd.DataFrame(data)
+
+
+
+
 
 # Fonction de récupération de tous les restaurants
 def get_all_restaurants(session):

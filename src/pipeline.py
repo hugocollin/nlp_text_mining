@@ -2,9 +2,9 @@
 
 from src.db.update_db import insert_review , insert_user  , insert_restaurant, clear_reviews_of_restaurant , insert_restaurant_reviews , update_scrapped_status_for_reviews , update_restaurant_columns
 
-from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db
-
-
+from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df
+import time
+import pandas as pd
 
 
 from src.nlp.analyse import NLPAnalysis
@@ -41,8 +41,7 @@ class Transistor:
         return ""
 
     
-    def nettoyer_avis(self, avis):
-        return self.nlp_pretraitement.nettoyer_avis(avis)
+
     
     def load_data(self):
         return self.nlp_analysis.load_data()
@@ -59,8 +58,6 @@ class Transistor:
     def insert_user(self, user):
         return insert_user(self.session, user)
     
-    def nettoyer_avis(self, avis):
-        return self.nlp_pretraitement.nettoyer_avis(avis)
     
     def load_data(self):
         return self.nlp_analysis.load_data()
@@ -86,7 +83,7 @@ class Transistor:
     def initiate_processing(self):
         self.nlp_pretraitement = NLPPretraitement()
     def initiate_analytic(self):
-        self.nlp_pretraitement = NLPAnalysis()
+        self.nlp_analysis = NLPAnalysis()
         
     
     def initiate_search(self):
@@ -139,7 +136,10 @@ class Transistor:
         """Redirect to init_db.parse_to_dict"""
         return parse_to_dict(data_str)
 
-
+    def review_from_1_rest_as_df(self, restaurant_id):
+        """Redirect to function.review_from_1_rest_as_df"""
+        return review_from_1_rest_as_df(self.session, restaurant_id)
+    
     def update_restaurant(self, name, **kwargs):
         """Redirect to init_db.update_restaurant"""
         return update_restaurant(name, **kwargs)
@@ -222,9 +222,20 @@ class Pipeline(Transistor):
         print("Info processed")
         
         self.initiate_processing()
+        self.initiate_analytic()
         print("Processing initiated")
         df_reviews = self.clean_reviews_a_la_volée(df_reviews)
         
+        print("Reviews cleaned")
+        resume = self.make_analyse_resume(df_reviews)
+        print(resume)
+        print("Reviews analysed")
+        
+        # MISTRAL #
+        
+        
+        
+        time.sleep(10)
         self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)
         print("Reviews inserted")
         print("Restaurant added")
@@ -236,16 +247,38 @@ class Pipeline(Transistor):
         print("Processing initiated")
         for index, row in df_reviews.iterrows():
                 review = row['review']
-                net = self.nettoyer_avis(review)
+                net = self.nlp_pretraitement.nettoyer_avis(review)
+
+                
                 df_reviews.at[index, 'review_cleaned'] = net
         print("Reviews cleaned")
         print(df_reviews)
         return df_reviews
         
     
-    def _analyse(self):
+    def make_analyse_resume(self, df_reviews):
         self.initiate_analytic()
+        resume = self.nlp_analysis.summarize_reviews(df_reviews)
         print("Reviews analysed")
+        return resume
+    
+    def clean_reviews(self, restaurant_id):
+        self.initiate_processing()
+        self.initiate_analytic()
+        print("Processing initiated")
+        
+        # make avis a datframe
+        df =review_from_1_rest_as_df(self.session, restaurant_id)
+        
+        
+    
+     
+        df_review = self.clean_reviews_a_la_volée(df)
+        print("Reviews cleaned")
+        resume = self.make_analyse_resume(df_review)
+        print(resume)
+        time.sleep(5)
+        
     
     
     def clean_reviews_test(self, restaurant_id):
