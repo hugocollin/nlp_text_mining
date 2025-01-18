@@ -1,11 +1,8 @@
 import pandas as pd
 import numpy as np
-import re
-
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.db.functions_db import fill_sentiment_column, fill_resume_avis_column , get_restaurants_with_reviews_and_users
+from src.db.functions_db import fill_sentiment_column, fill_resume_avis_column , get_restaurants_with_reviews_and_users, fill_sentiment_rating_column
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.text import Tokenizer
@@ -15,10 +12,6 @@ from sklearn.metrics import accuracy_score
 from transformers import pipeline
 from concurrent.futures import ThreadPoolExecutor
 from wordcloud import WordCloud
-import umap
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from sklearn.cluster import KMeans
 
 class NLPAnalysis:
     def __init__(self, db_path='sqlite:///restaurant_reviews.db'):
@@ -149,8 +142,6 @@ class NLPAnalysis:
             fill_sentiment_rating_column(self.data, self.session)
         except Exception as e:
             print(f"Erreur lors de la sauvegarde des données: {e}")
-        
-# Exemple d'utilisation
+
 if __name__ == "__main__":
     print("hey")
-
