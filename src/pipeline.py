@@ -234,7 +234,7 @@ class Pipeline(Transistor):
         
         # API MISTRAL
         role_prompt = "Tu es un assistant qui résume les avis des clients pour un restaurant. À partir des commentaires suivants, fournis un résumé concis des avis afin de se faire une idée générale du restaurant."
-        query = "Hello World" # à changer
+        query = resume
         response = self.api_Mistral(query, role_prompt)
         print(response["response"]) # à changer
         
@@ -280,7 +280,18 @@ class Pipeline(Transistor):
         print("Reviews cleaned")
         resume = self.make_analyse_resume(df_review)
         print(resume)
-        time.sleep(5)
+        print('api')
+         # API MISTRAL
+        role_prompt = "Tu es un assistant qui résume les avis des clients pour un restaurant. À partir des commentaires suivants, fournis un résumé concis des avis." # afin de se faire une idée générale du restaurant."
+        query = resume
+        response = self.api_Mistral(query, role_prompt)
+        print("api " , response["response"]) # à changer
+        
+        time.sleep(10)
+        
+        
+        
+        
         
     def api_Mistral(self, query, role_prompt, generation_model: str = "mistral-large-latest", max_tokens: int = 50, temperature: float = 0.7) -> Dict[str, str]:
         query_prompt = f"""
