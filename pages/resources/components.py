@@ -971,7 +971,7 @@ def instantiate_bdd() -> BDDChunks:
     # Instanciation de la classe BDDChunks
     bdd_chunks = BDDChunks(embedding_model="paraphrase-MiniLM-L6-v2")
 
-
+    # Récupération de la session SQLAlchemy
     session = transistor.session
 
     try:

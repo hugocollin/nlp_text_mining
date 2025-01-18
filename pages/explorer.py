@@ -3,11 +3,9 @@ import pydeck as pdk
 import concurrent.futures
 import plotly.express as px
 import pandas as pd
-
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
-
 from dotenv import find_dotenv, load_dotenv
 from src.pipeline import Transistor , Pipeline
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
 
 # Récupération de la clé API Mistral
 load_dotenv(find_dotenv())
@@ -26,24 +24,29 @@ personal_address, personal_latitude, personal_longitude = get_personal_address()
 # Fonction pour afficher le popup d'ajout de restaurant
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
-    # Filtrage sur les restaurants non scrappés
-    pipe = Pipeline()
-    restaurants = pipe.get_restaurants_non_scrapped()
-    restaurant_names = {r.nom : r for r in restaurants}
-    # Sélection du restaurant à ajouter
-    selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()),placeholder="Sélectionner un restaurant" , label_visibility="collapsed" , key="restaurant_select")
-   
-    # Scapping du restaurant sélectionné
-    if st.button(icon="➕", label="Ajouter le restaurant"):
-        if selected_name != "Sélectionner un restaurant":
-            # Get selected restaurant object
-            restau = restaurant_names[selected_name]
-            with st.spinner("Récupération des informations du restaurant..."):
-                pipe.add_new_restaurant(restau)
-            st.session_state['restaurant_added'] = True
+    if not find_dotenv():
+        st.error("**Fonctionnalité indisponible :** Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez ajouter le fichier `.env` à la racine du projet puis redémarrer l'application.", icon="⚠️")
+        if st.button(label="Fermer"):
             st.rerun()
-        else:
-            st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
+    else:
+        # Filtrage sur les restaurants non scrappés
+        pipe = Pipeline()
+        restaurants = pipe.get_restaurants_non_scrapped()
+        restaurant_names = {r.nom : r for r in restaurants}
+        # Sélection du restaurant à ajouter
+        selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()),placeholder="Sélectionner un restaurant" , label_visibility="collapsed" , key="restaurant_select")
+    
+        # Scapping du restaurant sélectionné
+        if st.button(icon="➕", label="Ajouter le restaurant"):
+            if selected_name != "Sélectionner un restaurant":
+                # Get selected restaurant object
+                restau = restaurant_names[selected_name]
+                with st.spinner("Récupération des informations du restaurant..."):
+                    pipe.add_new_restaurant(restau)
+                st.session_state['restaurant_added'] = True
+                st.rerun()
+            else:
+                st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
 
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("ℹ️ Informations sur le restaurant", width="large")
@@ -350,10 +353,7 @@ def main():
 
         # Sécurité si la clé API Mistral n'est pas présente
         if not find_dotenv():
-            header_container.error(
-                "Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez rajouter le fichier `.env` à la racine du projet puis relancer l'application.",
-                icon="⚠️"
-            )
+            header_container.error("**Fonctionnalité indisponible :** Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez ajouter le fichier `.env` à la racine du projet puis redémarrer l'application.", icon="⚠️")
             st.session_state['found_mistral_api'] = False
         else:
             st.session_state['found_mistral_api'] = True
