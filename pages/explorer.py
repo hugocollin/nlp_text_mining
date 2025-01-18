@@ -833,7 +833,7 @@ def main():
 
                     with btn_col2:
                         # Bouton pour supprimer du comparateur
-                        if btn_col2.button("❌ Supprimer", key=f"remove_cmp_{restaurant.id_restaurant}"):
+                        if btn_col2.button("🗑️ Supprimer", key=f"remove_cmp_{restaurant.id_restaurant}"):
                             st.session_state['comparator'].remove(restaurant.id_restaurant)
                             st.rerun()
 
@@ -984,45 +984,83 @@ def main():
             df_filtered['prix_moyen'] = (df_filtered['prix_min'] + df_filtered['prix_max']) / 2
 
             # Mise en page du bouton de création de graphique
-            _create_chart_btn_col1, create_chart_btn_col2 = st.columns([3, 1])
+            _create_chart_btn_col1, create_chart_btn_col2, delete_all_btn_col3 = st.columns([2, 1, 1.5])
 
             # Affichage du bouton pour créer un graphique
             if create_chart_btn_col2.button(icon="📊", label="Créer un graphique", key="create_chart_btn"):
                 create_chart_dialog(df_filtered)
 
+            # Affichage du bouton pour supprimer tous les graphiques
+            if delete_all_btn_col3.button(icon="🗑️", label="Supprimer tous les graphiques", key="delete_all_charts_btn", disabled=len(st.session_state.charts) == 0):
+                st.session_state.charts = []
+                st.rerun()
+
             # Affichage des graphiques
             if st.session_state.charts:
-                num_charts = len(st.session_state.charts)
+                num_charts = len(st.session_state.charts)   
                 if num_charts == 1:
                     container = st.container(border=True)
+                    if container.button("🗑️ Supprimer", key="delete_chart_1"):
+                        st.session_state.charts.pop(0)
+                        st.rerun()
                     container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
                 elif num_charts == 2:
                     container = st.container(border=True)
+                    if container.button("🗑️ Supprimer", key="delete_chart_1"):
+                        st.session_state.charts.pop(0)
+                        st.rerun()
                     container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
                     container = st.container(border=True)
+                    if container.button("🗑️ Supprimer", key="delete_chart_2"):
+                        st.session_state.charts.pop(1)
+                        st.rerun()
                     container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
                 elif num_charts == 3:
                     col1, col2 = st.columns(2)
                     with col1:
                         container = st.container(border=True)
+                        if container.button("🗑️ Supprimer", key="delete_chart_1"):
+                            st.session_state.charts.pop(0)
+                            st.rerun()
                         container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
                         container = st.container(border=True)
+                        if container.button("🗑️ Supprimer", key="delete_chart_3"):
+                            st.session_state.charts.pop(2)
+                            st.rerun()
                         container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
                     with col2:
                         container = st.container(border=True)
+                        if container.button("🗑️ Supprimer", key="delete_chart_2"):
+                            st.session_state.charts.pop(1)
+                            st.rerun()
                         container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
                 elif num_charts == 4:
                     col1, col2 = st.columns(2)
                     with col1:
                         container = st.container(border=True)
+                        if container.button("🗑️ Supprimer", key="delete_chart_1"):
+                            st.session_state.charts.pop(0)
+                            st.rerun()
                         container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
                         container = st.container(border=True)
+                        if container.button("🗑️ Supprimer", key="delete_chart_3"):
+                            st.session_state.charts.pop(2)
+                            st.rerun()
                         container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
                     with col2:
                         container = st.container(border=True)
+                        if container.button("🗑️ Supprimer", key="delete_chart_2"):
+                            st.session_state.charts.pop(1)
+                            st.rerun()
                         container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
                         container = st.container(border=True)
+                        if container.button("🗑️ Supprimer", key="delete_chart_4"):
+                            st.session_state.charts.pop(3)
+                            st.rerun()
                         container.plotly_chart(st.session_state.charts[3], use_container_width=True, key="chart_4")
+
+            else:
+                st.info("Aucun graphique n'a été créé. Pour créer un graphique, cliquez sur le bouton 📊 Créer un graphique.", icon="ℹ️")
 
         else:
             # Mise en page du bouton de création de graphique
@@ -1032,7 +1070,7 @@ def main():
             create_chart_btn_col2.button(icon="📊", label="Créer un graphique", key="create_chart_btn", disabled=True)
 
             # Affichage d'un message d'information
-            st.info("Fonctionnalité indisponible, car aucun restaurant n'a été trouvé, essayez de modifier vos critères de recherche", icon="ℹ️")
+            st.info("Fonctionnalité indisponible, car aucun restaurant n'a été trouvé, essayez de modifier vos critères de recherche.", icon="ℹ️")
 
             # Réinitialisation des graphiques affichés
             st.session_state.charts = []
