@@ -3,11 +3,9 @@ import pydeck as pdk
 import concurrent.futures
 import plotly.express as px
 import pandas as pd
-
-from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
-
 from dotenv import find_dotenv, load_dotenv
 from src.pipeline import Transistor , Pipeline
+from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
 
 # Récupération de la clé API Mistral
 load_dotenv(find_dotenv())
@@ -26,24 +24,29 @@ personal_address, personal_latitude, personal_longitude = get_personal_address()
 # Fonction pour afficher le popup d'ajout de restaurant
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
-    # Filtrage sur les restaurants non scrappés
-    pipe = Pipeline()
-    restaurants = pipe.get_restaurants_non_scrapped()
-    restaurant_names = {r.nom : r for r in restaurants}
-    # Sélection du restaurant à ajouter
-    selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()),placeholder="Sélectionner un restaurant" , label_visibility="collapsed" , key="restaurant_select")
-   
-    # Scapping du restaurant sélectionné
-    if st.button(icon="➕", label="Ajouter le restaurant"):
-        if selected_name != "Sélectionner un restaurant":
-            # Get selected restaurant object
-            restau = restaurant_names[selected_name]
-            with st.spinner("Récupération des informations du restaurant..."):
-                pipe.add_new_restaurant(restau)
-            st.session_state['restaurant_added'] = True
+    if not find_dotenv():
+        st.error("**Fonctionnalité indisponible :** Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez ajouter le fichier `.env` à la racine du projet puis redémarrer l'application.", icon="⚠️")
+        if st.button(label="Fermer"):
             st.rerun()
-        else:
-            st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
+    else:
+        # Filtrage sur les restaurants non scrappés
+        pipe = Pipeline()
+        restaurants = pipe.get_restaurants_non_scrapped()
+        restaurant_names = {r.nom : r for r in restaurants}
+        # Sélection du restaurant à ajouter
+        selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()),placeholder="Sélectionner un restaurant" , label_visibility="collapsed" , key="restaurant_select")
+    
+        # Scapping du restaurant sélectionné
+        if st.button(icon="➕", label="Ajouter le restaurant"):
+            if selected_name != "Sélectionner un restaurant":
+                # Get selected restaurant object
+                restau = restaurant_names[selected_name]
+                with st.spinner("Récupération des informations du restaurant..."):
+                    pipe.add_new_restaurant(restau)
+                st.session_state['restaurant_added'] = True
+                st.rerun()
+            else:
+                st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
 
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("ℹ️ Informations sur le restaurant", width="large")
@@ -54,40 +57,49 @@ def restaurant_info_dialog():
 @st.dialog("Créer un graphique")
 def create_chart_dialog(df):
     # Vérification du nombre de graphiques créés
-    if len(st.session_state.charts) < 4:
+    if len(st.session_state.charts) < 5:
         # Choix du type de graphique
         chart_type = st.selectbox(
             "Type de graphique",
-            ["Barres", "Circulaire", "Histogramme", "Nuage de points", "Carte proportionnelle"],
+            ["Barres", "Circulaire", "Histogramme", "Nuage de points", "Carte proportionnelle", "Radar"],
             key="chart_type"
         )
 
         # Sélection des colonnes en fonction du type de graphique
         if chart_type in ["Barres", "Nuage de points", "Carte proportionnelle"]:
-            x_col = st.selectbox("Sélectionner l'axe X", options=df.columns, key="x_axis")
-            y_col = st.selectbox("Sélectionner l'axe Y", options=df.columns, key="y_axis")
+            x_col = st.selectbox("Sélectionnez le champ de l'axe X", options=df.columns, key="x_axis")
+            y_col = st.selectbox("Sélectionnez le champ de l'axe Y", options=df.columns, key="y_axis")
         elif chart_type == "Histogramme":
-            x_col = st.selectbox("Sélectionner la colonne pour l'histogramme", options=df.columns, key="hist_axis")
+            x_col = st.selectbox("Sélectionnez le champ", options=df.columns, key="hist_axis")
             y_col = None
         elif chart_type == "Circulaire":
-            names_col = st.selectbox("Sélectionner la colonne des labels", options=df.columns, key="pie_names")
-            values_col = st.selectbox("Sélectionner la colonne des valeurs", options=df.columns, key="pie_values")
+            names_col = st.selectbox("Sélectionnez le champ des labels", options=df.columns, key="pie_names")
+            values_col = st.selectbox("Sélectionnez le champ des valeurs", options=df.columns, key="pie_values")
+        elif chart_type == "Radar":
+            theta_col = st.selectbox("Sélectionnez le champ pour l'axe θ", options=df.columns, key="radar_theta_col")
+            r_col = st.selectbox("Sélectionnez le champ pour l'axe r", options=df.columns, key="radar_r_col")
         
         if st.button(icon="📊", label="Créer le graphique"):
-            if chart_type == "Barres":
-                fig = px.bar(df, x=x_col, y=y_col)
-            elif chart_type == "Circulaire":
-                fig = px.pie(df, names=names_col, values=values_col)
-            elif chart_type == "Histogramme":
-                fig = px.histogram(df, x=x_col)
-            elif chart_type == "Nuage de points":
-                fig = px.scatter(df, x=x_col, y=y_col)
-            elif chart_type == "Carte proportionnelle":
-                fig = px.treemap(df, path=[x_col], values=y_col)
-            st.session_state.charts.append(fig)
+            # Génération automatique du nom du graphique
+            chart_name = f"Graphique {chart_type}"
+            
+            # Stockage des paramètres du graphique
+            chart_params = {
+                "type": chart_type,
+                "name": chart_name,
+                "x": x_col if 'x_col' in locals() else None,
+                "y": y_col if 'y_col' in locals() else None,
+                "names": names_col if 'names_col' in locals() else None,
+                "values": values_col if 'values_col' in locals() else None,
+                "theta": theta_col if 'theta_col' in locals() else None,
+                "r": r_col if 'r_col' in locals() else None
+            }
+            
+            st.session_state.charts.append(chart_params)
+            st.toast("Graphique créé avec succès", icon="📊")
             st.rerun()
     else:
-        st.warning("Vous avez déjà créé 4 graphiques, veuillez en supprimer un pour en créer un nouveau", icon="⚠️")
+        st.warning("Vous avez déjà créé 5 graphiques, veuillez en supprimer un pour en créer un nouveau", icon="⚠️")
 
         if st.button("Fermer"):
             st.rerun()
@@ -350,10 +362,7 @@ def main():
 
         # Sécurité si la clé API Mistral n'est pas présente
         if not find_dotenv():
-            header_container.error(
-                "Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez rajouter le fichier `.env` à la racine du projet puis relancer l'application.",
-                icon="⚠️"
-            )
+            header_container.error("**Fonctionnalité indisponible :** Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez ajouter le fichier `.env` à la racine du projet puis redémarrer l'application.", icon="⚠️")
             st.session_state['found_mistral_api'] = False
         else:
             st.session_state['found_mistral_api'] = True
@@ -833,7 +842,7 @@ def main():
 
                     with btn_col2:
                         # Bouton pour supprimer du comparateur
-                        if btn_col2.button("❌ Supprimer", key=f"remove_cmp_{restaurant.id_restaurant}"):
+                        if btn_col2.button("🗑️ Supprimer", key=f"remove_cmp_{restaurant.id_restaurant}"):
                             st.session_state['comparator'].remove(restaurant.id_restaurant)
                             st.rerun()
 
@@ -967,62 +976,71 @@ def main():
             # Création d'un DataFrame global à partir des données filtrées
             df_filtered = pd.DataFrame(filtered_data)
 
-            # Traitement des champs textuels sur le DataFrame filtré
-            # Cuisine
-            cuisines_expanded_filtered = df_filtered['cuisines'].str.get_dummies(sep=',')
-            df_filtered = pd.concat([df_filtered, cuisines_expanded_filtered], axis=1)
-
-            # Repas
-            repas_expanded_filtered = df_filtered['repas'].str.get_dummies(sep=',')
-            df_filtered = pd.concat([df_filtered, repas_expanded_filtered], axis=1)
-
-            # Fonctionnalités
-            fonction_expanded_filtered = df_filtered['fonctionnalite'].str.get_dummies(sep=';')
-            df_filtered = pd.concat([df_filtered, fonction_expanded_filtered], axis=1)
-
             # Calcul du prix moyen
             df_filtered['prix_moyen'] = (df_filtered['prix_min'] + df_filtered['prix_max']) / 2
 
+            # Suppression des colonnes avec un nom vide
+            df_filtered = df_filtered.loc[:, df_filtered.columns != ' ']
+
+            # Renommage des colonnes
+            df_filtered.rename(columns={
+                "nom": "Nom",
+                "rank": "Rang",
+                "prix_min": "Prix minimum",
+                "prix_max": "Prix maximum",
+                "prix_moyen": "Prix moyen",
+                "etoiles_michelin": "Étoiles Michelin",
+                "note_globale": "Note globale",
+                "qualite_prix_note": "Note qualité prix",
+                "cuisine_note": "Note cuisine",
+                "service_note": "Note service",
+                "ambiance_note": "Note ambiance",
+                "cuisines": "Cuisines",
+                "repas": "Repas",
+                "fonctionnalite": "Fonctionnalités",
+            }, inplace=True)
+
             # Mise en page du bouton de création de graphique
-            _create_chart_btn_col1, create_chart_btn_col2 = st.columns([3, 1])
+            _create_chart_btn_col1, create_chart_btn_col2, delete_all_btn_col3 = st.columns([2, 1, 1.5])
 
             # Affichage du bouton pour créer un graphique
             if create_chart_btn_col2.button(icon="📊", label="Créer un graphique", key="create_chart_btn"):
                 create_chart_dialog(df_filtered)
 
+            # Affichage du bouton pour supprimer tous les graphiques
+            if delete_all_btn_col3.button(icon="🗑️", label="Supprimer tous les graphiques", key="delete_all_charts_btn", disabled=len(st.session_state.charts) == 0):
+                st.session_state.charts = []
+                st.rerun()
+
             # Affichage des graphiques
             if st.session_state.charts:
-                num_charts = len(st.session_state.charts)
-                if num_charts == 1:
-                    container = st.container(border=True)
-                    container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
-                elif num_charts == 2:
-                    container = st.container(border=True)
-                    container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
-                    container = st.container(border=True)
-                    container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
-                elif num_charts == 3:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        container = st.container(border=True)
-                        container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
-                        container = st.container(border=True)
-                        container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
-                    with col2:
-                        container = st.container(border=True)
-                        container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
-                elif num_charts == 4:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        container = st.container(border=True)
-                        container.plotly_chart(st.session_state.charts[0], use_container_width=True, key="chart_1")
-                        container = st.container(border=True)
-                        container.plotly_chart(st.session_state.charts[2], use_container_width=True, key="chart_3")
-                    with col2:
-                        container = st.container(border=True)
-                        container.plotly_chart(st.session_state.charts[1], use_container_width=True, key="chart_2")
-                        container = st.container(border=True)
-                        container.plotly_chart(st.session_state.charts[3], use_container_width=True, key="chart_4")
+                for idx, chart in enumerate(st.session_state.charts):
+                    with st.container(border=True):
+                        chart_col1, chart_col2 = st.columns([4, 1])
+                        with chart_col1:
+                            # Génération dynamique du graphique en fonction des filtres actuels
+                            if chart["type"] == "Barres":
+                                fig = px.bar(df_filtered, x=chart["x"], y=chart["y"], title=chart["name"])
+                            elif chart["type"] == "Circulaire":
+                                fig = px.pie(df_filtered, names=chart["names"], values=chart["values"], title=chart["name"])
+                            elif chart["type"] == "Histogramme":
+                                fig = px.histogram(df_filtered, x=chart["x"], title=chart["name"])
+                            elif chart["type"] == "Nuage de points":
+                                fig = px.scatter(df_filtered, x=chart["x"], y=chart["y"], title=chart["name"])
+                            elif chart["type"] == "Carte proportionnelle":
+                                fig = px.treemap(df_filtered, path=[chart["x"]], values=chart["y"], title=chart["name"])
+                            elif chart["type"] == "Radar":
+                                fig = px.line_polar(df_filtered, r=chart["r"], theta=chart["theta"], line_close=True, title=chart["name"])
+                            
+                            st.plotly_chart(fig, use_container_width=True, key=f"chart_{idx}")
+
+                        with chart_col2:
+                            if st.button("🗑️ Supprimer", key=f"delete_chart_{idx}"):
+                                st.session_state.charts.pop(idx)
+                                st.rerun()
+
+            else:
+                st.info("Aucun graphique n'a été créé. Pour créer un graphique, cliquez sur le bouton 📊 Créer un graphique.", icon="ℹ️")
 
         else:
             # Mise en page du bouton de création de graphique
@@ -1032,7 +1050,7 @@ def main():
             create_chart_btn_col2.button(icon="📊", label="Créer un graphique", key="create_chart_btn", disabled=True)
 
             # Affichage d'un message d'information
-            st.info("Fonctionnalité indisponible, car aucun restaurant n'a été trouvé, essayez de modifier vos critères de recherche", icon="ℹ️")
+            st.info("Fonctionnalité indisponible, car aucun restaurant n'a été trouvé, essayez de modifier vos critères de recherche.", icon="ℹ️")
 
             # Réinitialisation des graphiques affichés
             st.session_state.charts = []
