@@ -61,32 +61,44 @@ def create_chart_dialog(df):
         # Choix du type de graphique
         chart_type = st.selectbox(
             "Type de graphique",
-            ["Barres", "Circulaire", "Histogramme", "Nuage de points", "Carte proportionnelle"],
+            ["Barres", "Circulaire", "Histogramme", "Nuage de points", "Carte proportionnelle", "Radar"],
             key="chart_type"
         )
 
         # Sélection des colonnes en fonction du type de graphique
         if chart_type in ["Barres", "Nuage de points", "Carte proportionnelle"]:
-            x_col = st.selectbox("Sélectionner l'axe X", options=df.columns, key="x_axis")
-            y_col = st.selectbox("Sélectionner l'axe Y", options=df.columns, key="y_axis")
+            x_col = st.selectbox("Sélectionnez le champ de l'axe X", options=df.columns, key="x_axis")
+            y_col = st.selectbox("Sélectionnez le champ de l'axe Y", options=df.columns, key="y_axis")
         elif chart_type == "Histogramme":
-            x_col = st.selectbox("Sélectionner la colonne pour l'histogramme", options=df.columns, key="hist_axis")
+            x_col = st.selectbox("Sélectionnez le champ", options=df.columns, key="hist_axis")
             y_col = None
         elif chart_type == "Circulaire":
-            names_col = st.selectbox("Sélectionner la colonne des labels", options=df.columns, key="pie_names")
-            values_col = st.selectbox("Sélectionner la colonne des valeurs", options=df.columns, key="pie_values")
+            names_col = st.selectbox("Sélectionnez le champ des labels", options=df.columns, key="pie_names")
+            values_col = st.selectbox("Sélectionnez le champ des valeurs", options=df.columns, key="pie_values")
+        elif chart_type == "Radar":
+            theta_col = st.selectbox("Sélectionnez le champ pour l'axe θ", options=df.columns, key="radar_theta_col")
+            r_col = st.selectbox("Sélectionnez le champ pour l'axe r", options=df.columns, key="radar_r_col")
         
         if st.button(icon="📊", label="Créer le graphique"):
             if chart_type == "Barres":
                 fig = px.bar(df, x=x_col, y=y_col)
+                chart_name = f"Diagramme en barres du {y_col} en fonction du {x_col}"
             elif chart_type == "Circulaire":
                 fig = px.pie(df, names=names_col, values=values_col)
+                chart_name = f"Diagramme circulaire du {values_col} en fonction du {names_col}"
             elif chart_type == "Histogramme":
                 fig = px.histogram(df, x=x_col)
+                chart_name = f"Histogramme du {x_col}"
             elif chart_type == "Nuage de points":
                 fig = px.scatter(df, x=x_col, y=y_col)
+                chart_name = f"Nuage de points du {y_col} en fonction du {x_col}"
             elif chart_type == "Carte proportionnelle":
                 fig = px.treemap(df, path=[x_col], values=y_col)
+                chart_name = f"Carte proportionnelle du {y_col} en fonction du {x_col}"
+            elif chart_type == "Radar":
+                fig = px.line_polar(df, r=r_col, theta=theta_col, line_close=True)
+                chart_name = f"Graphe radar du {theta_col} en fonction du {r_col}"
+            fig.update_layout(title=chart_name)
             st.session_state.charts.append(fig)
             st.toast("Graphique créé avec succès", icon="📊")
             st.rerun()
@@ -983,6 +995,9 @@ def main():
 
             # Calcul du prix moyen
             df_filtered['prix_moyen'] = (df_filtered['prix_min'] + df_filtered['prix_max']) / 2
+
+            # Suppression des colonnes avec un nom vide
+            df_filtered = df_filtered.loc[:, df_filtered.columns != ' ']
 
             # Mise en page du bouton de création de graphique
             _create_chart_btn_col1, create_chart_btn_col2, delete_all_btn_col3 = st.columns([2, 1, 1.5])
