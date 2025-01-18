@@ -1,6 +1,6 @@
 
 
-from src.db.update_db import insert_review , insert_user  , insert_restaurant, clear_reviews_of_restaurant , insert_restaurant_reviews , update_scrapped_status_for_reviews , update_restaurant_columns  , add_columns_to_table 
+from src.db.update_db import insert_review , insert_user  , insert_restaurant, clear_reviews_of_restaurant , insert_restaurant_reviews , update_scrapped_status_for_reviews , update_restaurant_columns
 
 from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db
 
@@ -167,10 +167,6 @@ class Transistor:
     def get_restaurant(self, restaurant_id=None, restaurant_name=None):
         """Redirect to init_db.get_restaurant"""
         return get_restaurant(self.session, restaurant_id, restaurant_name)
-
-    def add_columns_to_table(self, table_name, columns):
-        """Redirect to init_db.add_columns_to_table"""
-        return add_columns_to_table(self.bdd, table_name, columns)
 
     def process_restaurant_data(self, avis_df, location_df, details_df, restaurant_id):
         """Redirect to init_db.process_restaurant_data"""

@@ -1,24 +1,18 @@
 import ast
-
-from dateutil import parser
 import locale
 import os
 import sqlite3
 from contextlib import closing
-
+from dateutil import parser
 from sqlalchemy import create_engine 
 from sqlalchemy.orm import sessionmaker , joinedload
-
-
-
 from src.db.models import Base , Restaurant , Review 
-# Définir la locale pour le français
 
-
+# Définition de la zone géographique pour les dates en français
 locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
 
+# Définition du chemin vers le fichier de base de données SQLite
 DATABASE_NAME = "restaurant_reviews.db" 
-
 
 def init_db(db_path="sqlite:///restaurant_reviews.db"):
     engine = create_engine(db_path)
