@@ -3,8 +3,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker, joinedload
 import uuid
 
+# Création de la classe de base
 Base = declarative_base()
 
+# Définition de la "Restaurant"
 class Restaurant(Base):
     __tablename__ = 'dim_restaurants'
 
@@ -14,10 +16,9 @@ class Restaurant(Base):
     adresse = Column(String)
     url_link = Column(String)
     email = Column(String)
-    # details = Column(String)  # Pour stocker des informations comme 'FOURCHETTE DE PRIX', etc.
     telephone = Column(String)
     cuisines = Column(String)
-    note_globale = Column(Float)  # NOTE GLOBALE
+    note_globale = Column(Float)
     cuisine_note = Column(Float)
     service_note = Column(Float)
     qualite_prix_note = Column(Float)
@@ -25,10 +26,7 @@ class Restaurant(Base):
     prix_min = Column(Float)
     prix_max = Column(Float)
     etoiles_michelin = Column(Integer)
-    repas = Column(String)  # POUR 'REPAS' (Déjeuner, Dîner, etc.)
-
-    
-    avis = relationship("Review", back_populates="restaurant")
+    repas = Column(String)
     scrapped = Column(Boolean, default=False)  
     latitude = Column(Float)
     longitude = Column(Float)
@@ -38,26 +36,13 @@ class Restaurant(Base):
     horaires = Column(Text)
     google_map = Column(String)
     rank = Column(Integer)
+    avis = relationship("Review", back_populates="restaurant")
 
-
-"""class Geographie(Base):
-    __tablename__ = 'dim_geographie'
-
-    id_geographie = Column(Integer, primary_key=True, autoincrement=True)
-    quartier = Column(String)
-    ville = Column(String, nullable=False)
-    region = Column(String)
-    nombre_restaurants = Column(Integer)
-    transports_proches = Column(Text)
-    distance_parking = Column(Float)
-    densite_socio_eco = Column(Float)
-    population = Column(Integer)
-
-    restaurants = relationship("Restaurant", back_populates="geographie")
-"""
+# Définition de la classe "Review"
 class Review(Base):
     __tablename__ = 'fact_reviews'
 
+    # Colonnes de la table
     id_review = Column(Integer, primary_key=True, autoincrement=True)
     id_restaurant = Column(Integer, ForeignKey('dim_restaurants.id_restaurant'))
     id_user = Column(Integer, ForeignKey('dim_users.id_user'))
@@ -69,23 +54,25 @@ class Review(Base):
     review_cleaned = Column(Text)
     sentiment = Column(Integer)
     sentiment_rating = Column(String)
-
-
     restaurant = relationship("Restaurant", back_populates="avis")
     user = relationship("User", back_populates="avis")
 
+# Définition de la classe "User"
 class User(Base):
     __tablename__ = 'dim_users'
 
+    # Colonnes de la table
     id_user = Column(Integer, primary_key=True, autoincrement=True)
     user_name = Column(String, nullable=False)
     user_profile = Column(String, nullable=False, unique=True)
     num_contributions = Column(Integer)
-
     avis = relationship("Review", back_populates="user")
 
+# Définition de la classe "Chunk"
 class Chunk(Base):
     __tablename__ = 'chunks'
+
+    # Colonnes de la table
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     text = Column(Text, nullable=False)
     embedding = Column(JSON, nullable=False)
