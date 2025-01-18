@@ -114,7 +114,7 @@ class NLPAnalysis:
 
 
 
-    def summarize_chunk(summarizer, chunk):
+    def summarize_chunk(self,summarizer, chunk):
         return summarizer(chunk, max_length=100, min_length=20, do_sample=False)[0]['summary_text']
 
     def summarize_reviews(self, df):

@@ -2,7 +2,7 @@
 
 from src.db.update_db import insert_review , insert_user  , insert_restaurant, clear_reviews_of_restaurant , insert_restaurant_reviews , update_scrapped_status_for_reviews , update_restaurant_columns
 
-from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db
+from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df
 import time
 import pandas as pd
 
@@ -136,7 +136,10 @@ class Transistor:
         """Redirect to init_db.parse_to_dict"""
         return parse_to_dict(data_str)
 
-
+    def review_from_1_rest_as_df(self, restaurant_id):
+        """Redirect to function.review_from_1_rest_as_df"""
+        return review_from_1_rest_as_df(self.session, restaurant_id)
+    
     def update_restaurant(self, name, **kwargs):
         """Redirect to init_db.update_restaurant"""
         return update_restaurant(name, **kwargs)
@@ -263,9 +266,9 @@ class Pipeline(Transistor):
         self.initiate_processing()
         self.initiate_analytic()
         print("Processing initiated")
-        avis = self.get_user_and_review_from_restaurant_id(restaurant_id)
+        
         # make avis a datframe
-        df = pd.DataFrame(avis[0][1], columns = ['user_id', 'review_id', 'restaurant_id', 'user', 'user_profile', 'num_contributions', 'date_review', 'title', 'review', 'rating', 'type_visit'])
+        df =review_from_1_rest_as_df(self.session, restaurant_id)
         
         
     
