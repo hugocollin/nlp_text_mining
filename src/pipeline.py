@@ -9,6 +9,7 @@ from src.nlp.pretraitement import NLPPretraitement
 
 import time
 import litellm
+import streamlit as st
 from typing import Dict
 
 from sqlalchemy import create_engine
@@ -192,8 +193,6 @@ class Pipeline(Transistor):
 
     
     def add_new_restaurant(self, restaurant):
-        
-        
         print("Adding new restaurant")
         self.url = restaurant.url_link
         print("url : " , self.url)
@@ -241,7 +240,7 @@ class Pipeline(Transistor):
         print("Restaurant added")
         time.sleep(2)
         self.clear()
-      
+        st.toast("Le restaurant a été ajouté avec succès !", icon="➕")
      
           
     
