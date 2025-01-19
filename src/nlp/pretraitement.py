@@ -14,7 +14,6 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 class NLPPretraitement:
     def __init__(self):
 
-        self.session = self.Session()
         self.lemmatizer = WordNetLemmatizer()
         # Initialiser le DataFrame
         self.avis_restaurants = None

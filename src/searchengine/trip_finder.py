@@ -301,7 +301,7 @@ class restaurant_info_extractor(SearchEngine):
 ############### __methods__ #######################    
     def extract_note(self,text):
                         match = re.search(r'\d,\d', text)
-                        return match.group() if match else 'N/A'
+                        return match.group() if match else None
                     
     def get_restaurant_info(self, soup):
         # Notes et avis
@@ -326,12 +326,12 @@ class restaurant_info_extractor(SearchEngine):
                 print("No data found correctly")
                 
         notes = {}
-        global_note = cuisine_note = service_note = quality_price_note = ambiance_note = 'N/A'
+        global_note = cuisine_note = service_note = quality_price_note = ambiance_note = None
 
         if notes_avis_section:
             
             global_note_tag = notes_avis_section.find('span', class_='biGQs _P fiohW uuBRH')
-            global_note = global_note_tag.text if global_note_tag else 'N/A'
+            global_note = global_note_tag.text if global_note_tag else None
             print(global_note)
 
 
@@ -366,29 +366,29 @@ class restaurant_info_extractor(SearchEngine):
                 val = value.text.strip()
                 details[key.upper()] = val
         else:
-            details = {'Fourchette de prix': 'N/A', 'Cuisines': 'N/A', 'Régimes spéciaux': 'N/A'}
+            details = {'Fourchette de prix': None , 'Cuisines': None, 'Régimes spéciaux': None}
 
         # Emplacement et coordonnées
         location_section = soup.find('div', class_='Zb w')
         if location_section:
             address_tag = location_section.find('a', href=True)
-            address = address_tag.text.strip() if address_tag else 'N/A'
+            address = address_tag.text.strip() if address_tag else None
             # get href attribute of the <a> tag
             google_map = address_tag['href'] if address_tag else None
             # extract latitude and longitude from the href attribute
             def extract_lat_lon(href):
                 match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', href)
-                return match.groups() if match else ('N/A', 'N/A')
+                return match.groups() if match else (None, None)
             lat, lon = extract_lat_lon(google_map)
             
             email_tag = soup.find('a', href=lambda href: href and href.startswith('mailto:'))
-            email = email_tag['href'].split(':')[1] if email_tag else 'N/A'
+            email = email_tag['href'].split(':')[1] if email_tag else None
 
             phone_tag = location_section.find('a', href=lambda x: x and x.startswith('tel:'))
-            phone_numer = phone_tag['href'].split(':')[1] if phone_tag else 'N/A'
+            phone_numer = phone_tag['href'].split(':')[1] if phone_tag else None
             # phone = phone_tag.text.strip() if phone_tag else 'N/A'
         else:
-            address = email = phone_numer = 'N/A'
+            address = email = phone_numer = None
 
         # Organiser les informations dans un dictionnaire
         restaurant_info = {
@@ -420,22 +420,22 @@ class restaurant_info_extractor(SearchEngine):
         print("2")
         if fonctionnalite is None:
             if self.rank_info < 3:
-                for i in tqdm.tqdm(range(5)):
+                for i in tqdm.tqdm(range(3)):
                     time.sleep(1)
                 self.google_scrapping_info(self.url)
                 self.rank_info += 1
             else:
                 self.rank_info = 0
                 
-        restaurant_info['Détails']['FONCTIONNALITE'] = fonctionnalite if fonctionnalite else 'N/A'
-        restaurant_info['Détails']['HORAIRES'] = horaires if horaires else 'N/A'
-        restaurant_info['Détails']['RANK'] = rank if rank else 'N/A'
+        restaurant_info['Détails']['FONCTIONNALITE'] = fonctionnalite if fonctionnalite else None
+        restaurant_info['Détails']['HORAIRES'] = horaires if horaires else None
+        restaurant_info['Détails']['RANK'] = rank if rank else None
         print(restaurant_info['Détails']['FONCTIONNALITE'])
         print(restaurant_info['Détails']['HORAIRES'])
         print(restaurant_info['Détails']['RANK'])
         
         
-        if  restaurant_info['Détails']['RANK'] == 'N/A':
+        if  restaurant_info['Détails']['RANK'] is None:
             restaurant_info['Détails']['RANK'] = self.get_ranking(soup)
         
         return restaurant_info
@@ -466,9 +466,9 @@ class restaurant_info_extractor(SearchEngine):
                 first_url = srcset_urls[0]
                 cleaned_url  = first_url.split('?')[0]
             else :
-                cleaned_url = 'N/A'
+                cleaned_url = None
         else:
-            cleaned_url = 'N/A'
+            cleaned_url = None
             
         return cleaned_url
 
@@ -481,7 +481,7 @@ class restaurant_info_extractor(SearchEngine):
         for review in reviews:
             try:
                 user = review.find("a", class_="BMQDV _F Gv wSSLS SwZTJ FGwzt ukgoS")
-                user_profil = user['href'].replace('/Profile/', '') if user and 'href' in user.attrs else 'N/A'
+                user_profil = user['href'].replace('/Profile/', '') if user and 'href' in user.attrs else None
                 title = review.find("div", class_="biGQs _P fiohW qWPrE ncFvv fOtGX").text.strip()
                 avis = review.find("span", class_="JguWG")
                 date_review = review.find("div", class_="biGQs _P pZUbB ncFvv osNWb").text.replace('Rédigé le ', '').strip()
@@ -492,7 +492,7 @@ class restaurant_info_extractor(SearchEngine):
                     type_visits = "No information"
                  # Extract rating
                 rating_tag = review.find("div", class_="OSBmi J k")
-                rating_title = rating_tag.find("title").text.strip() if rating_tag and rating_tag.find("title") else 'N/A'
+                rating_title = rating_tag.find("title").text.strip() if rating_tag and rating_tag.find("title") else None
                 rating = float(re.search(r'\d,\d', rating_title).group().replace(',', '.')) if re.search(r'\d,\d', rating_title) else None
                 
                 contrib_container = review.find("div", class_="vYLts")
@@ -506,14 +506,14 @@ class restaurant_info_extractor(SearchEngine):
                 
                 
                 self.reviews.append({
-                    'user': user.text.strip() if user else 'N/A',
-                    'user_profile': user_profil if user_profil else 'N/A',
-                    'date_review': date_review if date_review else 'N/A',
-                    'title': title if title else 'N/A',
+                    'user': user.text.strip() if user else None,
+                    'user_profile': user_profil if user_profil else None,
+                    'date_review': date_review if date_review else None,
+                    'title': title if title else None,
                     'rating': rating,
                     'type_visit': type_visits,
                     'num_contributions': num_contributions, 
-                    'review': avis.text if avis else 'N/A'
+                    'review': avis.text if avis else None
                     
                 })
                 
