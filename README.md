@@ -77,13 +77,15 @@ Ce projet offre également un ensemble d’outils d’analyse et de comparaison 
 
 ## Installation
 
-Pour installer ce projet, clonez le dépôt sur votre machine locale. 
+Pour installer ce projet :
+
+1. Clonez le dépôt sur votre machine locale, en utilisant la commande suivante :
 
 ```bash
 git clone https://github.com/hugocollin/nlp_text_mining
 ```
 
-Puis récupérez le fichier `.env` (qui vous a été envoyé par mail) contenant la clé API Mistral et placez-le à la racine du projet (comme indiqué dans la [Structure du projet](#structure-du-projet)).
+2. Puis récupérez le fichier `.env` (qui vous a été envoyé par mail) contenant la clé API Mistral et placez-le à la racine du projet (comme indiqué dans la [Structure du projet](#structure-du-projet)).
 
 ## Utilisation
 
