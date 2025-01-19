@@ -2,12 +2,13 @@ import ast
 import locale
 import os
 import sqlite3
+import pandas as pd
 from contextlib import closing
 from dateutil import parser
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker , joinedload
-from src.db.models import Base , Restaurant , Review , User
-import pandas as pd
+from sqlalchemy.orm import sessionmaker, joinedload
+from src.db.models import Base, Restaurant, Review
+
 # Définition de la zone géographique pour les dates en français
 try:
     locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
@@ -96,7 +97,7 @@ def fetch_one_as_dict(query, params=None, table_name=None):
         return dict(zip(columns, result))
     return None
 
-
+# Fonction de récupération de tous les restaurants sous forme de DataFrame
 def get_all_reviews_from_list_restaurants(session, list_restaurants):
     reviews = session.query(Review).filter(Review.id_restaurant.in_(list_restaurants)).all()
     data = []
@@ -116,9 +117,7 @@ def get_all_reviews_from_list_restaurants(session, list_restaurants):
         })
     return pd.DataFrame(data)
 
-
-
-
+# Fonction de récupération des avis pour un restaurant donné sous forme de DataFrame
 def review_from_1_rest_as_df(session, restaurant_id):
     reviews = session.query(Review).filter(Review.id_restaurant == restaurant_id).all()
     data = []
@@ -137,10 +136,6 @@ def review_from_1_rest_as_df(session, restaurant_id):
             'review_cleaned': review.review_cleaned
         })
     return pd.DataFrame(data)
-
-
-
-
 
 # Fonction de récupération de tous les restaurants
 def get_all_restaurants(session):
@@ -377,7 +372,7 @@ def update_restaurant_data(restaurant_id, restaurant_data):
     except Exception as e:
         print(f"Erreur lors de la mise à jour du restaurant {restaurant_id} : {e}")
 
-
+# Fonction de mise à jour de la colonne `resume_avis` pour un restaurant
 def add_resume_avis_to_restaurant(session, restaurant_id, resume_avis):
     try:
         # Recherche du restaurant dans la base de données
@@ -446,10 +441,8 @@ def fill_resume_avis_column(df, session):
         except Exception as e:
             session.rollback()
             print(f"Erreur lors de la mise à jour pour {restaurant_name} : {e}")
-            
-            
-            
-            
+
+# Fonction de récupération de tous les avis 
 def get_every_reviews(session):
     reviews = session.query(Review).all()
     data = []

@@ -1,19 +1,20 @@
 import streamlit as st
-from pages.resources.components import Navbar
+import time
+import plotly.express as px
 import pandas as pd
+from pages.resources.components import Navbar
 from sqlalchemy import inspect, text , func
 from sqlalchemy.types import Integer, Float
 from src.searchengine.trip_finder import SearchEngine, restaurant_info_extractor
-import time
-import plotly.express as px
 from src.db.models import Review
 from src.pipeline import Pipeline , Transistor
 
-
-transistor = Transistor()
-session = transistor.session
 # Configuration de la page
 set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_icon="🍽️", layout="wide")
+
+# Initialisation du transistor
+transistor = Transistor()
+session = transistor.session
 
 # Réinitialisation de popup de vérification de l'adresse renseignée
 if 'address_toast_shown' in st.session_state:
