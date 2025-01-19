@@ -57,16 +57,24 @@ def create_chart_dialog(df):
         # Choix du type de graphique
         chart_type = st.selectbox(
             "Type de graphique",
-            ["Barres", "Circulaire", "Histogramme", "Nuage de points", "Carte proportionnelle"],
+            ["Barres", "Barres empilées", "Histogramme", "Histogramme empilé", "Circulaire", "Nuage de points", "Carte proportionnelle"],
             key="chart_type"
         )
-
+        
         # Sélection des colonnes en fonction du type de graphique
-        if chart_type in ["Barres", "Nuage de points", "Carte proportionnelle"]:
+        if chart_type in ["Barres", "Barres empilées"]:
             x_col = st.selectbox("Sélectionnez le champ de l'axe X", options=df.columns, key="x_axis")
             y_col = st.selectbox("Sélectionnez le champ de l'axe Y", options=df.columns, key="y_axis")
-        elif chart_type == "Histogramme":
+            if chart_type in ["Barres empilées"]:
+                stack_col = st.selectbox("Sélectionnez le champ pour empiler", options=df.columns, key="stack_axis")
+        elif chart_type in ["Nuage de points"]:
+            x_col = st.selectbox("Sélectionnez le champ de l'axe X", options=df.columns, key="x_axis")
+            y_col = st.selectbox("Sélectionnez le champ de l'axe Y", options=df.columns, key="y_axis")
+            size_col = st.selectbox("Sélectionnez le champ pour la taille des bulles", options=df.columns, key="size_axis")
+        elif chart_type in ["Histogramme", "Histogramme empilé"]:
             x_col = st.selectbox("Sélectionnez le champ", options=df.columns, key="hist_axis")
+            if chart_type == "Histogramme empilé":
+                stack_col = st.selectbox("Sélectionnez le champ pour empiler", options=df.columns, key="stack_hist_axis")
             y_col = None
         elif chart_type == "Circulaire":
             names_col = st.selectbox("Sélectionnez le champ des labels", options=df.columns, key="pie_names")
@@ -82,6 +90,8 @@ def create_chart_dialog(df):
                 "name": chart_name,
                 "x": x_col if 'x_col' in locals() else None,
                 "y": y_col if 'y_col' in locals() else None,
+                "size": size_col if 'size_col' in locals() else None,
+                "stack": stack_col if 'stack_col' in locals() else None,
                 "names": names_col if 'names_col' in locals() else None,
                 "values": values_col if 'values_col' in locals() else None
             }
@@ -1027,16 +1037,17 @@ def main():
                                 st.rerun()
                         
                         # Transformation des colonnes textuelles séparées par virgule ou point-virgule
-                        text_columns = ["Cuisines", "Repas", "Fonctionnalité"]
+                        text_columns = ["Cuisines [STRING : COUNT]", "Repas [STRING : COUNT]", "Fonctionnalités [STRING : COUNT]"]
                         x_data = chart["x"]
                         y_data = chart["y"]
+                        stack_data = chart.get("stack")
                         
-                        if x_data in text_columns and chart["type"] in ["Barres", "Circulaire"]:
+                        if x_data in text_columns:
                             df_plot = df_filtered[x_data].dropna().str.split('[,;]', expand=True).stack().str.strip().value_counts().reset_index()
                             df_plot.columns = [x_data, "Nombre"]
                             x_plot = x_data
                             y_plot = "Nombre"
-                        elif y_data in text_columns and chart["type"] in ["Barres", "Circulaire"]:
+                        elif y_data in text_columns:
                             df_plot = df_filtered[y_data].dropna().str.split('[,;]', expand=True).stack().str.strip().value_counts().reset_index()
                             df_plot.columns = [y_data, "Nombre"]
                             x_plot = y_data
@@ -1046,39 +1057,38 @@ def main():
                             x_plot = x_data
                             y_plot = y_data
 
+                        if stack_data and stack_data in text_columns:
+                            df_plot = df_filtered[stack_data].dropna().str.split('[,;]', expand=True).stack().str.strip().value_counts().reset_index()
+                            stack_plot = stack_data
+                        else:
+                            stack_plot = None
+
                         # Génération dynamique du graphique en fonction des filtres actuels
-                        if chart["type"] == "Barres":
-                            try:
+                        try:
+                            if chart["type"] == "Barres":
                                 fig = px.bar(df_plot, x=x_plot, y=y_plot if y_plot else None, title=chart["name"])
-                            except ValueError:
-                                st.warning("Impossible de générer un graphique en barres avec les paramètres de données sélectionnés", icon="⚠️")
-                                continue
-                        elif chart["type"] == "Circulaire":
-                            try:
-                                fig = px.pie(df_plot, names=x_plot, values=y_plot if y_plot else None, title=chart["name"])
-                            except ValueError:
-                                st.warning("Impossible de générer un graphique circulaire avec les paramètres de données sélectionnés", icon="⚠️")
-                                continue
-                        elif chart["type"] == "Histogramme":
-                            try:
+                            elif chart["type"] == "Barres empilées":
+                                if stack_plot:
+                                    fig = px.bar(df_plot, x=x_plot, y=y_plot, color=stack_plot, title=chart["name"], barmode='stack')
+                                else:
+                                    fig = px.bar(df_plot, x=x_plot, y=y_plot, title=chart["name"])
+                            elif chart["type"] == "Histogramme":
                                 fig = px.histogram(df_plot, x=x_plot, title=chart["name"])
-                            except ValueError:
-                                st.warning("Impossible de générer un histogramme avec les paramètres de données sélectionnés", icon="⚠️")
-                                continue
-                        elif chart["type"] == "Nuage de points":
-                            try:
-                                fig = px.scatter(df_plot, x=x_plot, y=y_plot, title=chart["name"])
-                            except ValueError:
-                                st.warning("Impossible de générer un nuage de points avec les paramètres de données sélectionnés", icon="⚠️")
-                                continue
-                        elif chart["type"] == "Carte proportionnelle":
-                            try:
+                            elif chart["type"] == "Histogramme empilé":
+                                if stack_plot:
+                                    fig = px.histogram(df_plot, x=x_plot, color=stack_plot, title=chart["name"], barmode='stack')
+                                else:
+                                    fig = px.histogram(df_plot, x=x_plot, title=chart["name"])
+                            elif chart["type"] == "Circulaire":
+                                fig = px.pie(df_plot, names=x_plot, values=y_plot if y_plot else None, title=chart["name"])
+                            elif chart["type"] == "Nuage de points":
+                                fig = px.scatter(df_plot, x=x_plot, y=y_plot, size=chart.get("size"), title=chart["name"])
+                            elif chart["type"] == "Carte proportionnelle":
                                 fig = px.treemap(df_plot, path=[x_plot], values=y_plot, title=chart["name"])
-                            except ValueError:
-                                st.warning("Impossible de générer une carte proportionnelle avec les paramètres de données sélectionnés", icon="⚠️")
-                                continue
-                            
-                        st.plotly_chart(fig, use_container_width=True, key=f"chart_{idx}")
+                            st.plotly_chart(fig, use_container_width=True, key=f"chart_{idx}")
+                        except ValueError:
+                            st.warning(f"Impossible de générer un graphique {chart['type']} avec les paramètres de données sélectionnés", icon="⚠️")
+                            continue
 
             else:
                 st.info("Aucun graphique n'a été créé. Pour créer un graphique, cliquez sur le bouton 📊 Créer un graphique.", icon="ℹ️")
