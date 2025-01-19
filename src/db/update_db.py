@@ -120,8 +120,10 @@ def insert_review(review, id_restaurant):
         review_text, 
         rating, 
         type_visit,
-        review_cleaned
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        review_cleaned,
+        sentiment,
+        sentiment_rating
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     execute_query(insert_review_query, [
         id_restaurant,
@@ -131,7 +133,9 @@ def insert_review(review, id_restaurant):
         review['review'],
         review['rating'],
         review['type_visit'],
-        review['review_cleaned']
+        review['review_cleaned'],
+        review['sentiment'],
+        review['sentiment_rating'],
     ])
 
 # Fonction d'insertion des avis pour un restaurant
@@ -149,8 +153,8 @@ def insert_restaurant_reviews(restaurant_id,df, session):
                 "rating": review['rating'],
                 "type_visit": review['type_visit'],
                 'review_cleaned': review['review_cleaned'],
-                'sentiment': review['sentiment'],
-                'sentiment_rating': review['sentiment_rating']
+                'sentiment': review['sentiment_rating'],
+                'sentiment_rating': review['sentiment'],
             }
 
             # Insertion de l'avis dans la base de données

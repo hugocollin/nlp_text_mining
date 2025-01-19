@@ -53,6 +53,8 @@ class NLPPretraitement:
     def sentiment_analysis(self, df_reviews):
         """Analyse le sentiment d'un texte."""
         # --- Étape 3 : Analyse des sentiments ---
+        
         df_reviews["sentiment_rating"] = df_reviews["review_cleaned"].apply(lambda x: TextBlob(x).sentiment.polarity)
         df_reviews["sentiment"] = df_reviews["sentiment_rating"].apply(lambda x: "positive" if x >= 0 else "negative")
+        print(df_reviews["sentiment"].value_counts())
         return df_reviews

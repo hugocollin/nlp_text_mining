@@ -220,6 +220,7 @@ class Pipeline(Transistor):
         print("Processing initiated")
         df_reviews = self.clean_reviews_a_la_volée(df_reviews)
         df_reviews = self.nlp_pretraitement.sentiment_analysis(df_reviews)
+        print(df_reviews["sentiment"].value_counts())
         print("Reviews cleaned")
         resume = self.make_analyse_resume(df_reviews)
      
