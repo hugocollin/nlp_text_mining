@@ -1,6 +1,6 @@
 # README : NLP Text Mining
 
-## Table dees matières
+## Table des matières
 - [Description](#description)
 - [Fonctionnalités principales](#fonctionnalités-principales)
 - [Structure du projet](#structure-du-projet)
