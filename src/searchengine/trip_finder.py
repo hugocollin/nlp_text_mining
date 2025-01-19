@@ -152,8 +152,7 @@ class RestaurantFinder(SearchEngine):
     
     '''
     This class is used to fetch the search results of restaurants from the search engine.
-    It inherits the SearchEngine class and has the following methods:
-    1. get_restaurant_info: This method extracts the restaurant information from the search results page.
+    It inherits the SearchEngine.
     '''
 
     
@@ -409,11 +408,6 @@ class restaurant_info_extractor(SearchEngine):
 
         time.sleep(1)
         fonctionnalite , horaires , rank = self.google_scrapping_info(self.url)
-        print("1")
-        print(fonctionnalite)
-        print(horaires)
-        print(rank)
-        print("2")
         if fonctionnalite is None:
             if self.rank_info < 3:
                 for i in tqdm.tqdm(range(3)):
@@ -426,9 +420,7 @@ class restaurant_info_extractor(SearchEngine):
         restaurant_info['Détails']['FONCTIONNALITE'] = fonctionnalite if fonctionnalite else None
         restaurant_info['Détails']['HORAIRES'] = horaires if horaires else None
         restaurant_info['Détails']['RANK'] = rank if rank else None
-        print(restaurant_info['Détails']['FONCTIONNALITE'])
-        print(restaurant_info['Détails']['HORAIRES'])
-        print(restaurant_info['Détails']['RANK'])
+
         
         
         if  restaurant_info['Détails']['RANK'] is None:
@@ -443,7 +435,7 @@ class restaurant_info_extractor(SearchEngine):
         if photo_viewer_div:
             # Trouver toutes les balises <source> et <img> à l'intérieur de ce div
             media_tags = photo_viewer_div.find( 'img')
-            print(media_tags)
+
             # Extraire les URLs des attributs srcset
             srcset_urls = []
             media_tags
@@ -473,7 +465,6 @@ class restaurant_info_extractor(SearchEngine):
     def extract_reviews(self, soup):
         
         reviews = soup.find_all("div", class_="_c")
-        print("longueur des reviews", len(reviews))
         for review in reviews:
             try:
                 user = review.find("a", class_="BMQDV _F Gv wSSLS SwZTJ FGwzt ukgoS")

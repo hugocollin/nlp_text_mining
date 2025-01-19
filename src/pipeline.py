@@ -84,9 +84,6 @@ class Transistor:
     
     def get_session_chunk(self, bdd):
         return get_session(bdd)
-    
-    def get_restaurants_with_reviews_and_users(self):
-        return self.nlp_analysis.get_restaurants_with_reviews_and_users()
             
     def get_restaurants(self):
         return get_all_restaurants(self.session)
@@ -154,8 +151,6 @@ class Transistor:
         """Redirect to init_db.process_restaurant_data"""
         return process_restaurant_data(avis_df, location_df, details_df, restaurant_id)
     
-########################## MODELS.py #########################
-
 
     def get_all_restaurants(self):
         """Redirect to models.get_all_restaurants"""
@@ -224,10 +219,10 @@ class Pipeline(Transistor):
         self.initiate_analytic()
         print("Processing initiated")
         df_reviews = self.clean_reviews_a_la_volée(df_reviews)
-        
+        df_reviews = self.nlp_pretraitement.sentiment_analysis(df_reviews)
         print("Reviews cleaned")
         resume = self.make_analyse_resume(df_reviews)
-        print(resume)
+     
         print("Reviews analysed")
         self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)
         print("Reviews inserted")
@@ -235,11 +230,9 @@ class Pipeline(Transistor):
         role_prompt = "Tu es un assistant spécialisé dans l'analyse d'avis clients. À partir du texte suivant, rédige un résumé clair et concis qui met en évidence les aspects récurrents mentionnés par les clients. L'objectif est de fournir une vue d'ensemble générale qui reflète les impressions générales afin de l'afficher sur un site internet sous la forme d'une phrase. La réponse doit être limité à 50 mots."
         query = resume
         response = self.api_Mistral(query, role_prompt)
-        print(response["response"]) # à changer
+    
         
-        
-        # inserer resumé dans restaurant
-        # put the resume in the restaurant table
+    
         self.add_resume_avis_to_restaurant(restaurant.id_restaurant, response["response"])
         print("[INFO] Le restaurant a été ajouté avec succès, vous pouvez maintenant rafraichir la page")
         time.sleep(2)
@@ -258,7 +251,7 @@ class Pipeline(Transistor):
                 
                 df_reviews.at[index, 'review_cleaned'] = net
         print("Reviews cleaned")
-        print(df_reviews)
+
         return df_reviews
         
     
@@ -272,25 +265,18 @@ class Pipeline(Transistor):
         self.initiate_processing()
         self.initiate_analytic()
         print("Processing initiated")
-        
-        # make avis a datframe
         df =review_from_1_rest_as_df(self.session, restaurant_id)
-        
-    
-    
-     
         df_review = self.clean_reviews_a_la_volée(df)
-
-        
         print("Reviews cleaned")
         resume = self.make_analyse_resume(df_review)
-        print(resume)
-        print('api    :')
+   
+   
+        
          # API MISTRAL
         role_prompt = "Tu es un assistant spécialisé dans l'analyse d'avis clients. À partir du texte suivant, rédige un résumé clair et concis qui met en évidence les aspects récurrents mentionnés par les clients. L'objectif est de fournir une vue d'ensemble générale qui reflète les impressions générales afin de l'afficher sur un site internet sous la forme d'une phrase. La réponse doit être limité à 50 mots."
         query = resume
         response = self.api_Mistral(query, role_prompt)
-        print("api " , response["response"]) # à changer
+        
         
         # put the resume in the restaurant table
         self.add_resume_avis_to_restaurant(restaurant_id, response["response"])
@@ -323,7 +309,6 @@ class Pipeline(Transistor):
         # Joindre les avis nettoyés avec les informations des restaurants
         df_review = pd.merge(df_review, df_restaurants, left_on="restaurant_id", right_on="id_restaurant", how="inner")
         
-        print(df_review.columns)
         self.initiate_analytic()
         print("Processing initiated")
         
@@ -332,16 +317,9 @@ class Pipeline(Transistor):
         df = self.nlp_pretraitement.preprocess_reviews(df_review)
         print("Preprocessing done")
         print(df.head())
-        
         df_restaurants , features_3d , idx , sim = self.nlp_analysis.vectorize_reviews(df, df_restaurants, keyword)
-        print("Processing done")
-      
-            
-            
+        print("Processing done") 
         return df_restaurants, features_3d , idx , sim 
-        
-        
-
         
         
     def api_Mistral(self, query, role_prompt, generation_model: str = "mistral-large-latest", max_tokens: int = 100, temperature: float = 0.7) -> Dict[str, str]:
@@ -364,15 +342,6 @@ class Pipeline(Transistor):
         response_text = str(response.choices[0].message.content)
         return {"response": response_text}
     
-    def clean_reviews_test(self, restaurant_id):
-        self.initiate_processing()
-        print("Processing initiated")
-        avis = self.get_user_and_review_from_restaurant_id(restaurant_id)
-        print("Avis recupérés")
-        print(avis[0][1].review_text)
-        net = self.nlp_pretraitement.nettoyer_avis(avis[0][1].review_text)
-        print(net)
-  
     
     
     

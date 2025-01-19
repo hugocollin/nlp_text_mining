@@ -148,7 +148,9 @@ def insert_restaurant_reviews(restaurant_id,df, session):
                 "review": review['review'],
                 "rating": review['rating'],
                 "type_visit": review['type_visit'],
-                'review_cleaned': review['review_cleaned']
+                'review_cleaned': review['review_cleaned'],
+                'sentiment': review['sentiment'],
+                'sentiment_rating': review['sentiment_rating']
             }
 
             # Insertion de l'avis dans la base de données

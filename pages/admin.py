@@ -1,20 +1,14 @@
 import streamlit as st
-
 from pages.resources.components import Navbar
-
 import pandas as pd
-
 from sqlalchemy import inspect, text , func
-
 from sqlalchemy.types import Integer, Float
-
 from src.searchengine.trip_finder import SearchEngine, restaurant_info_extractor
-
 import time
 import plotly.express as px
-
 from src.db.models import Review
 from src.pipeline import Pipeline , Transistor
+
 
 transistor = Transistor()
 session = transistor.session
@@ -24,8 +18,6 @@ set_page_config = st.set_page_config(page_title="SISE Ô Resto - Admin", page_ic
 # Réinitialisation de popup de vérification de l'adresse renseignée
 if 'address_toast_shown' in st.session_state:
     del st.session_state['address_toast_shown']
-
-
 
 # Récupération de tous les restaurants
 restaurants = transistor.get_all_restaurants()
@@ -662,26 +654,6 @@ def clear_reviews_one_restaurant():
         st.rerun()
 
 
-
-def try_prep_analysis_on_restaurant():
-    
-    # Récupérer les restaurants non scrappés
-    pipe = Pipeline()
-    st.header("Préparation de l'analyse des avis")
-
-    # Récupérer les ids des restaurants et print le nom de celui selectionné
-    restaurants = pipe.get_restaurants()
-    restaurants = [r for r in restaurants if r.scrapped == 1]
-    restaurant_names = {r.nom : r for r in restaurants}
-    selected_name = st.selectbox("Sélectionnez un restaurant à analyser", list(restaurant_names.keys()))
-    # Get selected restaurant object
-    restau = restaurant_names[selected_name]
-    if st.button("Préparer l'analyse", key="prep_analysis" , help="Préparer les avis du restaurant sélectionné pour l'analyse"  ):  #, disabled=True
-        pipe.clean_reviews(restau.id_restaurant)
-        st.success("Les avis ont été préparés avec succès.")
-        time.sleep(2)
-        st.rerun()
-
 def clean_reviews_pipeline():
     # Récupérer les restaurants non scrappés
     pipe = Pipeline()
@@ -698,56 +670,18 @@ def clean_reviews_pipeline():
         st.success("Les avis ont été nettoyés avec succès.")
         
         
-        
-def test_vectorize_reviews():
-    # Récupérer les restaurants non scrappés
-    pipe = Pipeline()
-    st.header("Vectorisation des avis")
-
-    # input box text for a keyword by user
-    keyword = st.text_input("Entrez un mot-clé pour filtrer les avis", "")
-    
-    if st.button("Vectoriser les avis", key="vectorize_reviews" , help="Vectoriser les avis du restaurant sélectionné"  ):  #, disabled=True
-        keyword = None
-        df_restaurants, features_3d , idx, sim = pipe.vectorize_reviews(keyword )
-
-        if keyword:
-            st.success("Les avis ont été vectorisés avec succès.")
-            st.write(f"Le restaurant le plus pertinent pour le mot-clé '{keyword}' est : {df_restaurants.loc[idx, 'nom']} avec une similarité de {sim:.2f}")
-            time.sleep(2)
-        else:
-            # --- Étape 7 : Visualisation des clusters ---
-            visual_df = pd.DataFrame(features_3d, columns=["PCA1", "PCA2", "PCA3"])
-            visual_df["cluster"] = df_restaurants["cluster"]
-            visual_df["restaurant_name"] = df_restaurants["nom"]
-
-            fig = px.scatter_3d(
-                visual_df, x="PCA1", y="PCA2", z="PCA3", color="cluster",
-                hover_data=["restaurant_name"], title="Clustering des restaurants"
-            )
-            
-            st.plotly_chart(fig)
-        
-
 def main():
     # Barre de navigation
     
     Navbar()
-    
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
     st.write("Vous pouvez utiliser cette page pour effectuer des opérations de maintenance sur la base de données et les données scrappées.")
     st.write("----")
-    test_vectorize_reviews()
-    st.write("----")
-    execute_sql_query(session)
     
-      
+    execute_sql_query(session)
     st.write("----")
     scrape_and_embed_tripadvisor()
-    st.write("----")
-    try_prep_analysis_on_restaurant()
-    
     st.write("----")
     
     clean_reviews_pipeline()
@@ -758,10 +692,6 @@ def main():
  
     clear_reviews_one_restaurant()
   
-    st.write("----")
-    scrape_restaurant_informations()
-    # Exécuter la requête SQL personnalisée
- 
     st.write("----")
 
       # Option pour éditer une table
@@ -774,8 +704,6 @@ def main():
     
     st.write("----")
 
-    
-  
 
 if __name__ == '__main__':
     main()
