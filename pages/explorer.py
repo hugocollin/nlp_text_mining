@@ -487,8 +487,8 @@ def main():
                 restaurant, tcl_url, fastest_mode = result
 
                 # Filtrage par rang
-                if not hasattr(restaurant, 'rank'):
-                    if not (restaurant.rank <= rank):
+                if hasattr(restaurant, 'rank'):
+                    if restaurant.rank > rank:
                         continue
 
                 # Filtrage par ouverture actuelle
@@ -523,8 +523,8 @@ def main():
                         continue
                 
                 # Filtrage par note globale
-                if not hasattr(restaurant, 'note_globale'):
-                    if not (global_rating[global_rating_selected] <= restaurant.note_globale):
+                if hasattr(restaurant, 'note_globale'):
+                    if (global_rating[global_rating_selected] > restaurant.note_globale):
                         continue
                 
                 # Filtrage par note qualité-prix
@@ -562,20 +562,29 @@ def main():
                 
                 # Filtrage par cuisine
                 if selected_cuisines:
-                    restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
-                    if not any(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
+                    if restaurant.cuisines:
+                        restaurant_cuisines = [c.strip() for c in restaurant.cuisines.split(',')]
+                    else:
+                        restaurant_cuisines = []
+                    if not all(cuisine in restaurant_cuisines for cuisine in selected_cuisines):
                         continue
                 
                 # Filtrage par type de repas
                 if selected_meals:
-                    restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
-                    if not any(meal in restaurant_meals for meal in selected_meals):
+                    if restaurant.repas:
+                        restaurant_meals = [m.strip() for m in restaurant.repas.split(',')]
+                    else:
+                        restaurant_meals = []
+                    if not all(meal in restaurant_meals for meal in selected_meals):
                         continue
 
                 # Filtrage par fonctionnalités
                 if selected_functionalities:
-                    restaurant_functionalities = [f.strip() for f in restaurant.fonctionnalite.split(';')]
-                    if not any(functionality in restaurant_functionalities for functionality in selected_functionalities):
+                    if restaurant.fonctionnalite:
+                        restaurant_functionalities = [f.strip() for f in restaurant.fonctionnalite.split(';')]
+                    else:
+                        restaurant_functionalities = []
+                    if not all(functionality in restaurant_functionalities for functionality in selected_functionalities):
                         continue
                 
                 # Application des filtres
