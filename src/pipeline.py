@@ -1,25 +1,29 @@
-
-
+# Description: This file contains the class Pipeline that will be used to make the connection between the different classes and the database and the streamlit pages
 from src.db.update_db import insert_review , insert_user  , insert_restaurant, clear_reviews_of_restaurant , insert_restaurant_reviews , update_scrapped_status_for_reviews , update_restaurant_columns
+from src.db.functions_db import   parse_french_date,get_every_reviews  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df , add_resume_avis_to_restaurant
 
-from src.db.functions_db import   parse_french_date  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df , add_resume_avis_to_restaurant
-import time
-import pandas as pd
-import litellm
-from typing import Dict
+from src.searchengine.trip_finder import SearchEngine , restaurant_info_extractor
 
 from src.nlp.analyse import NLPAnalysis
 from src.nlp.pretraitement import NLPPretraitement
+
+import time
+import litellm
+from typing import Dict
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.searchengine.trip_finder import SearchEngine , restaurant_info_extractor
 
-       
-       
-
-        
-# class transitor that will be used to make the connection between the different classes and the database and the streamlit pages
+    
+          
 class Transistor:
+    
+    '''
+    Transistor class that will be used to make the connection between the different classes and the database and the streamlit pages.
+    '''
+    
+    # Constructor
+    
     def __init__(self):
         bdd = create_engine('sqlite:///restaurant_reviews.db')
         Session = sessionmaker(bind=bdd)
@@ -29,6 +33,8 @@ class Transistor:
         self.nlp_pretraitement = None
         self.bdd = bdd
         self.restaurant_info_extractor = None
+        
+   # Affichage de la classe
     
     def __str__(self):
         print("Transistor")
@@ -44,27 +50,30 @@ class Transistor:
             print("BDD: ", self.bdd)
         return ""
 
-    
+# Methods of the class
 
+    def clear(self):
+        self.session.close()
+        self.session = None
+        self.search_engine = None
+        self.nlp_analysis = None
+        self.nlp_pretraitement = None
+        self.bdd = None
+
+    def initiate_search(self):
+        self.search_engine = SearchEngine()
+        
+    def initiate_restaurant_info_extractor(self):
+        self.restaurant_info_extractor = restaurant_info_extractor()
+        return self.restaurant_info_extractor
     
-    def load_data(self):
-        return self.nlp_analysis.load_data()
+    def initiate_processing(self):
+        self.nlp_pretraitement = NLPPretraitement()
+        
+    def initiate_analytic(self):
+        self.nlp_analysis = NLPAnalysis()
     
-    def preprocess_reviews(self):
-        return self.nlp_analysis.preprocess_reviews()
-    
-    def search(self, query):
-        return self.search_engine.search(query)
-    
-    def get_restaurants_with_reviews_and_users(self):
-        return self.nlp_analysis.get_restaurants_with_reviews_and_users()
-    
-    def insert_user(self, user):
-        return insert_user(self.session, user)
-    
-    
-    def load_data(self):
-        return self.nlp_analysis.load_data()
+    ###### UPDATE_DB.PY ######  
     
     def init_db(self):
         return init_db()
@@ -75,39 +84,9 @@ class Transistor:
     def get_session_chunk(self, bdd):
         return get_session(bdd)
     
-    def preprocess_reviews(self):
-        return self.nlp_analysis.preprocess_reviews()
-    
-    def search(self, query):
-        return self.search_engine.search(query)
-    
     def get_restaurants_with_reviews_and_users(self):
         return self.nlp_analysis.get_restaurants_with_reviews_and_users()
             
-    def initiate_processing(self):
-        self.nlp_pretraitement = NLPPretraitement()
-    def initiate_analytic(self):
-        self.nlp_analysis = NLPAnalysis()
-        
-    
-    def initiate_search(self):
-        self.search_engine = SearchEngine()
-        
-    def initiate_restaurant_info_extractor(self):
-        self.restaurant_info_extractor = restaurant_info_extractor()
-        return self.restaurant_info_extractor
-    
-    def clear(self):
-        self.session.close()
-        self.session = None
-        self.search_engine = None
-        self.nlp_analysis = None
-        self.nlp_pretraitement = None
-        self.bdd = None
-    
-    def initiate_search(self):
-        self.search_engine = SearchEngine()
-    
     def get_restaurants(self):
         return get_all_restaurants(self.session)
 
@@ -118,18 +97,16 @@ class Transistor:
     def clear_reviews_of_restaurant(self, restaurant_id):
         return clear_reviews_of_restaurant(restaurant_id, self.session)
 
-############################################################# INIT_DB.py #########################
-
     def insert_user(self, user_name, user_profile, num_contributions):
-        """Redirect to init_db.insert_user"""
+        """Redirect to update_db.insert_user"""
         return insert_user(user_name, user_profile, num_contributions)
 
     def insert_restaurant(self, name, **kwargs):
-        """Redirect to init_db.insert_restaurant"""
+        """Redirect to update_db.insert_restaurant"""
         return insert_restaurant(name, **kwargs)
 
     def insert_review(self, review, id_restaurant):
-        """Redirect to init_db.insert_review"""
+        """Redirect to update_db.insert_review"""
         return insert_review(review, id_restaurant)
 
     def parse_french_date(self, date_str):
@@ -195,7 +172,9 @@ class Transistor:
         """Redirect to models.add_resume_avis_to_restaurant"""
         return add_resume_avis_to_restaurant( self.session, restaurant_id, resume)
 
-
+    def get_every_reviews(self):
+        """Redirect to models.get_every_reviews"""
+        return get_every_reviews(self.session)
 
 
 
@@ -213,8 +192,9 @@ class Pipeline(Transistor):
 
     
     def add_new_restaurant(self, restaurant):
-        print("Adding new restaurant")
         
+        
+        print("Adding new restaurant")
         self.url = restaurant.url_link
         print("url : " , self.url)
         self.initiate_restaurant_info_extractor()
@@ -225,6 +205,15 @@ class Pipeline(Transistor):
         print("Restaurant Reviews scraped")
         df_avis, df_details, df_location, df_reviews = self.restaurant_info_extractor.to_dataframe()
         print("Dataframes created")
+         # Ensure 'review' column exists
+        if 'review' not in df_reviews.columns:
+            print("Error: 'review' column is missing from df_reviews")
+            # Handle the missing column appropriately
+            # For example, rename an existing column or raise an exception
+            # Uncomment the following line if there's a column like 'comment' that should be 'review'
+            # df_reviews.rename(columns={'comment': 'review'}, inplace=True)
+            return  # Exit the function or handle as needed
+        
         self.process_restaurant_data(df_avis, df_location, df_details,restaurant.id_restaurant )
         print("Info processed")
         
@@ -237,119 +226,26 @@ class Pipeline(Transistor):
         resume = self.make_analyse_resume(df_reviews)
         print(resume)
         print("Reviews analysed")
-        
-        
-        
-        
-        
+        self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)
+        print("Reviews inserted")
         # API MISTRAL
-        role_prompt = "Tu es un assistant qui résume les avis des clients pour un restaurant. À partir des commentaires suivants, fournis un résumé concis des avis afin de se faire une idée générale du restaurant."
+        role_prompt = "Tu es un assistant spécialisé dans l'analyse d'avis clients. À partir du texte suivant, rédige un résumé clair et concis qui met en évidence les aspects récurrents mentionnés par les clients. L'objectif est de fournir une vue d'ensemble générale qui reflète les impressions générales afin de l'afficher sur un site internet sous la forme d'une phrase. La réponse doit être limité à 50 mots."
         query = resume
         response = self.api_Mistral(query, role_prompt)
         print(response["response"]) # à changer
         
-        time.sleep(10)
-        self.insert_restaurant_reviews(restaurant.id_restaurant, df_reviews)
         
         # inserer resumé dans restaurant
-        
-        
-        # fait moi une fonction qui me permet de travaillé avec les reviews d'un restaurant cleaned et qui me ressort une analyse nlp approfondie avec du clustering, du sentiment analysis ainsi que du topic modeling
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        print("Reviews inserted")
+        # put the resume in the restaurant table
+        self.add_resume_avis_to_restaurant(restaurant.id_restaurant, response["response"])
         print("Restaurant added")
+        time.sleep(2)
         self.clear()
-          
-    def approfondir_analyse_nlp(self,df, num_clusters=5, num_topics=5):
-        """
-        Effectue une analyse NLP approfondie sur les avis nettoyés d'un restaurant,
-        incluant le clustering, l'analyse de sentiment et le topic modeling.
-
-        Parameters:
-        - df (pd.DataFrame): DataFrame contenant les avis nettoyés dans la colonne 'review_cleaned'.
-        - num_clusters (int): Nombre de clusters pour le clustering K-Means.
-        - num_topics (int): Nombre de sujets pour le topic modeling LDA.
-
-        Returns:
-        - df (pd.DataFrame): DataFrame original avec des colonnes ajoutées pour le sentiment, le cluster et le topic.
-        - summary (dict): Résumé des analyses effectuées.
-        """
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        from transformers import pipeline
-        from sklearn.feature_extraction.text import TfidfVectorizer
-        from sklearn.cluster import KMeans
-        from sklearn.metrics import silhouette_score
-        from sklearn.decomposition import LatentDirichletAllocation
-        import numpy as np
-        import nltk
-        # nltk.download('stopwords')
-        from nltk.corpus import stopwords
-        
-        # Vérifier que la colonne 'review_cleaned' existe
-        if 'review_cleaned' not in df.columns:
-            raise ValueError("Le DataFrame doit contenir une colonne 'review_cleaned'.")
-
-        # 1. Analyse de Sentiment
-        
-        # 2. Vectorisation pour Clustering et Topic Modeling
-        print("Vectorisation des avis...")
-        vectorizer = TfidfVectorizer(max_features=5000, stop_words=stopwords.words('french'))
-        tfidf_matrix = vectorizer.fit_transform(df['review_cleaned'])
-
-        # 3. Clustering avec K-Means
-        print(f"Effectuer le clustering en {num_clusters} clusters...")
-        kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-        clusters = kmeans.fit_predict(tfidf_matrix)
-        df['cluster'] = clusters
-
-        # Calcul du score Silhouette
-        silhouette_avg = silhouette_score(tfidf_matrix, clusters)
-        print(f"Score Silhouette pour K-Means avec {num_clusters} clusters: {silhouette_avg:.2f}")
-
-        # 4. Topic Modeling avec LDA
-        print(f"Effectuer le topic modeling en {num_topics} topics...")
-        lda = LatentDirichletAllocation(n_components=num_topics, random_state=42)
-        lda.fit(tfidf_matrix)
-        topics = lda.transform(tfidf_matrix)
-        df['topic'] = topics.argmax(axis=1)
-
-        # 5. Résumé des Analyses
-        summary = {
-            'nombre_avis': len(df),
-            'score_silhouette_kmeans': silhouette_avg,
-            'nombre_clusters': num_clusters,
-            'nombre_topics': num_topics,
-            'distribution_clusters': df['cluster'].value_counts().to_dict(),
-            'distribution_topics': df['topic'].value_counts().to_dict()
-        }
-
-        # (Optionnel) Visualisations
-        print("Générer les visualisations...")
       
-        plt.figure(figsize=(10, 6))
-        sns.countplot(x='cluster', data=df)
-        plt.title(f"Distribution des Clusters (K-Means, k={num_clusters})")
-        plt.xlabel("Cluster")
-        plt.ylabel("Nombre d'Avis")
-        plt.show()
+     
+          
+    
 
-        plt.figure(figsize=(10, 6))
-        sns.countplot(x='topic', data=df)
-        plt.title(f"Distribution des Topics (LDA, {num_topics} topics)")
-        plt.xlabel("Topic")
-        plt.ylabel("Nombre d'Avis")
-        plt.show()
-
-        return df, summary
     def clean_reviews_a_la_volée(self, df_reviews):
         df_reviews['review_cleaned'] = ""
         print("Processing initiated")
@@ -387,9 +283,9 @@ class Pipeline(Transistor):
         print("Reviews cleaned")
         resume = self.make_analyse_resume(df_review)
         print(resume)
-        print('api')
+        print('api    :')
          # API MISTRAL
-        role_prompt = "Tu es un assistant qui résume les avis des clients pour un restaurant. À partir des commentaires suivants, fournis un résumé concis des avis." # afin de se faire une idée générale du restaurant."
+        role_prompt = "Tu es un assistant spécialisé dans l'analyse d'avis clients. À partir du texte suivant, rédige un résumé clair et concis qui met en évidence les aspects récurrents mentionnés par les clients. L'objectif est de fournir une vue d'ensemble générale qui reflète les impressions générales afin de l'afficher sur un site internet sous la forme d'une phrase. La réponse doit être limité à 50 mots."
         query = resume
         response = self.api_Mistral(query, role_prompt)
         print("api " , response["response"]) # à changer
@@ -402,13 +298,13 @@ class Pipeline(Transistor):
     
         
         
-        time.sleep(10)
+        time.sleep(2)
         
         
         
         
         
-    def api_Mistral(self, query, role_prompt, generation_model: str = "mistral-large-latest", max_tokens: int = 50, temperature: float = 0.7) -> Dict[str, str]:
+    def api_Mistral(self, query, role_prompt, generation_model: str = "mistral-large-latest", max_tokens: int = 100, temperature: float = 0.7) -> Dict[str, str]:
         query_prompt = f"""
         # Question:
         {query}

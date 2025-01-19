@@ -669,6 +669,7 @@ def try_prep_analysis_on_restaurant():
 
     # Récupérer les ids des restaurants et print le nom de celui selectionné
     restaurants = pipe.get_restaurants()
+    restaurants = [r for r in restaurants if r.scrapped == 1]
     restaurant_names = {r.nom : r for r in restaurants}
     selected_name = st.selectbox("Sélectionnez un restaurant à analyser", list(restaurant_names.keys()))
     # Get selected restaurant object

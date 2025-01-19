@@ -19,8 +19,6 @@ pydantic-core
 sentence-transformers
 pydeck
 ecologits
-numpy
 tqdm
 rapidfuzz
-umap
-tf-keras
+numpy==1.26.4

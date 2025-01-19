@@ -399,66 +399,6 @@ def process_restaurant_data(avis_df, location_df, details_df, restaurant_id):
     except Exception as e:
         print(f"Erreur lors du traitement des données du restaurant avec ID {restaurant_id} : {e}")
 
-# Fonction de remplissage de la colonne `review_cleaned` dans la base de données
-def fill_review_cleaned_column(df, session):
-    for _, row in df.iterrows():
-        restaurant_name = row['restaurant']
-        user_profile = row['user_profile']
-        title = row['title']
-
-        try:
-            # Recherche de l'enregistrement correspondant dans la base
-            review_entry = session.query(Review).\
-                join(Restaurant, Review.id_restaurant == Restaurant.id_restaurant).\
-                join(User, Review.id_user == User.id_user).\
-                filter(
-                    Restaurant.id_restaurant == row['restaurant_id'],
-                    User.id_user == row['user_id'],
-                    Review.id_review == row['review_id']
-                ).first()
-
-            if review_entry:
-                # Mise à jour de la colonne `review_cleaned`
-                review_entry.review_cleaned = row['review_cleaned']
-
-                session.commit()
-                print(f"Colonne review_cleaned mise à jour pour {restaurant_name}, {user_profile}.")
-            else:
-                print(f"Aucun avis trouvé pour {restaurant_name}, {user_profile}.")
-        except Exception as e:
-            session.rollback()
-            print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
-
-# Fonction de remplissage de la colonne `sentiment` dans la base de données
-def fill_sentiment_column(df, session):
-    for _, row in df.iterrows():
-        restaurant_name = row['restaurant']
-        user_profile = row['user_profile']
-        title = row['title']
-
-        try:
-            # Recherche de l'enregistrement correspondant dans la base
-            review_entry = session.query(Review).\
-                join(Restaurant, Review.id_restaurant == Restaurant.id_restaurant).\
-                join(User, Review.id_user == User.id_user).\
-                filter(
-                    Restaurant.id_restaurant == row['restaurant_id'],
-                    User.id_user == row['user_id'],
-                    Review.id_review == row['review_id']
-                ).first()
-
-            if review_entry:
-                # Mise à jour de la colonne `sentiment`
-                review_entry.sentiment = int(row['sentiment'])
-
-                session.commit()
-                print(f"Colonne sentiment mise à jour pour {restaurant_name}, {user_profile}.")
-            else:
-                print(f"Aucun avis trouvé pour {restaurant_name}, {user_profile}.")
-        except Exception as e:
-            session.rollback()
-            print(f"Erreur lors de la mise à jour pour {restaurant_name}, {user_profile} : {e}")
-
 # Fonction de remplissage de la colonne `resume_avis` dans la base de données
 def fill_resume_avis_column(df, session):
     for _, row in df.iterrows():
@@ -482,3 +422,25 @@ def fill_resume_avis_column(df, session):
         except Exception as e:
             session.rollback()
             print(f"Erreur lors de la mise à jour pour {restaurant_name} : {e}")
+            
+            
+            
+            
+def get_every_reviews(session):
+    reviews = session.query(Review).all()
+    data = []
+    for review in reviews:
+        data.append({
+            'restaurant_id': review.id_restaurant,
+            'user_id': review.id_user,
+            'review_id': review.id_review,
+            'title': review.title_review,
+            'user_profile': review.user.user_profile,
+            'date_review': review.date_review,
+            'rating': review.rating,
+            'type_visit': review.type_visit,
+            'num_contributions': review.user.num_contributions,
+            'review': review.review_text,
+            'review_cleaned': review.review_cleaned
+        })
+    return pd.DataFrame(data)
