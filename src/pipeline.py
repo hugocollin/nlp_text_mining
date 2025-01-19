@@ -1,6 +1,6 @@
 # Description: This file contains the class Pipeline that will be used to make the connection between the different classes and the database and the streamlit pages
 from src.db.update_db import insert_review , insert_user  , insert_restaurant, clear_reviews_of_restaurant , insert_restaurant_reviews , update_scrapped_status_for_reviews , update_restaurant_columns
-from src.db.functions_db import   parse_french_date,get_every_reviews  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df , add_resume_avis_to_restaurant
+from src.db.functions_db import   parse_french_date,get_every_reviews  , get_restaurant   , get_restaurants_with_reviews ,   process_restaurant_data, get_all_restaurants, get_user_and_review_from_restaurant_id, get_restaurants_with_reviews_and_users , parse_to_dict  , update_restaurant , update_restaurant_data  , get_session   , init_db, review_from_1_rest_as_df , add_resume_avis_to_restaurant , get_all_reviews_from_list_restaurants
 
 from src.searchengine.trip_finder import SearchEngine , restaurant_info_extractor
 
@@ -175,6 +175,10 @@ class Transistor:
     def get_every_reviews(self):
         """Redirect to models.get_every_reviews"""
         return get_every_reviews(self.session)
+    
+    def get_all_reviews_from_list_restaurants(self, list_restaurants):
+        """Redirect to models.get_all_reviews_from_list_restaurants"""
+        return get_all_reviews_from_list_restaurants(self.session, list_restaurants)
 
 
 

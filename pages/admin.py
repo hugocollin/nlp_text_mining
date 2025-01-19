@@ -4,15 +4,16 @@ from pages.resources.components import Navbar
 
 import pandas as pd
 
-from sqlalchemy import inspect, text 
+from sqlalchemy import inspect, text , func
 
 from sqlalchemy.types import Integer, Float
 
 from src.searchengine.trip_finder import SearchEngine, restaurant_info_extractor
 
 import time
+import plotly.express as px
 
-
+from src.db.models import Review
 from src.pipeline import Pipeline , Transistor
 
 transistor = Transistor()
@@ -51,24 +52,41 @@ def make_unique_columns(columns):
     return new_columns
 
 def display_restaurant_stats():
-    # Calculer le nombre de restaurants scrappés
-    st.header("Statistiques des Restaurants")
-    nombre_scrapped = len([r for r in restaurants if r.scrapped == 1])
+    # Statistiques sur les avis des restaurants
+    st.header("Statistiques des Avis des Restaurants")
+    
+    st.write(f'Nombre total de restaurants : {len(restaurants)}')
+    st.write(f'Nombre de restaurants scrappés : {len([r for r in restaurants if r.scrapped == 1])}')
+    
+    total_reviews = session.query(Review).count()
+    st.write(f"Nombre total d'avis : {total_reviews}")
 
-    # Afficher le résultat dans Streamlit
-    st.write(f"Nombre de restaurants scrappés : {nombre_scrapped}")  
-    nombre_restaurants = len(restaurants)
-    st.write(f"Nombre total de restaurants : {nombre_restaurants}") 
-    nom_scrapped = [r.nom for r in restaurants if r.scrapped == 1]
+    average_rating = session.query(func.avg(Review.rating)).scalar()
+    st.write(f"Note moyenne : {average_rating:.2f}")
 
-    df = pd.DataFrame(nom_scrapped, columns = ['Nom des restaurants scrappés'])
-    col1 , col2 = st.columns(2)
-    with col1:
-        st.write("Liste des restaurants scrappés")
-        st.write(df)
-    with col2:
-        st.write("Unique values")
-        st.write(df.value_counts())
+# Nombre total de tokens dans les avis
+    reviews = session.query(Review.review_text).all()
+    total_tokens = sum(len(review[0].split()) for review in reviews)
+    st.write(f"Nombre total de tokens dans les avis : {total_tokens}")
+  
+# Season Plot sur l'année avec une ligne par année
+    reviews = session.query(Review.review_text, Review.date_review).all()
+    reviews_df = pd.DataFrame(reviews, columns=['review_text', 'date_review'])
+    
+    # Convertir 'date_review' en datetime
+    reviews_df['date_review'] = pd.to_datetime(reviews_df['date_review'], errors='coerce')
+    
+    # Supprimer les entrées où la conversion a échoué
+    reviews_df = reviews_df.dropna(subset=['date_review'])
+    
+    reviews_df['Year'] = reviews_df['date_review'].dt.year
+    reviews_df['Month'] = reviews_df['date_review'].dt.month
+    reviews_per_month_year = reviews_df.groupby(['Year', 'Month']).size().reset_index(name='Nombre d\'Avis')
+
+    fig = px.line(reviews_per_month_year, x='Month', y='Nombre d\'Avis', color='Year',
+                    title='Nombre d\'Avis par Mois et par Année',
+                    labels={'Month': 'Mois', 'Nombre d\'Avis': 'Nombre d\'Avis'})
+    st.plotly_chart(fig)
  
 def execute_sql_query(session):
     inspector = inspect(session.bind)
@@ -571,26 +589,10 @@ def scrape_and_embed_tripadvisor():
                 st.components.v1.html(
                             html_with_inspector,
                             height=800,
+                            width=350,
                             scrolling=True
                         )
     
-    
-    
-    # pour plus tard 
-    #     # Récupérer les restaurants non scrappés
-    # st.header("Scraper les informations des restaurants")
-    # restaurants = get_all_restaurants(session)
-    # # Filtrer les restaurants non scrappés
-    # non_scrapped_restaurants = [r for r in restaurants if r.scrapped == 0]
-    # if not non_scrapped_restaurants:
-    #     st.warning("Tous les restaurants ont déjà été scrappés.")
-    # else:
-    #     restaurant_names = {r.nom: r for r in non_scrapped_restaurants}
-    #     selected_name = st.selectbox("Sélectionnez un restaurant à scrappé", list(restaurant_names.keys()))
-    # # Get selected restaurant object
-    #     restaurant = restaurant_names[selected_name]
-    #     st.write(f"Vous avez sélectionné le restaurant : {restaurant.nom}")
-        
 def scrape_restaurant_informations():
     # Récupérer les restaurants non scrappés
     st.header("Scraper les informations des restaurants")
@@ -703,6 +705,13 @@ def main():
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
     
+    st.write("----")
+    execute_sql_query(session)
+    
+      
+    st.write("----")
+    scrape_and_embed_tripadvisor()
+    st.write("----")
     try_prep_analysis_on_restaurant()
     
     st.write("----")
@@ -714,13 +723,11 @@ def main():
     st.write("----")
  
     clear_reviews_one_restaurant()
-    
-    st.write("----")
-    scrape_and_embed_tripadvisor()
+  
     st.write("----")
     scrape_restaurant_informations()
     # Exécuter la requête SQL personnalisée
-    execute_sql_query(session)
+ 
     st.write("----")
 
       # Option pour éditer une table

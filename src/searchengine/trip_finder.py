@@ -12,10 +12,6 @@ class SearchEngine:
     This class is used to fetch the search results from the search engine.
     It uses the requests library to fetch the HTML content of the search results page.
     The BeautifulSoup library is used to parse the HTML content and extract the relevant information.
-    The class has the following methods:
-    1. get_session: This method creates a new session if it doesn't exist and returns the session object.
-    2. fetcher: This method fetches the URL and returns the soup object.
-    3. get_next_url: This method extracts the URL of the next page from the search results page.
     '''
     
     

@@ -2,6 +2,7 @@ import pandas as pd
 import re
 import nltk
 #download nltk data
+nltk.download('punkt_tab')
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
