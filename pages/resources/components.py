@@ -104,37 +104,40 @@ def display_michelin_stars(rating):
 
 # Fonction pour afficher les étoiles des notes
 def display_stars(rating):
-    # Définition des chemins des images des étoiles
-    base_path = Path(__file__).parent / 'images'
-    full_star = base_path / 'full_star_icon.svg'
-    half_star = base_path / 'half_star_icon.svg'
-    empty_star = base_path / 'empty_star_icon.svg'
-    
-    # Création de la liste des étoiles
-    stars = []
-    for i in range(1, 6):
-        if rating >= i:
-            star_path = full_star
-        elif rating >= i - 0.5:
-            star_path = half_star
-        else:
-            star_path = empty_star
-
-        star_base64 = image_to_base64(star_path)
-        if star_base64:
-            # Création de la data URI
-            star_data_uri = f"data:image/svg+xml;base64,{star_base64}"
-            stars.append(star_data_uri)
-        else:
-            # Utilisation d'une étoile vide par défaut en cas d'erreur
-            empty_star_path = empty_star
-            star_base64_default = image_to_base64(empty_star_path)
-            if star_base64_default:
-                star_data_uri_default = f"data:image/svg+xml;base64,{star_base64_default}"
-                stars.append(star_data_uri_default)
+    if rating is None:
+        return []
+    else:
+        # Définition des chemins des images des étoiles
+        base_path = Path(__file__).parent / 'images'
+        full_star = base_path / 'full_star_icon.svg'
+        half_star = base_path / 'half_star_icon.svg'
+        empty_star = base_path / 'empty_star_icon.svg'
+        
+        # Création de la liste des étoiles
+        stars = []
+        for i in range(1, 6):
+            if rating >= i:
+                star_path = full_star
+            elif rating >= i - 0.5:
+                star_path = half_star
             else:
-                stars.append("")
-    return stars
+                star_path = empty_star
+
+            star_base64 = image_to_base64(star_path)
+            if star_base64:
+                # Création de la data URI
+                star_data_uri = f"data:image/svg+xml;base64,{star_base64}"
+                stars.append(star_data_uri)
+            else:
+                # Utilisation d'une étoile vide par défaut en cas d'erreur
+                empty_star_path = empty_star
+                star_base64_default = image_to_base64(empty_star_path)
+                if star_base64_default:
+                    star_data_uri_default = f"data:image/svg+xml;base64,{star_base64_default}"
+                    stars.append(star_data_uri_default)
+                else:
+                    stars.append("")
+        return stars
 
 # Fonction pour obtenir le prix moyen d'un restaurant
 def get_price_symbol(prix_min, prix_max):
@@ -372,20 +375,21 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
 
     if selected_restaurant:
         # Affichage de l'image du restaurant
-        st.html(f"""
-        <style>
-        .background-section {{
-            background-image: url("{selected_restaurant.image}");
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-position: center;
-            padding: 20px;
-            height: 300px;
-            border-radius: 10px;
-        }}
-        </style>
-        """)
-        st.markdown('<div class="background-section">', unsafe_allow_html=True)
+        if selected_restaurant.image:
+            st.html(f"""
+            <style>
+            .background-section {{
+                background-image: url("{selected_restaurant.image}");
+                background-size: cover;
+                background-repeat: no-repeat;
+                background-position: center;
+                padding: 20px;
+                height: 300px;
+                border-radius: 10px;
+            }}
+            </style>
+            """)
+            st.markdown('<div class="background-section">', unsafe_allow_html=True)
 
         # Affichage des étoiles Michelin
         michelin_stars = display_michelin_stars(selected_restaurant.etoiles_michelin)
@@ -416,7 +420,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     gm_link = selected_restaurant.google_map
                     disabled_adresse = ''
                 else:
-                    gm = "📍 Non disponible"
+                    gm = "📍 Indisponible"
                     gm_link = "None"
                     disabled_adresse = 'disabled'
 
@@ -425,7 +429,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     tripadvisor_link = selected_restaurant.url_link
                     disabled_tripadvisor = ''
                 else:
-                    tripadvisor = "🌐 Non disponible"
+                    tripadvisor = "🌐 Indisponible"
                     tripadvisor_link = "None"
                     disabled_tripadvisor = 'disabled'
 
@@ -434,7 +438,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     email_link = f"mailto:{selected_restaurant.email}"
                     disabled_email = ''
                 else:
-                    email = "📧 Non disponible"
+                    email = "📧 Indisponible"
                     email_link = "None"
                     disabled_email = 'disabled'
 
@@ -443,7 +447,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     tel_link = f"tel:{selected_restaurant.telephone}"
                     disabled_tel = ''
                 else:
-                    tel = "📞 Non disponible"
+                    tel = "📞 Indisponible"
                     tel_link = "None"
                     disabled_tel = 'disabled'
 
@@ -515,7 +519,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                 horaires_dict = construct_horaires(selected_restaurant.horaires)
                 
                 if not selected_restaurant.horaires:
-                    horaires_container.write("Non disponibles")
+                    horaires_container.write("Indisponibles")
                 else:
                     plages_du_jour = horaires_dict.get(current_day, [])
                     if not plages_du_jour:
@@ -561,7 +565,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                                     formatted_periods.append(f"{debut} - {fin}")
                                 horaires_container.write(f"- {jour} : {', '.join(formatted_periods)}")
                         else:
-                            horaires_container.write(f"- {jour} : Horaires non disponibles")
+                            horaires_container.write(f"- {jour} : Horaires indisponibles")
 
                 # Affichage du résumé du restaurant
                 resume_container = st.container(border=True)
@@ -570,7 +574,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     resume_container.write(f"{selected_restaurant.resume_avis}")
                 else:
                     resume_container.markdown("**Avis général**")
-                    resume_container.write("Non disponible")
+                    resume_container.write("Indisponible")
 
                 # Affichage des informations complémentaires
                 info_supp_container = st.container(border=True)
@@ -578,16 +582,16 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                 if selected_restaurant.cuisines:
                     info_supp_container.write(f"**Cuisine :** {selected_restaurant.cuisines}")
                 else:
-                    info_supp_container.write("**Cuisine :** Non disponible")
+                    info_supp_container.write("**Cuisine :** Indisponible")
                 if selected_restaurant.repas:
                     info_supp_container.write(f"**Repas :** {selected_restaurant.repas}")
                 else:
-                    info_supp_container.write("**Repas :** Non disponible")
+                    info_supp_container.write("**Repas :** Indisponible")
                 if selected_restaurant.fonctionnalite:
                     functionalities = selected_restaurant.fonctionnalite.replace(';', ', ').rstrip(', ')
                     info_supp_container.write(f"**Fonctionnalités :** {functionalities}")
                 else:
-                    info_supp_container.write("**Fonctionnalités :** Non disponible")
+                    info_supp_container.write("**Fonctionnalités :** Indisponible")
 
             # Affichage des informations de la colonne 2
             with col2:
@@ -599,7 +603,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     else:
                         rank_container.markdown(f"**Rang :** {selected_restaurant.rank}<sup>ème</sup> restaurant", unsafe_allow_html=True)
                 else :
-                    rank_container.write("**Rang :** Non disponible")
+                    rank_container.write("**Rang :** Indisponible")
 
                 # Affichage de la fourchette de prix
                 prix_container = st.container(border=True)
@@ -607,7 +611,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     prix_symbol = get_price_symbol(selected_restaurant.prix_min, selected_restaurant.prix_max)
                     prix_container.write(f"**Prix :** {prix_symbol}")
                 else:
-                    prix_container.write("**Prix :** Non disponible")
+                    prix_container.write("**Prix :** Indisponible")
                 
                 # Affichage des notations
                 score_container = st.container(border=True)
@@ -616,24 +620,24 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     stars = display_stars(selected_restaurant.note_globale)
                     stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
                 else:
-                    stars_html = 'Non disponible'
+                    stars_html = 'Indisponible'
                 score_container.html(f"<b>Globale : </b>{stars_html}")
                 if selected_restaurant.qualite_prix_note:
                     score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")
                 else:
-                    score_container.write("**Qualité Prix :** Non disponible")
+                    score_container.write("**Qualité Prix :** Indisponible")
                 if selected_restaurant.cuisine_note:
                     score_container.write(f"**Cuisine :** {selected_restaurant.cuisine_note}")
                 else:
-                    score_container.write("**Cuisine :** Non disponible")
+                    score_container.write("**Cuisine :** Indisponible")
                 if selected_restaurant.service_note:
                     score_container.write(f"**Service :** {selected_restaurant.service_note}")
                 else:
-                    score_container.write("**Service :** Non disponible")
+                    score_container.write("**Service :** Indisponible")
                 if selected_restaurant.ambiance_note:
                     score_container.write(f"**Ambiance :** {selected_restaurant.ambiance_note}")
                 else:
-                    score_container.write("**Ambiance :** Non disponible")
+                    score_container.write("**Ambiance :** Indisponible")
                 
                 # Affichage des temps de trajet
                 journeys_container = st.container(border=True)
@@ -705,7 +709,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
 
             # Affichage de la colonne de commentaires
             with col1:
-                if review is not None:
+                if len(review) > 0:
                     with st.container(height=1000, border=False):
                         for _i, r in enumerate(review[:st.session_state['display_count']]):
                             comment_container = st.container(border=True)
@@ -738,23 +742,23 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                                 st.session_state['display_count'] += 10
                                 st.rerun(scope="fragment")
                 else:
-                    st.info("Avis non disponibles", icon="ℹ️")
+                    st.info("Avis indisponibles", icon="ℹ️")
             
             with col2:
                 # Affichage du nombre d'avis
                 nb_avis_container = st.container(border=True)
 
-                if review is not None:
-                    nb_avis_container.write(f"**Nombre d'avis : {len(review)}**")
+                if len(review) > 0:
+                    nb_avis_container.write(f"**Nombre d'avis :** {len(review)}")
                 else:
-                    nb_avis_container.write("**Nombre d'avis : Non disponible**")
+                    nb_avis_container.write("**Nombre d'avis :** Indisponible")
 
                 # Affichage du top contributeurs
                 top_contrib_container = st.container(border=True)
 
                 top_contrib_container.write("**Top contributeurs**")
 
-                if review is not None:
+                if len(review) > 0:
                     user_reviews_count = {}
                     for user, _ in review:
                         user_reviews_count[user.user_profile] = user_reviews_count.get(user.user_profile, 0) + 1
@@ -764,27 +768,27 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                         medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉"
                         top_contrib_container.write(f"{medal} 👤 {user} : {count} avis")
                 else:
-                    top_contrib_container.write("Non disponible")
+                    top_contrib_container.write("Indisponible")
 
                 # Affichage de la répartition des notes
                 marks_container = st.container(border=True)
 
                 marks_container.write("**Répartition des notes**")
 
-                if review is not None:
+                if len(review) > 0:
                     rating_counts = {}
                     for _, r in review:
                         rating_counts[r.rating] = rating_counts.get(r.rating, 0) + 1
                     marks_container.bar_chart(rating_counts, horizontal=True, color="#f6c944")
                 else:
-                    marks_container.write("Non disponible")
+                    marks_container.write("Indisponible")
 
                 # Affichage de la répartition des types de visite
                 type_visit_container = st.container(border=True)
 
                 type_visit_container.write("**Répartition des types de visite**")
 
-                if review is not None:
+                if len(review) > 0:
                     type_visit_counts = {}
                     visit_mapping = {
                         "none": "Inconnue",
@@ -800,21 +804,21 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                         type_visit_counts[mapped_visit] = type_visit_counts.get(mapped_visit, 0) + 1
                     type_visit_container.bar_chart(type_visit_counts, horizontal=True, color="#f6c944")
                 else:
-                    type_visit_container.write("Non disponible")
+                    type_visit_container.write("Indisponible")
 
                 # Affichage de l'évolution du nombre d'avis dans le temps
                 month_container = st.container(border=True)
 
                 month_container.write("**Évolution du nombre d'avis dans le temps**")
 
-                if review is not None:
+                if len(review) > 0:
                     month_counts = {}
                     for _, r in review:
                         month = r.date_review.strftime("%Y-%m")
                         month_counts[month] = month_counts.get(month, 0) + 1
                     month_container.bar_chart(month_counts, color="#f6c944")
                 else:
-                    month_container.write("Non disponible")
+                    month_container.write("Indisponible")
 
 # Fonction pour mesurer le temps de réponse de l'IA
 def measure_latency(func):

@@ -480,8 +480,9 @@ def main():
                 restaurant, tcl_url, fastest_mode = result
 
                 # Filtrage par rang
-                if not (restaurant.rank <= rank):
-                    continue
+                if not hasattr(restaurant, 'rank'):
+                    if not (restaurant.rank <= rank):
+                        continue
 
                 # Filtrage par ouverture actuelle
                 if only_open_now:
@@ -515,8 +516,9 @@ def main():
                         continue
                 
                 # Filtrage par note globale
-                if not (global_rating[global_rating_selected] <= restaurant.note_globale):
-                    continue
+                if not hasattr(restaurant, 'note_globale'):
+                    if not (global_rating[global_rating_selected] <= restaurant.note_globale):
+                        continue
                 
                 # Filtrage par note qualité-prix
                 if quality_price > 0:
@@ -595,6 +597,10 @@ def main():
 
             # Filtrage des restaurants par rayon
             if personal_address:
+                map_data = [
+                    restaurant for restaurant in map_data
+                    if restaurant.get('latitude') is not None and restaurant.get('longitude') is not None
+                ]
                 map_data = filter_restaurants_by_radius(
                     map_data,
                     personal_latitude,
@@ -873,7 +879,7 @@ def main():
                         else:
                             rank_container.markdown(f"**Rang :** {restaurant.rank}<sup>ème</sup> restaurant", unsafe_allow_html=True)
                     else:
-                        rank_container.write("**Rang :** Non disponible")
+                        rank_container.write("**Rang :** Indisponible")
 
                     # Affichage du prix
                     prix_container = st.container(border=True)
@@ -881,43 +887,46 @@ def main():
                         prix_symbol = get_price_symbol(restaurant.prix_min, restaurant.prix_max)
                         prix_container.write(f"**Prix :** {prix_symbol}")
                     else:
-                        prix_container.write("**Prix :** Non disponible")
+                        prix_container.write("**Prix :** Indisponible")
 
                     # Affichage des notations
                     mark_container = st.container(border=True)
                     mark_container.write("**Notations**")
-                    michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
-                    michelin_stars_html = ' Aucune'
-                    if michelin_stars:
-                        if restaurant.etoiles_michelin == 1:
-                            michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
-                        elif restaurant.etoiles_michelin == 2:
-                            michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
-                        elif restaurant.etoiles_michelin == 3:
-                            michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
+                    if restaurant.etoiles_michelin:
+                        michelin_stars = display_michelin_stars(restaurant.etoiles_michelin)
+                        michelin_stars_html = ' Aucune'
+                        if michelin_stars:
+                            if restaurant.etoiles_michelin == 1:
+                                michelin_stars_html = f'<img src="{michelin_stars}" width="25">'
+                            elif restaurant.etoiles_michelin == 2:
+                                michelin_stars_html = f'<img src="{michelin_stars}" width="45">'
+                            elif restaurant.etoiles_michelin == 3:
+                                michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
+                    else:
+                        michelin_stars_html = ' Indisponible'
                     mark_container.html(f"<b>Étoiles Michelin :</b>{michelin_stars_html}")
                     if restaurant.note_globale:
                         stars = display_stars(restaurant.note_globale)
                         stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
                     else:
-                        stars_html = 'Non disponible'
+                        stars_html = 'Indisponible'
                     mark_container.html(f"<b> Globale : </b>{stars_html}")
                     if restaurant.qualite_prix_note:
                         mark_container.write(f"**Qualité Prix :** {restaurant.qualite_prix_note}")
                     else:
-                        mark_container.write(f"**Qualité Prix :** Non disponible")
+                        mark_container.write(f"**Qualité Prix :** Indisponible")
                     if restaurant.cuisine_note:
                         mark_container.write(f"**Cuisine :** {restaurant.cuisine_note}")
                     else:
-                        mark_container.write(f"**Cuisine :** Non disponible")
+                        mark_container.write(f"**Cuisine :** Indisponible")
                     if restaurant.service_note:
                         mark_container.write(f"**Service :** {restaurant.service_note}")
                     else:
-                        mark_container.write(f"**Service :** Non disponible")
+                        mark_container.write(f"**Service :** Indisponible")
                     if restaurant.ambiance_note:
                         mark_container.write(f"**Ambiance :** {restaurant.ambiance_note}")
                     else:
-                        mark_container.write(f"**Ambiance :** Non disponible")
+                        mark_container.write(f"**Ambiance :** Indisponible")
 
                     # Affichage des informations complémentaires
                     info_supp_container = st.container(border=True)
@@ -925,16 +934,16 @@ def main():
                     if restaurant.cuisines:
                         info_supp_container.write(f"**Cuisine :** {restaurant.cuisines}")
                     else:
-                        info_supp_container.write("**Cuisine :** Non disponible")
+                        info_supp_container.write("**Cuisine :** Indisponible")
                     if restaurant.repas:
                         info_supp_container.write(f"**Repas :** {restaurant.repas}")
                     else:
-                        info_supp_container.write("**Repas :** Non disponible")
+                        info_supp_container.write("**Repas :** Indisponible")
                     if restaurant.fonctionnalite:
                         functionalities = restaurant.fonctionnalite.replace(';', ', ').rstrip(', ')
                         info_supp_container.write(f"**Fonctionnalités :** {functionalities}")
                     else:
-                        info_supp_container.write("**Fonctionnalités :** Non disponible")
+                        info_supp_container.write("**Fonctionnalités :** Indisponible")
 
                     # Affichage des temps de trajet
                     trajet_container = st.container(border=True)
