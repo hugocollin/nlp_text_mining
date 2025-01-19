@@ -643,7 +643,7 @@ def main():
                         horaires_dict = construct_horaires(restaurant.horaires)
                         
                         if not restaurant.horaires:
-                            col2.error("Indisponible")
+                            col2.info("Indisponible")
                         else:
                             horaires_dict = construct_horaires(restaurant.horaires)
                             plages_du_jour = horaires_dict.get(current_day, [])
