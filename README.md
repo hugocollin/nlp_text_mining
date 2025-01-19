@@ -65,7 +65,7 @@ Ce projet offre également un ensemble d’outils d’analyse et de comparaison 
 │   ├── pipeline.py
 │   └── scrapper.py
 ├── .dockerignore
-├── .env
+├── .env # Placez le fichier .env à la racine du projet
 ├── .gitignore
 ├── app.py
 ├── docker-compose.yml
