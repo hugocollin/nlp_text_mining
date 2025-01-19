@@ -59,11 +59,9 @@ Ce projet offre également un ensemble d’outils d’analyse et de comparaison 
 │   │   └── pretraitement.py
 │   ├── searchengine
 │   │   ├── __init__.py
-│   │   ├── review_nb.ipynb
 │   │   └── trip_finder.py
 │   ├── __init__.py
-│   ├── pipeline.py
-│   └── scrapper.py
+│   └── pipeline.py
 ├── .dockerignore
 ├── .env # Placez le fichier .env à la racine du projet
 ├── .gitignore

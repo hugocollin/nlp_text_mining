@@ -39,11 +39,9 @@ def add_restaurant_dialog():
         # Scapping du restaurant sélectionné
         if st.button(icon="➕", label="Ajouter le restaurant"):
             if selected_name != "Sélectionner un restaurant":
-                # Get selected restaurant object
                 restau = restaurant_names[selected_name]
-                with st.spinner("Récupération des informations du restaurant..."):
+                with st.spinner("L'obtention des informations du restaurant est en cours. Vous pouvez fermer cette fenêtre si vous le souhaitez, le processus se poursuivra en arrière-plan. Une notification vous sera envoyée une fois le restaurant ajouté."):
                     pipe.add_new_restaurant(restau)
-                st.session_state['restaurant_added'] = True
                 st.rerun()
             else:
                 st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
@@ -132,11 +130,6 @@ def main():
     with add_restaurant_btn_col2:
         if st.button(icon="➕", label="Ajouter un restaurant", key="add_restaurant_btn"):
             add_restaurant_dialog()
-    
-    # Popup de confirmation d'ajout de restaurant
-    if st.session_state.get('restaurant_added'):
-        st.toast("Restaurant ajouté avec succès", icon="➕")
-        st.session_state['restaurant_added'] = False
 
     # Création d'une tab
     close_tab, filter_tab, ai_tab = st.tabs(["🔼", "🎨 Filtres", "✨ Discuter avec l'IA"])
