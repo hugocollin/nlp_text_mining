@@ -102,7 +102,7 @@ Pour utiliser cette application vous avez 2 méthodes :
 ```bash
 docker-compose up --build
 ```
-*Cette étape peut prendre entre 10 à 20 minutes. En raison de la taille de l'image Docker générée (> 20 Go), nous ne fournissons l'image Docker que sur demande.*
+*Cette étape peut prendre entre 10 à 20 minutes. En raison de la taille de l'image Docker générée (> 20 Go), nous ne fournissons l'image Docker pré-construite que sur demande.*
 
 4. Ouvrez votre navigateur et accédez à l'adresse suivante : [http://localhost:8501](http://localhost:8501)
 
