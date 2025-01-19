@@ -3,15 +3,22 @@ import pydeck as pdk
 import concurrent.futures
 import plotly.express as px
 import pandas as pd
+import os
 from dotenv import find_dotenv, load_dotenv
 from src.pipeline import Transistor , Pipeline
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
 
-# Récupération de la clé API Mistral
-load_dotenv(find_dotenv())
-
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", layout="wide")
+
+# Récupération de la clé API Mistral
+try:
+    load_dotenv(find_dotenv())
+    API_KEY = os.getenv("MISTRAL_API_KEY")
+except FileNotFoundError:
+    API_KEY = st.secrets["MISTRAL_API_KEY"]
+
+# Initialisation du transistor
 transistor = Transistor()
 
 # Récupération des informations des restaurants
@@ -24,7 +31,7 @@ personal_address, personal_latitude, personal_longitude = get_personal_address()
 # Fonction pour afficher le popup d'ajout de restaurant
 @st.dialog("Ajouter un restaurant")
 def add_restaurant_dialog():
-    if not find_dotenv():
+    if not API_KEY:
         st.error("**Fonctionnalité indisponible :** Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez ajouter le fichier `.env` à la racine du projet puis redémarrer l'application.", icon="⚠️")
         if st.button(label="Fermer"):
             st.rerun()
@@ -358,7 +365,7 @@ def main():
         chat_container = header_container.container(height=500)
 
         # Sécurité si la clé API Mistral n'est pas présente
-        if not find_dotenv():
+        if not API_KEY:
             header_container.error("**Fonctionnalité indisponible :** Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez ajouter le fichier `.env` à la racine du projet puis redémarrer l'application.", icon="⚠️")
             st.session_state['found_mistral_api'] = False
         else:

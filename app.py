@@ -1,14 +1,19 @@
 import streamlit as st
 import pydeck as pdk
+import os
 from dotenv import find_dotenv, load_dotenv
 from pages.resources.components import Navbar, get_personal_address
 from geopy.geocoders import Nominatim
 
-# Récupération de la clé API Mistral
-load_dotenv(find_dotenv())
-
 # Configuration de la page
 st.set_page_config(page_title="SISE Ô Resto", page_icon="🍽️", layout="wide")
+
+# Récupération de la clé API Mistral
+try:
+    load_dotenv(find_dotenv())
+    API_KEY = os.getenv("MISTRAL_API_KEY")
+except FileNotFoundError:
+    API_KEY = st.secrets["MISTRAL_API_KEY"]
 
 # Réinitialisation de popup de vérification de l'adresse renseignée
 if 'address_toast_shown' in st.session_state:
@@ -156,7 +161,7 @@ def main():
     Navbar()
 
     # Vérification de la présence de la clé API Mistral
-    if not find_dotenv():
+    if not API_KEY:
         if 'mistral_api_warning' not in st.session_state:
             st.toast("Vous n'avez pas rajouté votre clé API Mistral dans les fichiers de l'application. Veuillez ajouter le fichier `.env` à la racine du projet puis redémarrer l'application.", icon="⚠️")
             st.session_state['mistral_api_warning'] = True
