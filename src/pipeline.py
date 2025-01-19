@@ -333,11 +333,11 @@ class Pipeline(Transistor):
         print("Preprocessing done")
         print(df.head())
         
-        df_restaurants  , idx , sim = self.nlp_analysis.vectorize_reviews(df, df_restaurants, keyword)
+        df_restaurants , features_3d , idx , sim = self.nlp_analysis.vectorize_reviews(df, df_restaurants, keyword)
         print("Processing done")
-        
-        df_restaurants, features_3d    = self.nlp_analysis.cluster_restaurants(df_restaurants)
-        
+      
+            
+            
         return df_restaurants, features_3d , idx , sim 
         
         

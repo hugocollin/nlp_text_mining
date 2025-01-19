@@ -15,7 +15,7 @@ class NLPAnalysis:
         self.restaurant_features = None
         self.df = None
    
-    def vectorize_reviews(self, df, df_restaurants, keyword):
+    def vectorize_reviews(self, df, df_restaurants, keyword = None):
         
         self.vectorizer = TfidfVectorizer(max_features=5000)
         X_tfidf = self.vectorizer .fit_transform(df["review_cleaned"])
@@ -40,10 +40,16 @@ class NLPAnalysis:
         self.pca = PCA(n_components=3)
         features_3d = self.pca.fit_transform(features_scaled)
         self.features_3d = features_3d
-        idx, sim = self.find_restaurant_by_keyword(df, df_restaurants, keyword)
+        if keyword is not None:
+            idx, sim = self.find_restaurant_by_keyword(df, df_restaurants, keyword)
+            features_3d = None
+        #make cluster insteaed of keyword
+        else:
+            df_restaurants , features_3d = self.cluster_restaurants(df_restaurants)
+            idx = None
+            sim = None
             
-            
-        return df_restaurants , idx , sim
+        return df_restaurants , features_3d , idx , sim
 
 
             
@@ -66,9 +72,12 @@ class NLPAnalysis:
         
         # Calculer la similarité cosinus entre le mot-clé et les restaurants
         similarities = cosine_similarity(full_keyword_vector, self.features_3d)
-        idx = np.argmax(similarities)
-        sim = similarities[0][idx]
-        return  idx, sim
+        best_match_idx = np.argmax(similarities)
+        
+        best_match = df_restaurants.iloc[best_match_idx]
+        id_restaurant = best_match["id_restaurant"]
+        similarity  = similarities[0][best_match_idx] 
+        return  id_restaurant , similarity
     
             
             
