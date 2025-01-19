@@ -87,7 +87,7 @@ git clone https://github.com/hugocollin/nlp_text_mining
 
 ## Utilisation
 
-Pour utiliser cette application vous avez 2 méthodes :
+Pour utiliser cette application vous avez 3 méthodes :
 
 ### I. Utilisez l'application avec Docker
 
@@ -124,6 +124,10 @@ streamlit run app.py
 
 5. Ouvrez votre navigateur et accédez à l'adresse suivante : [http://localhost:8501](http://localhost:8501)
 
+### III. Utilisez l'application en ligne
+
+Ouvrez votre navigateur et accédez à l'adresse suivante : [https://sise-o-resto.streamlit.app](https://sise-o-resto.streamlit.app)
+
 ## Contribution
 
 Toutes les contributions sont les bienvenues ! Voici comment vous pouvez contribuer :
@@ -136,4 +140,4 @@ Toutes les contributions sont les bienvenues ! Voici comment vous pouvez contrib
 
 ## Auteurs
 
-Cette application a été développée par KPAMEGAN Falonne, KARAMOKO Awa, GABRYSCH Alexis et COLLIN Hugo, dans le cadre du Master 2 SISE.
+Cette application a été développée par [KPAMEGAN Falonne](https://github.com/marinaKpamegan), [KARAMOKO Awa](https://github.com/karamoko17), [GABRYSCH Alexis](https://github.com/AlexisGabrysch) et [COLLIN Hugo](https://github.com/hugocollin), dans le cadre du Master 2 SISE.
