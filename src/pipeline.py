@@ -14,8 +14,9 @@ from typing import Dict
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-    
-          
+import pandas as pd
+
+       
 class Transistor:
     
     '''
@@ -296,13 +297,51 @@ class Pipeline(Transistor):
         print("Reviews inserted")
         print("Restaurant added")
         self.clear()
-    
-        
-        
         time.sleep(2)
         
         
+    def vectorize_reviews(self, keyword):
+        df_review  = self.get_every_reviews()
+        restaurants = self.get_all_restaurants()
+        df_restaurants = pd.DataFrame([{
+            "id_restaurant": r.id_restaurant,
+            "nom": r.nom,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
+            "rank": r.rank,
+            "prix_min": r.prix_min,
+            "prix_max": r.prix_max,
+            "etoiles_michelin": r.etoiles_michelin,
+            "note_globale": r.note_globale,
+            "qualite_prix_note": r.qualite_prix_note,
+            "cuisine_note": r.cuisine_note,
+            "service_note": r.service_note,
+            "ambiance_note": r.ambiance_note,
+            "cuisines": r.cuisines
+        } for r in restaurants if r.scrapped == 1])
+
+        # Joindre les avis nettoyés avec les informations des restaurants
+        df_review = pd.merge(df_review, df_restaurants, left_on="restaurant_id", right_on="id_restaurant", how="inner")
         
+        print(df_review.columns)
+        self.initiate_analytic()
+        print("Processing initiated")
+        
+        self.initiate_processing()
+        df_review = df_review.dropna()
+        df = self.nlp_pretraitement.preprocess_reviews(df_review)
+        print("Preprocessing done")
+        print(df.head())
+        
+        df_restaurants  , idx , sim = self.nlp_analysis.vectorize_reviews(df, df_restaurants, keyword)
+        print("Processing done")
+        
+        df_restaurants, features_3d    = self.nlp_analysis.cluster_restaurants(df_restaurants)
+        
+        return df_restaurants, features_3d , idx , sim 
+        
+        
+
         
         
     def api_Mistral(self, query, role_prompt, generation_model: str = "mistral-large-latest", max_tokens: int = 100, temperature: float = 0.7) -> Dict[str, str]:

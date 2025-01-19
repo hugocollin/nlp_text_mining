@@ -696,6 +696,34 @@ def clean_reviews_pipeline():
     if st.button("Nettoyer les avis", key="clean_reviews" , help="Nettoyer les avis du restaurant sélectionné"  ):  #, disabled=True
         pipe.clean_reviews(restau.id_restaurant)
         st.success("Les avis ont été nettoyés avec succès.")
+        
+        
+        
+def test_vectorize_reviews():
+    # Récupérer les restaurants non scrappés
+    pipe = Pipeline()
+    st.header("Vectorisation des avis")
+
+    # input box text for a keyword by user
+    keyword = st.text_input("Entrez un mot-clé pour filtrer les avis", "")
+    
+    if st.button("Vectoriser les avis", key="vectorize_reviews" , help="Vectoriser les avis du restaurant sélectionné"  ):  #, disabled=True
+        df_restaurants, features_3d , idx, sim = pipe.vectorize_reviews(keyword)
+        st.success("Les avis ont été vectorisés avec succès.")
+        st.write(f"Le restaurant le plus pertinent pour le mot-clé '{keyword}' est : {df_restaurants.loc[idx, 'nom']} avec une similarité de {sim:.2f}")
+        time.sleep(2)
+          # --- Étape 7 : Visualisation des clusters ---
+        visual_df = pd.DataFrame(features_3d, columns=["PCA1", "PCA2", "PCA3"])
+        visual_df["cluster"] = df_restaurants["cluster"]
+        visual_df["restaurant_name"] = df_restaurants["nom"]
+
+        fig = px.scatter_3d(
+            visual_df, x="PCA1", y="PCA2", z="PCA3", color="cluster",
+            hover_data=["restaurant_name"], title="Clustering des restaurants"
+        )
+        
+        st.plotly_chart(fig)
+        
 
 def main():
     # Barre de navigation
@@ -704,7 +732,9 @@ def main():
     
     st.title("Administration")
     st.write("Bienvenue sur la page d'administration de l'application SISE Ô Resto.")
-    
+    st.write("Vous pouvez utiliser cette page pour effectuer des opérations de maintenance sur la base de données et les données scrappées.")
+    st.write("----")
+    test_vectorize_reviews()
     st.write("----")
     execute_sql_query(session)
     
