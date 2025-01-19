@@ -874,8 +874,11 @@ def main():
 
                     # Affichage du prix
                     prix_container = st.container(border=True)
-                    prix_symbol = get_price_symbol(restaurant.prix_min, restaurant.prix_max)
-                    prix_container.write(f"**Prix :** {prix_symbol}")
+                    if restaurant.prix_min and restaurant.prix_max:
+                        prix_symbol = get_price_symbol(restaurant.prix_min, restaurant.prix_max)
+                        prix_container.write(f"**Prix :** {prix_symbol}")
+                    else:
+                        prix_container.write("**Prix :** Non disponible")
 
                     # Affichage des notations
                     mark_container = st.container(border=True)

@@ -138,19 +138,16 @@ def display_stars(rating):
 
 # Fonction pour obtenir le prix moyen d'un restaurant
 def get_price_symbol(prix_min, prix_max):
-    if prix_min and prix_max:
-        prix_avg = (prix_min + prix_max) / 2
+    prix_avg = (prix_min + prix_max) / 2
 
-        if prix_avg < 20:
-            return ':material/euro_symbol:'
-        elif prix_avg < 30:
-            return ':material/euro_symbol::material/euro_symbol:'
-        elif prix_avg < 50:
-            return ':material/euro_symbol::material/euro_symbol::material/euro_symbol:'
-        else:
-            return ':material/euro_symbol::material/euro_symbol::material/euro_symbol::material/euro_symbol:'
+    if prix_avg < 20:
+        return ':material/euro_symbol:'
+    elif prix_avg < 30:
+        return ':material/euro_symbol::material/euro_symbol:'
+    elif prix_avg < 50:
+        return ':material/euro_symbol::material/euro_symbol::material/euro_symbol:'
     else:
-        return 'Non disponible'
+        return ':material/euro_symbol::material/euro_symbol::material/euro_symbol::material/euro_symbol:'
 
 # Fonction pour obtenir le temps actuel
 def get_datetime():
@@ -518,7 +515,7 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                 horaires_dict = construct_horaires(selected_restaurant.horaires)
                 
                 if not selected_restaurant.horaires:
-                    horaires_container.info("Les horaires d'ouverture ne sont pas disponibles", icon="ℹ️")
+                    horaires_container.write("Non disponibles")
                 else:
                     plages_du_jour = horaires_dict.get(current_day, [])
                     if not plages_du_jour:
@@ -568,8 +565,12 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
 
                 # Affichage du résumé du restaurant
                 resume_container = st.container(border=True)
-                resume_container.markdown("**Avis général**", help="✨ Ce texte a été généré automatiquement à partir des avis des utilisateurs sur Tripadvisor, grâce à un processus combinant le traitement du langage naturel (NLP) et l'intelligence artificielle (IA)")
-                resume_container.write(f"{selected_restaurant.resume_avis}")
+                if selected_restaurant.resume_avis:
+                    resume_container.markdown("**Avis général**", help="✨ Ce texte a été généré automatiquement à partir des avis des utilisateurs sur Tripadvisor, grâce à un processus combinant le traitement du langage naturel (NLP) et l'intelligence artificielle (IA)")
+                    resume_container.write(f"{selected_restaurant.resume_avis}")
+                else:
+                    resume_container.markdown("**Avis général**")
+                    resume_container.write("Non disponible")
 
                 # Affichage des informations complémentaires
                 info_supp_container = st.container(border=True)
@@ -592,15 +593,21 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
             with col2:
                 # Affichage du rang
                 rank_container = st.container(border=True)
-                if selected_restaurant.rank == 1:
-                    rank_container.markdown(f"**Rang :** {selected_restaurant.rank}<sup>er</sup> restaurant", unsafe_allow_html=True)
-                else:
-                    rank_container.markdown(f"**Rang :** {selected_restaurant.rank}<sup>ème</sup> restaurant", unsafe_allow_html=True)
+                if selected_restaurant.rank:
+                    if selected_restaurant.rank == 1:
+                        rank_container.markdown(f"**Rang :** {selected_restaurant.rank}<sup>er</sup> restaurant", unsafe_allow_html=True)
+                    else:
+                        rank_container.markdown(f"**Rang :** {selected_restaurant.rank}<sup>ème</sup> restaurant", unsafe_allow_html=True)
+                else :
+                    rank_container.write("**Rang :** Non disponible")
 
                 # Affichage de la fourchette de prix
                 prix_container = st.container(border=True)
-                prix_symbol = get_price_symbol(selected_restaurant.prix_min, selected_restaurant.prix_max)
-                prix_container.write(f"**Prix :** {prix_symbol}")
+                if selected_restaurant.prix_min and selected_restaurant.prix_max:
+                    prix_symbol = get_price_symbol(selected_restaurant.prix_min, selected_restaurant.prix_max)
+                    prix_container.write(f"**Prix :** {prix_symbol}")
+                else:
+                    prix_container.write("**Prix :** Non disponible")
                 
                 # Affichage des notations
                 score_container = st.container(border=True)
@@ -642,44 +649,45 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                     bouton_label = f"{emoji} {fastest_duration}"
                     journeys_container.button(label=bouton_label, disabled=True)
                 
-                # Définition de la vue de la carte
-                view = pdk.ViewState(
-                    latitude=selected_restaurant.latitude,
-                    longitude=selected_restaurant.longitude,
-                    zoom=13,
-                    pitch=0
-                )
+                if selected_restaurant.latitude and selected_restaurant.longitude:
+                    # Définition de la vue de la carte
+                    view = pdk.ViewState(
+                        latitude=selected_restaurant.latitude,
+                        longitude=selected_restaurant.longitude,
+                        zoom=13,
+                        pitch=0
+                    )
 
-                # Définition de la couche de la carte
-                layer = pdk.Layer(
-                    'ScatterplotLayer',
-                    data=[{'position': [selected_restaurant.longitude, selected_restaurant.latitude]}],
-                    get_position='position',
-                    get_color='[255, 0, 0]',
-                    get_radius=25,
-                    pickable=True,
-                    auto_highlight=True
-                )
+                    # Définition de la couche de la carte
+                    layer = pdk.Layer(
+                        'ScatterplotLayer',
+                        data=[{'position': [selected_restaurant.longitude, selected_restaurant.latitude]}],
+                        get_position='position',
+                        get_color='[255, 0, 0]',
+                        get_radius=25,
+                        pickable=True,
+                        auto_highlight=True
+                    )
 
-                # Paramètres de l'infos-bulle
-                tooltip = {
-                    "html": f"<b>{selected_restaurant.nom}</b>",
-                    "style": {
-                        "backgroundColor": "white",
-                        "color": "black"
+                    # Paramètres de l'infos-bulle
+                    tooltip = {
+                        "html": f"<b>{selected_restaurant.nom}</b>",
+                        "style": {
+                            "backgroundColor": "white",
+                            "color": "black"
+                        }
                     }
-                }
 
-                # Définition du rendu PyDeck
-                deck = pdk.Deck(
-                    layers=layer,
-                    initial_view_state=view,
-                    tooltip=tooltip,
-                    map_style='mapbox://styles/mapbox/light-v11'
-                )
+                    # Définition du rendu PyDeck
+                    deck = pdk.Deck(
+                        layers=layer,
+                        initial_view_state=view,
+                        tooltip=tooltip,
+                        map_style='mapbox://styles/mapbox/light-v11'
+                    )
 
-                # Affichage de la carte
-                st.pydeck_chart(deck)
+                    # Affichage de la carte
+                    st.pydeck_chart(deck)
 
         with avis:
             # Initialisation du nombre de reviews à afficher
@@ -694,94 +702,116 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
 
             # Affichage de la colonne de commentaires
             with col1:
-                with st.container(height=1000, border=False):
-                    for _i, r in enumerate(review[:st.session_state['display_count']]):
-                        comment_container = st.container(border=True)
-                        comment_col1, comment_col2 = comment_container.columns([0.6, 0.4])
-                        with comment_col1:
-                            st.markdown(f"**👤 {r[0].user_name}**", help=f"Nombre de contribution(s) : {r[0].num_contributions}")
-                            stars = display_stars(r[1].rating)
-                            stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
-                            st.html(stars_html)
+                if review is not None:
+                    with st.container(height=1000, border=False):
+                        for _i, r in enumerate(review[:st.session_state['display_count']]):
+                            comment_container = st.container(border=True)
+                            comment_col1, comment_col2 = comment_container.columns([0.6, 0.4])
+                            with comment_col1:
+                                st.markdown(f"**👤 {r[0].user_name}**", help=f"Nombre de contribution(s) : {r[0].num_contributions}")
+                                stars = display_stars(r[1].rating)
+                                stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                                st.html(stars_html)
 
-                        with comment_col2:
-                            st.write(f"📅 ***{r[1].date_review}***")
-                            visit_mapping = {
-                                "none": "",
-                                "No information": "",
-                                "business": "💼 Travail",
-                                "couples": "❤️ Couple",
-                                "family": "👨‍👩‍👧‍👦 Famille",
-                                "friends": "👫 Amis",
-                                "solo": "🧍 Seul"
-                            }
-                            st.write(f"{visit_mapping.get(r[1].type_visit, r[1].type_visit)}")
-                        
-                        comment_container.write(f"**{r[1].title_review}**")
-                        comment_container.write(r[1].review_text)
-                
-                    # Bouton pour charger plus de reviews
-                    if st.session_state['display_count'] < len(review):
-                        if st.button("🔄️ Charger plus d'avis"):
-                            st.session_state['display_count'] += 10
-                            st.rerun(scope="fragment")
+                            with comment_col2:
+                                st.write(f"📅 ***{r[1].date_review}***")
+                                visit_mapping = {
+                                    "none": "",
+                                    "No information": "",
+                                    "business": "💼 Travail",
+                                    "couples": "❤️ Couple",
+                                    "family": "👨‍👩‍👧‍👦 Famille",
+                                    "friends": "👫 Amis",
+                                    "solo": "🧍 Seul"
+                                }
+                                st.write(f"{visit_mapping.get(r[1].type_visit, r[1].type_visit)}")
+                            
+                            comment_container.write(f"**{r[1].title_review}**")
+                            comment_container.write(r[1].review_text)
+                    
+                        # Bouton pour charger plus de reviews
+                        if st.session_state['display_count'] < len(review):
+                            if st.button("🔄️ Charger plus d'avis"):
+                                st.session_state['display_count'] += 10
+                                st.rerun(scope="fragment")
+                else:
+                    st.info("Avis non disponibles", icon="ℹ️")
             
             with col2:
                 # Affichage du nombre d'avis
                 nb_avis_container = st.container(border=True)
 
-                nb_avis_container.write(f"**Nombre d'avis : {len(review)}**")
+                if review is not None:
+                    nb_avis_container.write(f"**Nombre d'avis : {len(review)}**")
+                else:
+                    nb_avis_container.write("**Nombre d'avis : Non disponible**")
 
                 # Affichage du top contributeurs
                 top_contrib_container = st.container(border=True)
 
                 top_contrib_container.write("**Top contributeurs**")
-                user_reviews_count = {}
-                for user, _ in review:
-                    user_reviews_count[user.user_profile] = user_reviews_count.get(user.user_profile, 0) + 1
-                top_users = sorted(user_reviews_count.items(), key=lambda x: x[1], reverse=True)
-                
-                for rank, (user, count) in enumerate(top_users[:3], start=1):
-                    medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉"
-                    top_contrib_container.write(f"{medal} 👤 {user} : {count} avis")
+
+                if review is not None:
+                    user_reviews_count = {}
+                    for user, _ in review:
+                        user_reviews_count[user.user_profile] = user_reviews_count.get(user.user_profile, 0) + 1
+                    top_users = sorted(user_reviews_count.items(), key=lambda x: x[1], reverse=True)
+                    
+                    for rank, (user, count) in enumerate(top_users[:3], start=1):
+                        medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉"
+                        top_contrib_container.write(f"{medal} 👤 {user} : {count} avis")
+                else:
+                    top_contrib_container.write("Non disponible")
 
                 # Affichage de la répartition des notes
                 marks_container = st.container(border=True)
 
                 marks_container.write("**Répartition des notes**")
-                rating_counts = {}
-                for _, r in review:
-                    rating_counts[r.rating] = rating_counts.get(r.rating, 0) + 1
-                marks_container.bar_chart(rating_counts, horizontal=True, color="#f6c944")
+
+                if review is not None:
+                    rating_counts = {}
+                    for _, r in review:
+                        rating_counts[r.rating] = rating_counts.get(r.rating, 0) + 1
+                    marks_container.bar_chart(rating_counts, horizontal=True, color="#f6c944")
+                else:
+                    marks_container.write("Non disponible")
 
                 # Affichage de la répartition des types de visite
                 type_visit_container = st.container(border=True)
 
                 type_visit_container.write("**Répartition des types de visite**")
-                type_visit_counts = {}
-                visit_mapping = {
-                    "none": "Inconnue",
-                    "No information": "Inconnue",
-                    "business": "Travail",
-                    "couples": "Couple",
-                    "family": "Famille",
-                    "friends": "Amis",
-                    "solo": "Seul"
-                }
-                for _, r in review:
-                    mapped_visit = visit_mapping.get(r.type_visit, r.type_visit)
-                    type_visit_counts[mapped_visit] = type_visit_counts.get(mapped_visit, 0) + 1
-                type_visit_container.bar_chart(type_visit_counts, horizontal=True, color="#f6c944")
+
+                if review is not None:
+                    type_visit_counts = {}
+                    visit_mapping = {
+                        "none": "Inconnue",
+                        "No information": "Inconnue",
+                        "business": "Travail",
+                        "couples": "Couple",
+                        "family": "Famille",
+                        "friends": "Amis",
+                        "solo": "Seul"
+                    }
+                    for _, r in review:
+                        mapped_visit = visit_mapping.get(r.type_visit, r.type_visit)
+                        type_visit_counts[mapped_visit] = type_visit_counts.get(mapped_visit, 0) + 1
+                    type_visit_container.bar_chart(type_visit_counts, horizontal=True, color="#f6c944")
+                else:
+                    type_visit_container.write("Non disponible")
 
                 # Affichage de l'évolution du nombre d'avis dans le temps
                 month_container = st.container(border=True)
 
                 month_container.write("**Évolution du nombre d'avis dans le temps**")
-                month_counts = {}
-                for _, r in review:
-                    month = r.date_review.strftime("%Y-%m")
-                    month_counts[month] = month_counts.get(month, 0) + 1
-                month_container.bar_chart(month_counts, color="#f6c944")
+
+                if review is not None:
+                    month_counts = {}
+                    for _, r in review:
+                        month = r.date_review.strftime("%Y-%m")
+                        month_counts[month] = month_counts.get(month, 0) + 1
+                    month_container.bar_chart(month_counts, color="#f6c944")
+                else:
+                    month_container.write("Non disponible")
 
 # Fonction pour mesurer le temps de réponse de l'IA
 def measure_latency(func):
