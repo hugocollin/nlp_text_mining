@@ -190,10 +190,11 @@ def main():
 
             # Filtre par rang
             container = header_col1.container(border=True)
+            rank_max = 3500
             rank = container.slider(
                     label="Rang maximal",
                     min_value=1,
-                    max_value=3500,
+                    max_value=rank_max,
                     step=1,
                     value=3500,
                     key="filter_rank"
@@ -487,8 +488,11 @@ def main():
                 restaurant, tcl_url, fastest_mode = result
 
                 # Filtrage par rang
-                if hasattr(restaurant, 'rank'):
+                if hasattr(restaurant, 'rank') and restaurant.rank is not None:
                     if restaurant.rank > rank:
+                        continue
+                else:
+                    if rank != rank_max:
                         continue
 
                 # Filtrage par ouverture actuelle
@@ -523,7 +527,7 @@ def main():
                         continue
                 
                 # Filtrage par note globale
-                if hasattr(restaurant, 'note_globale'):
+                if restaurant.note_globale:
                     if (global_rating[global_rating_selected] > restaurant.note_globale):
                         continue
                 
