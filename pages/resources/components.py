@@ -612,8 +612,11 @@ def display_restaurant_infos( personal_address, personal_latitude, personal_long
                 # Affichage des notations
                 score_container = st.container(border=True)
                 score_container.write("**Notations**")
-                stars = display_stars(selected_restaurant.note_globale)
-                stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                if selected_restaurant.note_globale:
+                    stars = display_stars(selected_restaurant.note_globale)
+                    stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                else:
+                    stars_html = 'Non disponible'
                 score_container.html(f"<b>Globale : </b>{stars_html}")
                 if selected_restaurant.qualite_prix_note:
                     score_container.write(f"**Qualité Prix :** {selected_restaurant.qualite_prix_note}")

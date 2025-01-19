@@ -843,7 +843,7 @@ def main():
                     horaires_dict = construct_horaires(restaurant.horaires)
                     
                     if not restaurant.horaires:
-                        st.info("Les horaires d'ouverture ne sont pas disponibles", icon="ℹ️")
+                        st.info("Indisponible")
                     else:
                         plages_du_jour = horaires_dict.get(current_day, [])
                         if not plages_du_jour:
@@ -867,10 +867,13 @@ def main():
 
                     # Affichage du rang
                     rank_container = st.container(border=True)
-                    if restaurant.rank == 1:
-                        rank_container.markdown(f"**Rang :** {restaurant.rank}<sup>er</sup> restaurant", unsafe_allow_html=True)
+                    if restaurant.rank:
+                        if restaurant.rank == 1:
+                            rank_container.markdown(f"**Rang :** {restaurant.rank}<sup>er</sup> restaurant", unsafe_allow_html=True)
+                        else:
+                            rank_container.markdown(f"**Rang :** {restaurant.rank}<sup>ème</sup> restaurant", unsafe_allow_html=True)
                     else:
-                        rank_container.markdown(f"**Rang :** {restaurant.rank}<sup>ème</sup> restaurant", unsafe_allow_html=True)
+                        rank_container.write("**Rang :** Non disponible")
 
                     # Affichage du prix
                     prix_container = st.container(border=True)
@@ -893,8 +896,11 @@ def main():
                         elif restaurant.etoiles_michelin == 3:
                             michelin_stars_html = f'<img src="{michelin_stars}" width="65">'
                     mark_container.html(f"<b>Étoiles Michelin :</b>{michelin_stars_html}")
-                    stars = display_stars(restaurant.note_globale)
-                    stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                    if restaurant.note_globale:
+                        stars = display_stars(restaurant.note_globale)
+                        stars_html = ''.join([f'<img src="{star}" width="20">' for star in stars])
+                    else:
+                        stars_html = 'Non disponible'
                     mark_container.html(f"<b> Globale : </b>{stars_html}")
                     if restaurant.qualite_prix_note:
                         mark_container.write(f"**Qualité Prix :** {restaurant.qualite_prix_note}")
