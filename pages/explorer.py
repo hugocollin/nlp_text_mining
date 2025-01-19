@@ -852,6 +852,34 @@ def main():
                 # Affichage de la carte
                 st.pydeck_chart(deck)
 
+            # Affichage du graphique des clusters de restaurants
+            @st.cache_data(show_spinner=False)
+            def get_visual_df():
+                pipe = Pipeline()
+                df_restaurants, features_3d, _, _ = pipe.vectorize_reviews(keyword=None)
+                visual_df = pd.DataFrame(features_3d, columns=["PCA1", "PCA2", "PCA3"])
+                visual_df["cluster"] = df_restaurants["cluster"]
+                visual_df["restaurant_name"] = df_restaurants["nom"]
+                return visual_df
+            
+            with st.spinner("Chargement du graphique de clustering des restaurants..."):
+                visual_df = get_visual_df()
+
+            fig = px.scatter_3d(
+                visual_df, x="PCA1", y="PCA2", z="PCA3",
+                color="cluster",
+                hover_data=["restaurant_name"],
+                title="Clustering des restaurants",
+                color_continuous_scale=["yellow", "red"],
+                labels={
+                    "PCA1": "Composante 1",
+                    "PCA2": "Composante 2",
+                    "PCA3": "Composante 3",
+                    "cluster": "Cluster"
+                }
+            )
+            st.plotly_chart(fig)
+
     with comparer_tab:
 
         # Initialisation du comparateur dans session_state
