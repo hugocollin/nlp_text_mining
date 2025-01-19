@@ -215,8 +215,7 @@ def main():
     container_col3_3.write("**➕ Ajoutez des restaurants à votre sélection en un clic**")
     container_col3_3.write("Ajoutez des restaurants à votre liste pour les comparer et les consulter en un instant.")
     
-    
-    st.write("*Cette application a été développée par KPAMEGAN Falonne, KARAMOKO Awa, GABRYSCH Alexis et COLLIN Hugo, dans le cadre du Master 2 SISE.*")
+    st.write("*Cette application a été développée par [KPAMEGAN Falonne](https://github.com/marinaKpamegan), [KARAMOKO Awa](https://github.com/karamoko17), [GABRYSCH Alexis](https://github.com/AlexisGabrysch) et [COLLIN Hugo](https://github.com/hugocollin), dans le cadre du Master 2 SISE.*")
 
 if __name__ == '__main__':
     main()
