@@ -34,7 +34,7 @@ def add_restaurant_dialog():
         restaurants = pipe.get_restaurants_non_scrapped()
         restaurant_names = {r.nom : r for r in restaurants}
         # Sélection du restaurant à ajouter
-        selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()),placeholder="Sélectionner un restaurant" , label_visibility="collapsed" , key="restaurant_select")
+        selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()), placeholder="Sélectionnez un restaurant", key="restaurant_select")
     
         # Scapping du restaurant sélectionné
         if st.button(icon="➕", label="Ajouter le restaurant"):
@@ -52,10 +52,12 @@ def restaurant_info_dialog():
 def create_chart_dialog(df):
     # Vérification du nombre de graphiques créés
     if len(st.session_state.charts) < 5:
+        st.info("Cette fonctionnalité est expérimentale et peut ne pas fonctionner correctement", icon="ℹ️")
+
         # Choix du type de graphique
         chart_type = st.selectbox(
             "Type de graphique",
-            ["Barres", "Circulaire", "Histogramme", "Nuage de points", "Carte proportionnelle", "Radar"],
+            ["Barres", "Circulaire", "Histogramme", "Nuage de points", "Carte proportionnelle"],
             key="chart_type"
         )
 
@@ -69,9 +71,6 @@ def create_chart_dialog(df):
         elif chart_type == "Circulaire":
             names_col = st.selectbox("Sélectionnez le champ des labels", options=df.columns, key="pie_names")
             values_col = st.selectbox("Sélectionnez le champ des valeurs", options=df.columns, key="pie_values")
-        elif chart_type == "Radar":
-            theta_col = st.selectbox("Sélectionnez le champ pour l'axe θ", options=df.columns, key="radar_theta_col")
-            r_col = st.selectbox("Sélectionnez le champ pour l'axe r", options=df.columns, key="radar_r_col")
         
         if st.button(icon="📊", label="Créer le graphique"):
             # Génération automatique du nom du graphique
@@ -84,9 +83,7 @@ def create_chart_dialog(df):
                 "x": x_col if 'x_col' in locals() else None,
                 "y": y_col if 'y_col' in locals() else None,
                 "names": names_col if 'names_col' in locals() else None,
-                "values": values_col if 'values_col' in locals() else None,
-                "theta": theta_col if 'theta_col' in locals() else None,
-                "r": r_col if 'r_col' in locals() else None
+                "values": values_col if 'values_col' in locals() else None
             }
             
             st.session_state.charts.append(chart_params)
@@ -991,20 +988,20 @@ def main():
 
             # Renommage des colonnes
             df_filtered.rename(columns={
-                "nom": "Nom",
-                "rank": "Rang",
-                "prix_min": "Prix minimum",
-                "prix_max": "Prix maximum",
-                "prix_moyen": "Prix moyen",
-                "etoiles_michelin": "Étoiles Michelin",
-                "note_globale": "Note globale",
-                "qualite_prix_note": "Note qualité prix",
-                "cuisine_note": "Note cuisine",
-                "service_note": "Note service",
-                "ambiance_note": "Note ambiance",
-                "cuisines": "Cuisines",
-                "repas": "Repas",
-                "fonctionnalite": "Fonctionnalités",
+                "nom": "Nom [STRING]",
+                "rank": "Rang [INT]",
+                "prix_min": "Prix minimum [FLOAT]",
+                "prix_max": "Prix maximum [FLOAT]",
+                "prix_moyen": "Prix moyen [FLOAT]",
+                "etoiles_michelin": "Étoiles Michelin [INT]",
+                "note_globale": "Note globale [FLOAT]",
+                "qualite_prix_note": "Note qualité prix [FLOAT]",
+                "cuisine_note": "Note cuisine [FLOAT]",
+                "service_note": "Note service [FLOAT]",
+                "ambiance_note": "Note ambiance [FLOAT]",
+                "cuisines": "Cuisines [STRING : COUNT]",
+                "repas": "Repas [STRING : COUNT]",
+                "fonctionnalite": "Fonctionnalités [STRING : COUNT]",
             }, inplace=True)
 
             # Mise en page du bouton de création de graphique
@@ -1051,18 +1048,36 @@ def main():
 
                         # Génération dynamique du graphique en fonction des filtres actuels
                         if chart["type"] == "Barres":
-                            fig = px.bar(df_plot, x=x_plot, y=y_plot if y_plot else None, title=chart["name"])
+                            try:
+                                fig = px.bar(df_plot, x=x_plot, y=y_plot if y_plot else None, title=chart["name"])
+                            except ValueError:
+                                st.warning("Impossible de générer un graphique en barres avec les paramètres de données sélectionnés", icon="⚠️")
+                                continue
                         elif chart["type"] == "Circulaire":
-                            fig = px.pie(df_plot, names=x_plot, values=y_plot if y_plot else None, title=chart["name"])
+                            try:
+                                fig = px.pie(df_plot, names=x_plot, values=y_plot if y_plot else None, title=chart["name"])
+                            except ValueError:
+                                st.warning("Impossible de générer un graphique circulaire avec les paramètres de données sélectionnés", icon="⚠️")
+                                continue
                         elif chart["type"] == "Histogramme":
-                            fig = px.histogram(df_plot, x=x_plot, title=chart["name"])
+                            try:
+                                fig = px.histogram(df_plot, x=x_plot, title=chart["name"])
+                            except ValueError:
+                                st.warning("Impossible de générer un histogramme avec les paramètres de données sélectionnés", icon="⚠️")
+                                continue
                         elif chart["type"] == "Nuage de points":
-                            fig = px.scatter(df_plot, x=x_plot, y=y_plot, title=chart["name"])
+                            try:
+                                fig = px.scatter(df_plot, x=x_plot, y=y_plot, title=chart["name"])
+                            except ValueError:
+                                st.warning("Impossible de générer un nuage de points avec les paramètres de données sélectionnés", icon="⚠️")
+                                continue
                         elif chart["type"] == "Carte proportionnelle":
-                            fig = px.treemap(df_plot, path=[x_plot], values=y_plot, title=chart["name"])
-                        elif chart["type"] == "Radar":
-                            fig = px.line_polar(df_plot, r=y_plot, theta=x_plot, line_close=True, title=chart["name"])
-                        
+                            try:
+                                fig = px.treemap(df_plot, path=[x_plot], values=y_plot, title=chart["name"])
+                            except ValueError:
+                                st.warning("Impossible de générer une carte proportionnelle avec les paramètres de données sélectionnés", icon="⚠️")
+                                continue
+                            
                         st.plotly_chart(fig, use_container_width=True, key=f"chart_{idx}")
 
             else:
