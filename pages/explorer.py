@@ -122,6 +122,10 @@ def main():
             st.toast("Veuillez définir votre adresse personnelle pour voir les temps de trajet", icon="ℹ️")
             st.session_state['address_toast_shown'] = True
 
+    # Vérification si la recherche par mot clé a été effectuée
+    if "keyword_result" not in st.session_state:
+        st.session_state.keyword_result = None
+
     # Initialisation du comparateur dans session_state
     if 'comparator' not in st.session_state:
         st.session_state['comparator'] = []
@@ -289,6 +293,28 @@ def main():
                     disabled=True,
                     key="filter_time_travel"
                 )
+
+            # Filtre par mot clé sur les commentaires
+            container = st.container(border=True)
+
+            with container:
+                container.write("Recherche par mot(s) clé(s) sur les commentaires")
+                col1, col2 = container.columns([3, 1])
+                keyword = col1.text_input("Recherche par mot(s) clé(s) sur les commentaires", label_visibility="collapsed", key="filter_keyword")
+
+                if col2.button("🔍") and keyword:
+                    pipe = Pipeline()
+                    with st.spinner("Recherche par mot clé..."):
+                        _, _, st.session_state.keyword_result, coef_similirite = pipe.vectorize_reviews(keyword)
+                    if coef_similirite < 0.01:
+                        st.session_state.keyword_result = None
+                        st.write("*Aucun restaurant n'a été trouvé*")
+                    else:
+                        st.write(f"*Coefficient de similarité : {round(coef_similirite*100, 2)}%*")
+                elif not keyword:
+                    st.session_state.keyword_result = None
+                else:
+                    keyword = st.session_state.get("keyword_result", None)
         
         with header_col2:
 
@@ -569,6 +595,11 @@ def main():
                     else:
                         duration = int(duration_str.replace('min', ''))
                     if not (duration <= time_travel):
+                        continue
+
+                # Filtrage par mot clé sur les commentaires
+                if keyword and st.session_state.keyword_result:
+                    if restaurant.id_restaurant != st.session_state.keyword_result:
                         continue
                 
                 # Filtrage par cuisine

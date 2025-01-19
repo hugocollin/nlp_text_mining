@@ -66,9 +66,12 @@ class NLPAnalysis:
         
         # Calculer la similarité cosinus entre le mot-clé et les restaurants
         similarities = cosine_similarity(full_keyword_vector, self.features_3d)
-        idx = np.argmax(similarities)
-        sim = similarities[0][idx]
-        return  idx, sim
+        best_match_idx = np.argmax(similarities)
+
+        best_match = df_restaurants.iloc[best_match_idx]
+        id_restaurant = best_match["id_restaurant"]
+        similarity  = similarities[0][best_match_idx] 
+        return  id_restaurant , similarity
     
             
             
