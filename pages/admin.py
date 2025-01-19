@@ -708,21 +708,25 @@ def test_vectorize_reviews():
     keyword = st.text_input("Entrez un mot-clé pour filtrer les avis", "")
     
     if st.button("Vectoriser les avis", key="vectorize_reviews" , help="Vectoriser les avis du restaurant sélectionné"  ):  #, disabled=True
-        df_restaurants, features_3d , idx, sim = pipe.vectorize_reviews(keyword)
-        st.success("Les avis ont été vectorisés avec succès.")
-        st.write(f"Le restaurant le plus pertinent pour le mot-clé '{keyword}' est : {df_restaurants.loc[idx, 'nom']} avec une similarité de {sim:.2f}")
-        time.sleep(2)
-          # --- Étape 7 : Visualisation des clusters ---
-        visual_df = pd.DataFrame(features_3d, columns=["PCA1", "PCA2", "PCA3"])
-        visual_df["cluster"] = df_restaurants["cluster"]
-        visual_df["restaurant_name"] = df_restaurants["nom"]
+        keyword = None
+        df_restaurants, features_3d , idx, sim = pipe.vectorize_reviews(keyword )
 
-        fig = px.scatter_3d(
-            visual_df, x="PCA1", y="PCA2", z="PCA3", color="cluster",
-            hover_data=["restaurant_name"], title="Clustering des restaurants"
-        )
-        
-        st.plotly_chart(fig)
+        if keyword:
+            st.success("Les avis ont été vectorisés avec succès.")
+            st.write(f"Le restaurant le plus pertinent pour le mot-clé '{keyword}' est : {df_restaurants.loc[idx, 'nom']} avec une similarité de {sim:.2f}")
+            time.sleep(2)
+        else:
+            # --- Étape 7 : Visualisation des clusters ---
+            visual_df = pd.DataFrame(features_3d, columns=["PCA1", "PCA2", "PCA3"])
+            visual_df["cluster"] = df_restaurants["cluster"]
+            visual_df["restaurant_name"] = df_restaurants["nom"]
+
+            fig = px.scatter_3d(
+                visual_df, x="PCA1", y="PCA2", z="PCA3", color="cluster",
+                hover_data=["restaurant_name"], title="Clustering des restaurants"
+            )
+            
+            st.plotly_chart(fig)
         
 
 def main():
