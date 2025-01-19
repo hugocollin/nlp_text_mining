@@ -9,7 +9,6 @@ from src.nlp.pretraitement import NLPPretraitement
 
 import time
 import litellm
-import streamlit as st
 from typing import Dict
 
 from sqlalchemy import create_engine
@@ -237,10 +236,9 @@ class Pipeline(Transistor):
         # inserer resumé dans restaurant
         # put the resume in the restaurant table
         self.add_resume_avis_to_restaurant(restaurant.id_restaurant, response["response"])
-        print("Restaurant added")
+        print("[INFO] Le restaurant a été ajouté avec succès, vous pouvez maintenant rafraichir la page")
         time.sleep(2)
         self.clear()
-        st.toast("Le restaurant a été ajouté avec succès !", icon="➕")
      
           
     

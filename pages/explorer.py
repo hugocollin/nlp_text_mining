@@ -38,13 +38,9 @@ def add_restaurant_dialog():
     
         # Scapping du restaurant sélectionné
         if st.button(icon="➕", label="Ajouter le restaurant"):
-            if selected_name != "Sélectionner un restaurant":
-                restau = restaurant_names[selected_name]
-                with st.spinner("L'obtention des informations du restaurant est en cours. Vous pouvez fermer cette fenêtre si vous le souhaitez, le processus se poursuivra en arrière-plan. Une notification vous sera envoyée une fois le restaurant ajouté."):
-                    pipe.add_new_restaurant(restau)
-                st.rerun()
-            else:
-                st.warning("Veuillez sélectionner un restaurant", icon="⚠️")
+            restau = restaurant_names[selected_name]
+            st.info("L'obtention des informations du restaurant est en cours. Vous pouvez fermer cette fenêtre si vous le souhaitez, le processus se poursuivra en arrière-plan. Une notification vous sera envoyée dans le terminal une fois le restaurant ajouté, vous devrez alors rafraichir la page.", icon="ℹ️")
+            pipe.add_new_restaurant(restau)
 
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("ℹ️ Informations sur le restaurant", width="large")
