@@ -3,7 +3,10 @@ from src.db.functions_db import  parse_french_date, execute_query, fetch_one
 from src.db.models import Restaurant
 
 # Définition de la zone géographique pour les dates en français
-locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+try:
+    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+except locale.Error:
+    locale.setlocale(locale.LC_TIME, 'C')
 
 # Fonction d'insertion d'un restaurant dans la base de données
 def insert_restaurant(

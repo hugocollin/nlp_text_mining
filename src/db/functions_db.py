@@ -9,7 +9,10 @@ from sqlalchemy.orm import sessionmaker , joinedload
 from src.db.models import Base , Restaurant , Review , User
 import pandas as pd
 # Définition de la zone géographique pour les dates en français
-locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+try:
+    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+except locale.Error:
+    locale.setlocale(locale.LC_TIME, 'C')
 
 # Définition du chemin vers le fichier de base de données SQLite
 DATABASE_NAME = "restaurant_reviews.db" 
