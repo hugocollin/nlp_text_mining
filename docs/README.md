@@ -38,6 +38,8 @@ Ce projet offre également un ensemble d’outils d’analyse et de comparaison 
 ```bash
 ├── .streamlit
 │    └── config.toml
+├── docs
+│   └── README.md
 ├── pages
 │   ├── resources
 │   │    ├── images
@@ -56,7 +58,8 @@ Ce projet offre également un ensemble d’outils d’analyse et de comparaison 
 │   ├── nlp
 │   │   ├── __init__.py
 │   │   ├── analyse.py
-│   │   └── pretraitement.py
+│   │   ├── pretraitement.py
+│   │   └── stopwords_fr.txt
 │   ├── searchengine
 │   │   ├── __init__.py
 │   │   └── trip_finder.py
@@ -68,7 +71,6 @@ Ce projet offre également un ensemble d’outils d’analyse et de comparaison 
 ├── app.py
 ├── docker-compose.yml
 ├── dockerfile
-├── README.md
 ├── requirements.txt
 └── restaurant_reviews.db
 ```
