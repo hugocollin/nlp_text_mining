@@ -316,9 +316,9 @@ class Pipeline(Transistor):
         df_review = df_review.dropna()
         df = self.nlp_pretraitement.preprocess_reviews(df_review)
         print("Preprocessing done")
-        print(df.head())
         df_restaurants , features_3d , idx , sim = self.nlp_analysis.vectorize_reviews(df, df_restaurants, keyword)
         print("Processing done") 
+        print(idx , sim)
         return df_restaurants, features_3d , idx , sim 
         
         

@@ -47,12 +47,12 @@ class NLPPretraitement:
     def preprocess_reviews(self, df_reviews):
         """Applique la fonction preprocess à une colonne de texte d'un DataFrame."""
         df_reviews = df_reviews.dropna()
-        df_reviews["cleaned_review"] = df_reviews["review"].apply(self.preprocess)
+        df_reviews["review_cleaned"] = df_reviews["review"].apply(self.preprocess)
         return df_reviews
 
     def sentiment_analysis(self, df_reviews):
         """Analyse le sentiment d'un texte."""
         # --- Étape 3 : Analyse des sentiments ---
-        df_reviews["sentiment_rating"] = df_reviews["cleaned_review"].apply(lambda x: TextBlob(x).sentiment.polarity)
+        df_reviews["sentiment_rating"] = df_reviews["review_cleaned"].apply(lambda x: TextBlob(x).sentiment.polarity)
         df_reviews["sentiment"] = df_reviews["sentiment_rating"].apply(lambda x: "positive" if x >= 0 else "negative")
         return df_reviews
