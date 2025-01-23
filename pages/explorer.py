@@ -55,7 +55,7 @@ def add_restaurant_dialog():
         else:
             st.info("Cette fonctionnalité n'est pas disponible pour la version en ligne de l'application", icon="ℹ️")
             if st.button(label="Fermer"):
-            st.rerun()
+                st.rerun()
 
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("ℹ️ Informations sur le restaurant", width="large")
