@@ -15,8 +15,10 @@ st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", l
 try:
     load_dotenv(find_dotenv())
     API_KEY = os.getenv("MISTRAL_API_KEY")
+    st.session_state['online_app'] = False
 except FileNotFoundError:
     API_KEY = st.secrets["MISTRAL_API_KEY"]
+    st.session_state['online_app'] = True
 
 # Initialisation du transistor
 transistor = Transistor()
@@ -36,18 +38,24 @@ def add_restaurant_dialog():
         if st.button(label="Fermer"):
             st.rerun()
     else:
-        # Filtrage sur les restaurants non scrappés
-        pipe = Pipeline()
-        restaurants = pipe.get_restaurants_non_scrapped()
-        restaurant_names = {r.nom : r for r in restaurants}
-        # Sélection du restaurant à ajouter
-        selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()), placeholder="Sélectionnez un restaurant", key="restaurant_select")
-    
-        # Scapping du restaurant sélectionné
-        if st.button(icon="➕", label="Ajouter le restaurant"):
-            restau = restaurant_names[selected_name]
-            st.info("L'obtention des informations du restaurant est en cours. Vous pouvez fermer cette fenêtre si vous le souhaitez, le processus se poursuivra en arrière-plan. Une notification vous sera envoyée dans le terminal une fois le restaurant ajouté, vous devrez alors rafraichir la page.", icon="ℹ️")
-            pipe.add_new_restaurant(restau)
+        # Si ce n'est pas la version en ligne
+        if st.session_state['online_app'] == False:
+            # Filtrage sur les restaurants non scrappés
+            pipe = Pipeline()
+            restaurants = pipe.get_restaurants_non_scrapped()
+            restaurant_names = {r.nom : r for r in restaurants}
+            # Sélection du restaurant à ajouter
+            selected_name = st.selectbox("Sélectionnez un restaurant", list(restaurant_names.keys()), placeholder="Sélectionnez un restaurant", key="restaurant_select")
+        
+            # Scapping du restaurant sélectionné
+            if st.button(icon="➕", label="Ajouter le restaurant"):
+                restau = restaurant_names[selected_name]
+                st.info("L'obtention des informations du restaurant est en cours. Vous pouvez fermer cette fenêtre si vous le souhaitez, le processus se poursuivra en arrière-plan. Une notification vous sera envoyée dans le terminal une fois le restaurant ajouté, vous devrez alors rafraichir la page.", icon="ℹ️")
+                pipe.add_new_restaurant(restau)
+        else:
+            st.info("Cette fonctionnalité n'est pas disponible pour la version en ligne de l'application", icon="ℹ️")
+            if st.button(label="Fermer"):
+            st.rerun()
 
 # Fonction pour afficher le popup d'informations sur un restaurant
 @st.dialog("ℹ️ Informations sur le restaurant", width="large")
