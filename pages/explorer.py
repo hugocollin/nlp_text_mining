@@ -4,6 +4,7 @@ import concurrent.futures
 import plotly.express as px
 import pandas as pd
 import os
+import platform
 from dotenv import find_dotenv, load_dotenv
 from src.pipeline import Transistor , Pipeline
 from pages.resources.components import Navbar, get_personal_address, display_stars, process_restaurant, add_to_comparator, filter_restaurants_by_radius, display_restaurant_infos, AugmentedRAG, instantiate_bdd, stream_text, get_datetime, construct_horaires, display_michelin_stars, tcl_api, get_price_symbol
@@ -15,10 +16,17 @@ st.set_page_config(page_title="SISE Ô Resto - Explorer", page_icon="🍽️", l
 try:
     load_dotenv(find_dotenv())
     API_KEY = os.getenv("MISTRAL_API_KEY")
-    st.session_state['online_app'] = False
 except FileNotFoundError:
     API_KEY = st.secrets["MISTRAL_API_KEY"]
-    st.session_state['online_app'] = True
+
+# Récupération du processeur de la machine
+platform.processor()
+if platform.processor() == "":
+    st.write(f"Processeur : vide")
+elif platform.processor() == None:
+    st.write(f"Processeur : None")
+else:
+    st.write(f"Processeur : {platform.processor()}")
 
 # Initialisation du transistor
 transistor = Transistor()
@@ -39,7 +47,7 @@ def add_restaurant_dialog():
             st.rerun()
     else:
         # Si ce n'est pas la version en ligne
-        if st.session_state['online_app'] == False:
+        if platform.processor() != "" and platform.processor() != None:
             # Filtrage sur les restaurants non scrappés
             pipe = Pipeline()
             restaurants = pipe.get_restaurants_non_scrapped()
